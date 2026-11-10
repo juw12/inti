@@ -1,7 +1,7 @@
 //! rogue: a hostile program.
 //!
 //! The shell starts it the way it starts any program: with one capability, the right to
-//! send text to the console. Mode 0 then tries 25 things through the system call interface
+//! send text to the console. Mode 0 then tries 27 things through the system call interface
 //! that such a program must not be able to do, and exits with `denied << 16 | attempts`.
 //! Modes 1 to 18 each try one thing directly on the hardware; the CPU must stop the task,
 //! and the shell reports how it ended.
@@ -24,7 +24,7 @@ const KERNEL: u32 = 0x10_0000;
 /// Free user address space for the mapping attempts.
 const SPARE: u32 = 0x6000_0000;
 /// How many attempts mode 0 makes.
-const SOFTWARE_ATTEMPTS: u32 = 25;
+const SOFTWARE_ATTEMPTS: u32 = 27;
 
 struct Tally {
     denied: u32,
@@ -226,6 +226,13 @@ fn software(quota: u32) -> ! {
     tally.attempt(
         "give a child a capability it does not hold",
         refusal(sys::spawn(&garbage, &gifted)),
+    );
+    tally.attempt("create an endpoint with no endpoint quota", refusal(sys::ep_create()));
+    let mut greedy = child;
+    greedy.tasks = 1;
+    tally.attempt(
+        "give a child more task quota than it has",
+        refusal(sys::spawn(&garbage, &greedy)),
     );
     let unknown = [nr::COUNT, nr::COUNT + 1, 100, 0x7FFF_FFFF, 0xFFFF_FFFF];
     tally.attempt(

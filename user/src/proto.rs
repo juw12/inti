@@ -68,6 +68,7 @@ pub mod mode {
     pub const RECV_ONCE: u32 = 24;
     pub const GRANDCHILD: u32 = 25;
     pub const ENDPOINTS: u32 = 26;
+    pub const AGENT: u32 = 27;
     pub const FUZZ: u32 = 30;
 }
 
@@ -80,7 +81,7 @@ pub const ECHO_STOP: u32 = 99;
 pub const FUZZ_REPORT: u32 = 0x4655_0001;
 /// The kernel's invariant checker reported a violation: `words[0]` = the rule.
 pub const FUZZ_VIOLATION: u32 = 0x4655_0002;
-/// A fuzz kid draws system call numbers below this; the last three do not exist.
+/// A fuzz kid draws system call numbers below this; the last two do not exist.
 pub const FUZZ_NUMBERS: usize = 24;
 /// A fuzz kid reports after this many system calls.
 pub const FUZZ_REPORT_EVERY: u32 = 512;

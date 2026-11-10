@@ -31,6 +31,10 @@ const SERVER_PAGES: u32 = 64;
 /// Pages `init` keeps for itself.
 const RESERVE_PAGES: u32 = 256;
 const STACK_PAGES: u32 = 8;
+/// The shell's share of the kernel's task and endpoint tables; its programs draw on it.
+/// `init` keeps the rest, so that it can always start a server again.
+const SHELL_TASKS: u32 = 26;
+const SHELL_ENDPOINTS: u32 = 48;
 /// Service number `n` reports its end with fault badge `FAULT_BADGE + n`.
 const FAULT_BADGE: u32 = 0x100;
 
@@ -48,6 +52,9 @@ const SERVICES: usize = 3;
 struct Service {
     name: &'static str,
     pages: u32,
+    /// How many tasks the service may start and how many endpoints it may create.
+    tasks: u32,
+    endpoints: u32,
     /// The capabilities the service starts with (slot numbers in `init`).
     caps: [u32; SPAWN_CAPS],
     /// Capability used to ping the service, or `NO_CAP` if it is not pinged.
@@ -71,6 +78,8 @@ impl Service {
         Service {
             name,
             pages,
+            tasks: 0,
+            endpoints: 0,
             caps,
             ping,
             task: NO_CAP,
@@ -82,6 +91,13 @@ impl Service {
             respawn_us: 0,
             quick_ends: 0,
         }
+    }
+
+    /// Let the service start `tasks` tasks of its own and create `endpoints` endpoints.
+    fn with_tables(mut self, tasks: u32, endpoints: u32) -> Service {
+        self.tasks = tasks;
+        self.endpoints = endpoints;
+        self
     }
 }
 
@@ -120,6 +136,8 @@ impl Supervisor {
         spawn.fault_ep = self.control;
         spawn.fault_badge = FAULT_BADGE + index as u32;
         spawn.caps = service.caps;
+        spawn.tasks = service.tasks;
+        spawn.endpoints = service.endpoints;
         spawn.args = [service.starts, self.root_starts, self.archive_pages, service.pages];
         match sys::spawn(image, &spawn) {
             Ok(task) => {
@@ -352,7 +370,8 @@ pub fn main() {
         services: [
             Service::new("console", SERVER_PAGES, &console_caps, console),
             Service::new("fs", SERVER_PAGES, &files_caps, files),
-            Service::new("shell", shell_pages, &shell_caps, NO_CAP),
+            Service::new("shell", shell_pages, &shell_caps, NO_CAP)
+                .with_tables(SHELL_TASKS, SHELL_ENDPOINTS),
         ],
     };
     supervisor.start_due();

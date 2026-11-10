@@ -136,21 +136,23 @@ impl Kernel {
             if task.fault_ep != NONE && task.state != State::Free {
                 *refs.get_mut(task.fault_ep as usize).ok_or(8u32)? += 1;
             }
+            let grant = if task.grant { R_GRANT } else { 0 };
             match task.state {
                 // Rule 10: a task blocked in `recv` is the registered waiter of its endpoint.
-                // Rule 20: a task waits on an endpoint only while a capability lets it.
+                // Rule 20: a task waits on an endpoint only while a capability lets it, and
+                // it may pass a capability along only while that capability has the grant right.
                 State::Recv(ep) => {
                     if self.eps.get(ep as usize).map(|endpoint| endpoint.waiter as usize) != Some(index) {
                         return Err(10);
                     }
-                    if !task.reaches(ep, R_RECV, None) {
+                    if !task.reaches(ep, R_RECV | grant, None) {
                         return Err(20);
                     }
                 }
                 // Rule 11: nothing queues on an endpoint that nobody can receive from, and
                 // an ended task queues only on its own fault endpoint.
                 State::Send(ep) if !receivable(ep) => return Err(11),
-                State::Send(ep) if !task.reaches(ep, R_SEND, Some(task.send_badge)) => return Err(20),
+                State::Send(ep) if !task.reaches(ep, R_SEND | grant, Some(task.send_badge)) => return Err(20),
                 State::Zombie(ep) if ep != task.fault_ep || !receivable(ep) => return Err(11),
                 // Rule 21: an ended task that waits to be noticed is charged to a living one.
                 State::Zombie(_) if !alive(task.parent) => return Err(21),

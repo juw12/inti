@@ -2,14 +2,17 @@
 
 use crate::proto::{BUSY, CON_READLINE, CON_WRITE, FS_LIST, FS_READ, FS_STAT, OK};
 use crate::sys;
-use abi::{Msg, ARCHIVE_NAME, E_DEAD, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE};
+use abi::{Msg, ARCHIVE_NAME, E_DEAD, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE, ST_ZOMBIE};
 
-/// The number of the first live task called `name`, read through an Info capability. The
-/// test programs use it to look up their own entry in the task table.
+/// The number of the first running task called `name`, read through an Info capability. The
+/// test programs use it to look up their own entry in the task table; an ended task that
+/// still waits to be noticed keeps its name, so it is skipped.
 pub fn task_named(info: u32, name: &[u8]) -> Option<u32> {
     (0..MAX_TASKS as u32).find(|&index| {
         sys::task_info(info, index)
-            .is_ok_and(|task| task.state != ST_FREE && crate::io::name(&task.name) == name)
+            .is_ok_and(|task| {
+                !matches!(task.state, ST_FREE | ST_ZOMBIE) && crate::io::name(&task.name) == name
+            })
     })
 }
 

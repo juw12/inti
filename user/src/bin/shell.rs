@@ -9,8 +9,8 @@
 
 use rt::abi::{CapInfo, Msg, SpawnArgs, CAP_ENDPOINT, CAP_INFO, CAP_IOPORT, CAP_IRQ, CAP_LOG};
 use rt::abi::{CAP_MEMORY, CAP_SLOTS, CAP_TASK, CAUSE_EXIT, CAUSE_KILLED, E_DEAD, FOREVER, L_FAULT};
-use rt::abi::{MAX_TASKS, MSG_DATA, NO_TASK, ST_FREE, ST_READY, ST_RECV, ST_REPLY, ST_SEND};
-use rt::abi::{ST_SLEEP, ST_ZOMBIE, USER_BASE};
+use rt::abi::{MAX_TASKS, MSG_DATA, NO_CAP, NO_TASK, ST_FREE, ST_READY, ST_RECV, ST_REPLY};
+use rt::abi::{ST_SEND, ST_SLEEP, ST_ZOMBIE, USER_BASE};
 use rt::io::{cause_name, errname, name, set_output, Emit, Hex, Line, Num, Pad, Sink};
 use rt::proto::{CON_INTR, DBG_CRASH, DBG_HANG, INIT_SHUTDOWN, INIT_STATUS, OK, PING};
 use rt::proto::{ROGUE_HW_MODES, ROGUE_ONLY_IN_ALL, SERVICE_RECORD};
@@ -65,6 +65,20 @@ impl Emit for Lines {
                 first = false;
                 irq.emit(line);
             }
+        }
+    }
+}
+
+/// Where a capability was copied from, as "  <- task 3 slot 6"; nothing for an original.
+struct Origin(u32);
+
+impl Emit for Origin {
+    fn emit(&self, line: &mut Line) {
+        if self.0 != NO_CAP {
+            line.push(b"  <- task ");
+            (self.0 >> 8).emit(line);
+            line.push(b" slot ");
+            (self.0 & 0xFF).emit(line);
         }
     }
 }
@@ -203,20 +217,21 @@ fn rights_name(rights: u32) -> &'static str {
 }
 
 fn describe(slot: u32, cap: &CapInfo) {
-    let slot = Num(slot, 4);
+    let (slot, from) = (Num(slot, 4), Origin(cap.from));
     match cap.kind {
         CAP_ENDPOINT => {
-            outln!(slot, "  endpoint ", cap.a, ": ", rights_name(cap.b), ", badge ", cap.c)
+            let rights = rights_name(cap.b);
+            outln!(slot, "  endpoint ", cap.a, ": ", rights, ", badge ", cap.c, from)
         }
-        CAP_IOPORT => outln!(slot, "  I/O ports ", Hex(cap.a), " to ", Hex(cap.b)),
-        CAP_IRQ => outln!(slot, "  interrupt lines ", Lines(cap.a)),
+        CAP_IOPORT => outln!(slot, "  I/O ports ", Hex(cap.a), " to ", Hex(cap.b), from),
+        CAP_IRQ => outln!(slot, "  interrupt lines ", Lines(cap.a), from),
         CAP_MEMORY => {
             let access = if cap.c != 0 { "read and write" } else { "read only" };
-            outln!(slot, "  memory at ", Hex(cap.a), ", ", cap.b, " pages, ", access)
+            outln!(slot, "  memory at ", Hex(cap.a), ", ", cap.b, " pages, ", access, from)
         }
-        CAP_TASK => outln!(slot, "  task ", cap.a, " (may end it)"),
-        CAP_LOG => outln!(slot, "  kernel log (write)"),
-        CAP_INFO => outln!(slot, "  kernel statistics (read)"),
+        CAP_TASK => outln!(slot, "  task ", cap.a, " (may end it)", from),
+        CAP_LOG => outln!(slot, "  kernel log (write)", from),
+        CAP_INFO => outln!(slot, "  kernel statistics (read)", from),
         _ => {}
     }
 }
@@ -230,11 +245,18 @@ fn capabilities(word: &[u8]) {
         return outln!("caps: there is no task ", index);
     }
     outln!("Task ", index, " (", name(&task.name), ") holds ", task.caps, " capabilities:");
+    let mut copies = false;
     for slot in 0..CAP_SLOTS as u32 {
         if let Ok(cap) = sys::cap_info(INFO, index, slot) {
             describe(slot, &cap);
+            copies |= cap.from != NO_CAP;
         }
     }
+    if copies {
+        outln!("An arrow marks a copy: revoking the capability it names takes the copy away.");
+    }
+    let (tasks, endpoints) = (task.tasks, task.endpoints);
+    outln!("It may start ", tasks, " more tasks and create ", endpoints, " more endpoints.");
 }
 
 fn invariants() {
@@ -352,6 +374,8 @@ struct Shell {
     notices: u32,
     launches: u32,
     quota: u32,
+    /// The shell's own number in the task table, where its unused quotas can be read.
+    me: u32,
 }
 
 impl Shell {
@@ -378,6 +402,16 @@ impl Shell {
         if tester {
             let extra = [APP_FILES, INFO, TEST_PORT, TEST_MEMORY, TEST_IRQ, TEST_LOG];
             spawn.caps[1..7].copy_from_slice(&extra);
+            // One test program runs at a time. It gets every task and endpoint the shell may
+            // still make; the kernel hands them back to the shell when the program ends.
+            if let Ok(left) = sys::task_info(INFO, self.me) {
+                spawn.tasks = left.tasks.saturating_sub(1);
+                spawn.endpoints = left.endpoints;
+            }
+        } else if program == b"rogue" {
+            // Room for one task, so that the kernel judges the hostile program's attempts to
+            // start one by what they ask for and not by an empty quota.
+            spawn.tasks = 1;
         }
         self.launches += 1;
         let badge = self.launches;
@@ -491,12 +525,16 @@ pub fn main() {
         outln!("shell: cannot create an endpoint");
         sys::exit(1)
     };
+    let Some(me) = client::task_named(INFO, b"shell") else {
+        outln!("shell: cannot find itself in the task table");
+        sys::exit(1)
+    };
     if restarts > 0 {
         outln!("[shell restarted]");
     }
     outln!("Inti ", env!("CARGO_PKG_VERSION"), " shell ready at t=", sys::time(), " us");
     outln!("Type help for the list of commands.");
-    let mut shell = Shell { notices, launches: 0, quota };
+    let mut shell = Shell { notices, launches: 0, quota, me };
     let mut line = [0; 120];
     loop {
         let len = client::readline(CONSOLE, b"inti> ", &mut line);

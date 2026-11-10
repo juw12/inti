@@ -3,8 +3,8 @@
 //! `fuzz N [seed]` keeps four kids running (`tchild` in fuzz mode) until they have made at
 //! least N system calls with random or almost-right arguments. A kid that ends itself,
 //! faults or gets stuck is replaced by a new one. While they run, the fuzzer asks the
-//! kernel to check its own invariants, and at the end it checks that no task, endpoint or
-//! page frame went missing. The last line is `FUZZ: PASS` or `FUZZ: FAIL`.
+//! kernel to check its own invariants, and at the end it checks that no task, endpoint,
+//! page frame or quota went missing. The last line is `FUZZ: PASS` or `FUZZ: FAIL`.
 //!
 //! The count is a lower bound. It is the kernel's own count of each kid's system calls,
 //! less the calls a kid makes to set itself up and to report. Calls made by the kids'
@@ -13,7 +13,9 @@
 //! Capabilities, handed over by the shell: 0 console, 1 files, 2 Info, 3 I/O port 0x80,
 //! 4 the archive (read-only memory), 5 IRQ 5, 6 Log. A kid gets a send-only capability to
 //! the fuzzer and copies of 2 to 5. It gets no Log capability, so that it cannot bury the
-//! kernel log in noise.
+//! kernel log in noise. It also gets a share of the fuzzer's quota of tasks and endpoints,
+//! so that it can start children and create endpoints of its own. Its capability to the
+//! fuzzer carries no grant right, so no capability of a kid can reach the fuzzer.
 #![no_std]
 #![no_main]
 
@@ -41,6 +43,9 @@ const PLACES: usize = 4;
 /// Memory quota and stack of a kid, in pages.
 const KID_PAGES: u32 = 128;
 const KID_STACK: u32 = 4;
+/// How many tasks a kid may start and how many endpoints it may create.
+const KID_TASKS: u32 = 5;
+const KID_ENDPOINTS: u32 = 8;
 /// The badge on every kid's capability to the fuzzer.
 const KID_BADGE: u32 = 1;
 /// A kid is ended when it is this old,
@@ -59,7 +64,7 @@ const STALL_US: u64 = 10_000_000;
 const SETTLE_US: u64 = 2_000_000;
 
 /// The system calls by number. Numbers that do not exist share the last entry.
-const NAMES: [&str; 22] = [
+const NAMES: [&str; 23] = [
     "yield",
     "exit",
     "call",
@@ -81,18 +86,22 @@ const NAMES: [&str; 22] = [
     "time",
     "log",
     "sysinfo",
+    "cap_revoke",
     "no such call",
 ];
 const _: () = assert!(nr::COUNT as usize + 1 == NAMES.len());
 const _: () = assert!(proto::FUZZ_NUMBERS >= NAMES.len());
 
-/// What must be the same before and after: tasks, endpoints, and page frames (the free
-/// ones plus the ones this program holds itself).
+/// What must be the same before and after: tasks, endpoints, page frames (the free ones
+/// plus the ones this program holds itself), and this program's own quota of tasks and
+/// endpoints, which the kids borrow from.
 #[derive(Clone, Copy, PartialEq)]
 struct Usage {
     tasks: u32,
     endpoints: u32,
     frames: u32,
+    task_quota: u32,
+    endpoint_quota: u32,
 }
 
 fn stats() -> KStats {
@@ -106,6 +115,8 @@ fn usage(me: u32) -> Usage {
         tasks: now.tasks,
         endpoints: now.endpoints,
         frames: now.free_frames + own.charged,
+        task_quota: own.tasks,
+        endpoint_quota: own.endpoints,
     }
 }
 
@@ -194,8 +205,9 @@ impl Fuzzer {
         })
     }
 
-    /// Starts a kid in every empty place. A place that cannot be filled now, because the
-    /// kids' children hold every task slot, is tried again on the next round.
+    /// Starts a kid in every empty place, each with a share of this program's quota of
+    /// tasks and endpoints. A place that cannot be filled now is tried again on the next
+    /// round.
     fn fill(&mut self) {
         for at in 0..PLACES {
             if self.places[at].is_some() {
@@ -205,6 +217,8 @@ impl Fuzzer {
             let mut spawn = SpawnArgs::new(b"fuzz-kid", KID_PAGES, KID_STACK);
             spawn.fault_ep = self.inbox;
             spawn.fault_badge = self.launches;
+            spawn.tasks = KID_TASKS;
+            spawn.endpoints = KID_ENDPOINTS;
             spawn.caps[..5].copy_from_slice(&[self.kid_cap, INFO, PORT, ARCHIVE, IRQ]);
             spawn.args = [mode::FUZZ, kid_seed(self.seed, self.launches), self.archive_pages, 0];
             let Ok(task) = sys::spawn(self.image.bytes(), &spawn) else {
@@ -405,7 +419,9 @@ impl Fuzzer {
         let anomalies = stats().anomalies;
         let leaks = u32::from(after.tasks != before.tasks)
             + u32::from(after.endpoints != before.endpoints)
-            + u32::from(after.frames != before.frames);
+            + u32::from(after.frames != before.frames)
+            + u32::from(after.task_quota != before.task_quota)
+            + u32::from(after.endpoint_quota != before.endpoint_quota);
         let unstoppable = self.places.iter().flatten().count();
 
         if stalled {
@@ -447,6 +463,8 @@ impl Fuzzer {
             outln!("FUZZ: tasks ", before.tasks, " -> ", after.tasks);
             outln!("FUZZ: endpoints ", before.endpoints, " -> ", after.endpoints);
             outln!("FUZZ: page frames ", before.frames, " -> ", after.frames);
+            outln!("FUZZ: task quota ", before.task_quota, " -> ", after.task_quota);
+            outln!("FUZZ: endpoint quota ", before.endpoint_quota, " -> ", after.endpoint_quota);
         }
         if unstoppable != 0 {
             outln!("FUZZ: ", unstoppable, " tasks did not end when they were stopped");

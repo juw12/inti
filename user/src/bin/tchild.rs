@@ -9,7 +9,9 @@
 use core::arch::asm;
 use core::slice;
 
-use rt::abi::{archive, nr, Msg, SpawnArgs, FOREVER, INFO_CHECK, PAGE, STACK_TOP, USER_BASE, USER_END};
+use rt::abi::{
+    archive, nr, Msg, SpawnArgs, FOREVER, INFO_CHECK, NO_CAP, PAGE, STACK_TOP, USER_BASE, USER_END,
+};
 use rt::proto::{self, mode};
 use rt::sys;
 
@@ -23,8 +25,6 @@ const READ_ONLY: u32 = 0x6010_0000;
 /// 64 pages that a fuzz kid maps and unmaps at random.
 const PLAY: u32 = 0x6100_0000;
 const PLAY_PAGES: u32 = 64;
-/// A capability slot that a fuzz kid uses as "my endpoint" when the endpoint table is full.
-const NO_ENDPOINT: u32 = 31;
 
 #[no_mangle]
 pub fn main() {
@@ -49,6 +49,7 @@ pub fn main() {
         }
         mode::GRANDCHILD => grandchild(a),
         mode::ENDPOINTS => endpoints(),
+        mode::AGENT => agent(),
         mode::FUZZ => fuzz(a, b),
         _ => sys::exit(0xBAD0),
     }
@@ -171,6 +172,34 @@ fn endpoints() -> ! {
     }
 }
 
+/// Does what its parent asks. Each request is one system call: the label is its number and
+/// the words are its arguments. The reply carries `[result, second result, slot, error]`,
+/// where `slot` is where the capability that came with the request landed. Four bytes of
+/// data name a slot of the agent whose capability the reply should carry back; if the
+/// kernel refuses that, the agent answers without it and `error` says why.
+fn agent() -> ! {
+    let mut msg = Msg::new(0);
+    loop {
+        if let Err(code) = sys::recv(0, &mut msg, FOREVER) {
+            sys::exit(0xE000_0000 | code.unsigned_abs());
+        }
+        let [a, b, c, d] = msg.words;
+        // SAFETY: the parent, a test program, chooses the call. Whatever it does to this
+        // task is the experiment, and the kernel must keep every other task safe.
+        let (result, second) = unsafe { sys::raw(msg.label, a, b, c, d) };
+        let mut answer = Msg::new(0);
+        answer.words = [result as u32, second, msg.cap, 0];
+        if msg.len == 4 {
+            answer.cap = u32::from_le_bytes([msg.data[0], msg.data[1], msg.data[2], msg.data[3]]);
+        }
+        if let Err(code) = sys::reply(msg.token, &answer) {
+            answer.cap = NO_CAP;
+            answer.words[3] = code.unsigned_abs();
+            let _ = sys::reply(msg.token, &answer);
+        }
+    }
+}
+
 /// xorshift32: small, fast and good enough to pick system call arguments.
 struct Rng(u32);
 
@@ -190,12 +219,12 @@ impl Rng {
 }
 
 /// Memory on the kid's stack that system calls may write to. A message is the largest thing
-/// the kernel writes (288 bytes), so a write that starts at `spawn` ends inside `slack`.
+/// the kernel writes, so a write that starts at `spawn` ends inside `slack`.
 #[repr(C)]
 struct Buffers {
     msg: Msg,
     spawn: SpawnArgs,
-    slack: [u8; 288],
+    slack: [u8; core::mem::size_of::<Msg>()],
 }
 
 /// Values that tend to sit on the edge of what the kernel accepts.
@@ -301,11 +330,24 @@ impl Kid {
         }
     }
 
-    /// Fills `Buffers::spawn` with arguments for a child that would really start.
+    /// Decides what the message in `Buffers::msg` carries: mostly no capability, sometimes
+    /// one of the kid's first eight.
+    fn attach(&mut self) {
+        let cap = if self.rng.below(4) == 0 { self.rng.below(8) } else { NO_CAP };
+        let field = self.msg + core::mem::offset_of!(Msg, cap) as u32;
+        // SAFETY: `self.msg` is the address of `Buffers::msg` on this task's stack, `cap` is
+        // a 32-bit field of it, and the buffer is only reached through this address.
+        unsafe { (field as *mut u32).write_volatile(cap) };
+    }
+
+    /// Fills `Buffers::spawn` with arguments for a child that would really start, and that
+    /// asks for some of the kid's quota of tasks and endpoints.
     fn refresh_spawn(&mut self) {
         let quota = 8 + self.rng.below(17);
         let stack_pages = 1 + self.rng.below(3);
         let mut spawn = SpawnArgs::new(b"fuzz-child", quota, stack_pages);
+        spawn.tasks = self.rng.below(3);
+        spawn.endpoints = self.rng.below(3);
         let what = CHILD_MODES[self.rng.below(CHILD_MODES.len() as u32) as usize];
         spawn.args = [what, self.rng.below(8), self.rng.below(8), 0];
         if self.rng.below(2) == 0 {
@@ -326,12 +368,17 @@ impl Kid {
         let small = self.rng.below(8);
         match number {
             nr::CALL => {
+                self.attach();
                 let slot = if self.rng.below(16) == 0 { self.own } else { 0 };
                 [slot, self.msg, 0, 0]
             }
             nr::RECV => [self.own, self.msg, 0, 0],
-            nr::REPLY => [self.token, self.msg, 0, 0],
+            nr::REPLY => {
+                self.attach();
+                [self.token, self.msg, 0, 0]
+            }
             nr::CAP_DERIVE => [small, 1 + self.rng.below(7), self.rng.below(3), 0],
+            nr::CAP_REVOKE => [small, 0, 0, 0],
             nr::CAP_DROP | nr::TASK_KILL => [1 + self.rng.below(31), 0, 0, 0],
             nr::MAP => [self.play_page(), 1 + small, small & 1, 0],
             nr::UNMAP => [self.play_page(), 1 + small, 0, 0],
@@ -436,12 +483,13 @@ fn fuzz(seed: u32, archive_pages: u32) -> ! {
     let Some(image) = archive::find(archive, b"tchild") else {
         sys::exit(0xF2);
     };
-    // When other kids hold every endpoint, carry on without one rather than end at once.
-    let own = sys::ep_create().unwrap_or(NO_ENDPOINT);
+    let Ok(own) = sys::ep_create() else {
+        sys::exit(0xF3);
+    };
     let mut buffers = Buffers {
         msg: Msg::new(0),
         spawn: SpawnArgs::new(b"fuzz-child", 8, 1),
-        slack: [0; 288],
+        slack: [0; core::mem::size_of::<Msg>()],
     };
     let mut kid = Kid {
         rng: Rng(seed | 1),

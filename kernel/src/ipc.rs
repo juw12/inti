@@ -135,7 +135,8 @@ impl Kernel {
     }
 
     /// Copy a message into the buffer that the blocked task `t` passed to `call` or `recv`.
-    /// The buffer was checked then and a blocked task cannot change its memory map.
+    /// The buffer was checked then. It lies in the task's own writable memory, which only the
+    /// task itself can unmap; a revocation takes away mapped device memory and nothing else.
     fn write_msg(&mut self, t: usize, message: &[u8]) {
         let (pd, ptr) = (self.tasks[t].pd, self.tasks[t].msg_ptr);
         if self.mem.copy_out(pd, ptr, message).is_err() {
@@ -181,7 +182,8 @@ impl Kernel {
             }
             let mut buffer = [0; MSG_SIZE as usize];
             let Ok(len) = self.read_msg(sender, task.msg_ptr, &mut buffer) else {
-                // Checked when the call was made, so this cannot happen. Fail the call.
+                // Checked when the call was made, and only the caller can unmap its own
+                // memory, so this cannot happen. Fail the call.
                 self.stats.anomalies += 1;
                 self.wake(sender, E_FAULT);
                 continue;

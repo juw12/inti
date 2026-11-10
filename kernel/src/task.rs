@@ -10,8 +10,8 @@ use crate::mem::{page_up, Mem};
 use abi::{
     CAP_ENDPOINT, CAP_INFO, CAP_IOPORT, CAP_IRQ, CAP_LOG, CAP_MEMORY, CAP_NULL, CAP_SLOTS,
     CAP_TASK, CAUSE_PARENT_DIED, E_DEAD, E_NOCAP, E_NOSLOT, E_TIMEOUT, FOREVER, MAX_ENDPOINTS,
-    MAX_TASKS, NO_TASK, PAGE, R_RECV, R_SEND, STACK_TOP, ST_FREE, ST_READY, ST_RECV, ST_REPLY,
-    ST_SEND, ST_SLEEP, ST_ZOMBIE,
+    MAX_TASKS, NO_TASK, PAGE, R_GRANT, R_RECV, R_SEND, STACK_TOP, ST_FREE, ST_READY, ST_RECV,
+    ST_REPLY, ST_SEND, ST_SLEEP, ST_ZOMBIE,
 };
 
 /// "No task" / "no endpoint" in the one-byte links between kernel objects.
@@ -176,11 +176,12 @@ impl Tcb {
         !matches!(self.state, State::Free | State::Zombie(_))
     }
 
-    /// Does it hold a capability for endpoint `ep` with `right` and, if asked, `badge`?
-    pub fn reaches(&self, ep: u8, right: u32, badge: Option<u32>) -> bool {
+    /// Does it hold one capability for endpoint `ep` that carries every right in `rights`
+    /// and, if asked, `badge`?
+    pub fn reaches(&self, ep: u8, rights: u32, badge: Option<u32>) -> bool {
         self.caps.iter().any(|cap| match *cap {
-            Cap::Endpoint { ep: to, rights, badge: stamp } => {
-                to == ep && rights as u32 & right != 0 && badge.is_none_or(|wanted| wanted == stamp)
+            Cap::Endpoint { ep: to, rights: held, badge: stamp } => {
+                to == ep && held as u32 & rights == rights && badge.is_none_or(|wanted| wanted == stamp)
             }
             _ => false,
         })
@@ -497,17 +498,22 @@ impl Kernel {
     /// through that capability goes too: its place in an endpoint's queue, an interrupt
     /// line, mapped device memory.
     pub fn release(&mut self, t: usize, cap: Cap) {
-        match (cap, self.tasks[t].state) {
+        let task = self.tasks[t];
+        match (cap, task.state) {
             (Cap::Endpoint { ep, .. }, State::Recv(on)) if on == ep => {
-                if !self.tasks[t].reaches(ep, R_RECV, None) {
+                if !task.reaches(ep, R_RECV, None) {
                     self.eps[ep as usize].waiter = NONE;
                     self.wake(t, E_NOCAP);
                 }
+                // A waiting task takes capabilities along only while it holds the grant right.
+                self.tasks[t].grant &= task.reaches(ep, R_RECV | R_GRANT, None);
             }
             (Cap::Endpoint { ep, .. }, State::Send(on)) if on == ep => {
-                if !self.tasks[t].reaches(ep, R_SEND, Some(self.tasks[t].send_badge)) {
+                let badge = Some(task.send_badge);
+                if !task.reaches(ep, R_SEND, badge) {
                     self.wake(t, E_NOCAP);
                 }
+                self.tasks[t].grant &= task.reaches(ep, R_SEND | R_GRANT, badge);
             }
             (Cap::Memory { .. }, _) => self.unmap_unbacked(t),
             _ => {}
