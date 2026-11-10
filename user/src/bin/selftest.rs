@@ -15,7 +15,7 @@ use rt::abi::{
     nr, CapInfo, KStats, Msg, SpawnArgs, TaskInfo, ARCHIVE_MAGIC, CAP_ENDPOINT, CAP_IOPORT,
     CAP_NULL, CAP_SLOTS, CAUSE_EXIT, CAUSE_KILLED, E_BUSY, E_DEAD, E_FAULT, E_INVAL, E_NOCAP,
     E_NOMEM, E_NOSLOT, E_NOSYS, E_PERM, E_TIMEOUT, INFO_CAP, INFO_STATS, INFO_TASK, L_FAULT,
-    L_IRQ, L_KERNEL, MAX_ENDPOINTS, MAX_TASKS, MSG_DATA, NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND,
+    L_IRQ, L_KERNEL, MAX_TASKS, MSG_DATA, NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND,
     ST_FREE, ST_RECV, ST_SEND, USER_BASE, USER_END,
 };
 use rt::client::{self, Mapping};
@@ -44,6 +44,8 @@ const MEMORY: u32 = 0x6200_0000;
 const UNMAPPED: u32 = 0x6800_0000;
 const ARCHIVE_AT: u32 = 0x7000_0000;
 const QUOTA_AT: u32 = 0x8000_0000;
+/// An address in a child's address space that the child program itself never uses.
+const CHILD_SPARE: u32 = 0x7800_0000;
 /// The kernel is loaded at 1 MiB; the text screen is at 0xB8000.
 const KERNEL: u32 = 0x10_0000;
 const VIDEO: u32 = 0xB_8000;
@@ -56,6 +58,8 @@ const PAGE_FAULT: u32 = 14;
 const PROTECTION_FAULT: u32 = 13;
 /// The keyboard controller's command port; writing 0xFE to it resets the machine.
 const RESET_PORT: u32 = 0x64;
+/// The exit code of a child whose capability in slot 0 was taken away while it waited.
+const GONE: u32 = 0xE000_0000 | E_NOCAP.unsigned_abs();
 
 /// The running score.
 struct Test {
@@ -89,13 +93,16 @@ struct End {
     eip: u32,
 }
 
-/// What must be the same before and after a group of checks: tasks, endpoints, and page
-/// frames (the free ones plus the ones this program holds itself).
+/// What must be the same before and after a group of checks: tasks, endpoints, page
+/// frames (the free ones plus the ones this program holds itself), and what is left of
+/// this program's quotas of tasks and endpoints.
 #[derive(Clone, Copy)]
 struct Usage {
     tasks: u32,
     endpoints: u32,
     frames: u32,
+    task_quota: u32,
+    endpoint_quota: u32,
 }
 
 /// One check in the making. Every expectation that fails is printed and remembered.
@@ -162,6 +169,8 @@ impl Check {
         self.eq("tasks", now.tasks, before.tasks);
         self.eq("endpoints", now.endpoints, before.endpoints);
         self.eq("page frames", now.frames, before.frames);
+        self.eq("quota of tasks", now.task_quota, before.task_quota);
+        self.eq("quota of endpoints", now.endpoint_quota, before.endpoint_quota);
     }
 }
 
@@ -194,11 +203,13 @@ fn cap(task: u32, slot: u32) -> CapInfo {
 }
 
 fn usage(me: u32) -> Usage {
-    let now = stats();
+    let (now, mine) = (stats(), task(me));
     Usage {
         tasks: now.tasks,
         endpoints: now.endpoints,
-        frames: now.free_frames + task(me).charged,
+        frames: now.free_frames + mine.charged,
+        task_quota: mine.tasks,
+        endpoint_quota: mine.endpoints,
     }
 }
 
@@ -220,6 +231,24 @@ fn wait_until(mut condition: impl FnMut() -> bool) -> bool {
         }
         sys::sleep(1);
     }
+}
+
+/// Fills this program's capability table with copies of its console capability. Returns
+/// the copies, how many there are, and the error that ended the filling.
+fn fill_table() -> ([u32; CAP_SLOTS], usize, i32) {
+    let mut copies = [NO_CAP; CAP_SLOTS];
+    let mut count = 0;
+    let error = loop {
+        match sys::cap_derive(CONSOLE, R_SEND, 0, 0) {
+            Ok(slot) if count < CAP_SLOTS => {
+                copies[count] = slot;
+                count += 1;
+            }
+            Ok(_) => break 0,
+            Err(error) => break error,
+        }
+    };
+    (copies, count, error)
 }
 
 /// A byte pattern that differs from zero and from its neighbours.
@@ -301,6 +330,8 @@ struct Kids {
     /// The endpoint on which the kernel reports the end of every child.
     notices: u32,
     launches: u32,
+    /// The quotas of tasks and endpoints that the next child is lent.
+    lent: (u32, u32),
     /// This program's own number in the task table.
     me: u32,
     /// Ends that arrived while waiting for another child's.
@@ -317,10 +348,16 @@ impl Kids {
             image,
             notices,
             launches: 0,
+            lent: (0, 0),
             me,
             ended: [End { badge: 0, cause: 0, detail: 0, eip: 0 }; 32],
             count: 0,
         })
+    }
+
+    /// Lends the child that is started next a share of this program's quotas.
+    fn lend(&mut self, tasks: u32, endpoints: u32) {
+        self.lent = (tasks, endpoints);
     }
 
     /// Arguments for a child whose end is reported under a badge of its own.
@@ -329,6 +366,7 @@ impl Kids {
         let mut spawn = SpawnArgs::new(b"tchild", quota, stack);
         spawn.fault_ep = self.notices;
         spawn.fault_badge = self.launches;
+        (spawn.tasks, spawn.endpoints) = core::mem::take(&mut self.lent);
         spawn.args = [what, a, b, 0];
         spawn.caps[..caps.len()].copy_from_slice(caps);
         spawn
@@ -425,6 +463,84 @@ impl Kids {
             }
             Err(error) => c.code(what, error, want),
         }
+    }
+}
+
+/// Asks the agent behind `via` to make system call `number` with `args`. The request takes
+/// the capability in this program's slot `slot` along.
+fn ask(via: u32, number: u32, args: [u32; 4], slot: u32) -> Result<Msg, i32> {
+    let mut msg = Msg::new(number);
+    msg.words = args;
+    msg.cap = slot;
+    sys::call(via, &mut msg, 2000)?;
+    Ok(msg)
+}
+
+/// Asks the agent behind `via` for the capability in its slot `slot`. `cap` of the answer
+/// is the slot of this program that the copy went to. If the kernel refused to hand it
+/// over, `cap` is `NO_CAP` and `words[3]` holds the error.
+fn fetch(via: u32, slot: u32) -> Result<Msg, i32> {
+    let mut msg = Msg::new(nr::YIELD);
+    msg.len = 4;
+    msg.data[..4].copy_from_slice(&slot.to_le_bytes());
+    sys::call(via, &mut msg, 2000)?;
+    Ok(msg)
+}
+
+/// A child that makes the system calls it is asked to make, so that a check can see what
+/// another task may and may not do.
+struct Agent {
+    kid: Kid,
+    /// This program's capability for the endpoint on which the agent takes requests.
+    ep: u32,
+    /// The agent's number in the task table.
+    index: u32,
+}
+
+impl Agent {
+    /// Starts an agent behind a new endpoint. Its slot 0 holds the endpoint with `rights`,
+    /// and its slots from 1 on hold copies of `caps`.
+    fn start(kids: &mut Kids, rights: u32, caps: &[u32]) -> Option<Agent> {
+        let ep = sys::ep_create().ok()?;
+        let agent = sys::cap_derive(ep, rights, 0, 0).ok().and_then(|door| {
+            let agent = Agent::behind(kids, ep, door, caps);
+            // From here on the agent's capability counts as a copy of `ep`.
+            let _ = sys::cap_drop(door);
+            agent
+        });
+        if agent.is_none() {
+            let _ = sys::cap_drop(ep);
+        }
+        agent
+    }
+
+    /// Starts an agent whose slot 0 holds a copy of `door`, a capability for the endpoint
+    /// of `ep`. The caller keeps both.
+    fn behind(kids: &mut Kids, ep: u32, door: u32, caps: &[u32]) -> Option<Agent> {
+        let mut handed = [NO_CAP; 4];
+        handed[0] = door;
+        handed[1..=caps.len()].copy_from_slice(caps);
+        let kid = kids.start(mode::AGENT, 0, 0, &handed[..=caps.len()])?;
+        Some(Agent { kid, ep, index: kids.index_of(kid) })
+    }
+
+    /// The result of one system call that the agent makes. If the agent cannot be asked,
+    /// that is reported and the result is `i32::MIN`, which no check expects.
+    fn does(&self, number: u32, args: [u32; 4]) -> i32 {
+        match ask(self.ep, number, args, NO_CAP) {
+            Ok(answer) => answer.words[0] as i32,
+            Err(error) => {
+                outln!("       the agent could not be asked: error ", error);
+                i32::MIN
+            }
+        }
+    }
+
+    /// Ends the agent and gives up its endpoint.
+    fn stop(self, kids: &mut Kids) -> Option<End> {
+        let end = kids.kill(self.kid);
+        let _ = sys::cap_drop(self.ep);
+        end
     }
 }
 
@@ -862,6 +978,173 @@ fn ipc(test: &mut Test, kids: &mut Kids) -> Option<()> {
     Some(())
 }
 
+/// Revoking a capability takes back every copy that was made of it, in whatever task, and
+/// with the copies what their holders did through them.
+fn revocation(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    let me = kids.me;
+
+    let mut c = Check::new();
+    let first = sys::cap_derive(PORT, 0x80, 0x80, 0).ok()?;
+    let second = sys::cap_derive(first, 0x80, 0x80, 0).ok()?;
+    let third = sys::cap_derive(second, 0x80, 0x80, 0).ok()?;
+    let bystander = sys::cap_derive(IRQ, 1 << 5, 0, 0).ok()?;
+    c.eq("source of the first copy", cap(me, first).from, me << 8 | PORT);
+    c.eq("source of the third copy", cap(me, third).from, me << 8 | second);
+    c.works("dropping the second copy", sys::cap_drop(second));
+    c.eq("source of the third copy after that", cap(me, third).from, me << 8 | first);
+    c.works("revoking the first copy", sys::cap_revoke(first));
+    c.works("reading the port through the first copy", sys::io_in(first, 0x80, 1));
+    c.fails("reading it through the third copy", sys::io_in(third, 0x80, 1), E_NOCAP);
+    c.works("revoking the capability itself", sys::cap_revoke(PORT));
+    c.fails("reading the port through the first copy after that", sys::io_in(first, 0x80, 1), E_NOCAP);
+    c.works("reading it through the capability itself", sys::io_in(PORT, 0x80, 1));
+    c.works("revoking it with no copy left", sys::cap_revoke(PORT));
+    c.works("dropping a copy of another capability", sys::cap_drop(bystander));
+    c.fails("revoking an empty slot", sys::cap_revoke(EMPTY), E_NOCAP);
+    c.fails("revoking slot 1000000", sys::cap_revoke(1_000_000), E_NOCAP);
+    test.done("revoking a capability takes back its copies and theirs, and nothing else", c);
+
+    let mut c = Check::new();
+    let page = sys::cap_derive(ARCHIVE, 0, 1, 0).ok()?;
+    let agent = Agent::start(kids, R_RECV, &[PORT, page])?;
+    c.code("the agent maps the page", agent.does(nr::MAP_MEM, [2, CHILD_SPARE, 0, 1]), 0);
+    c.code("memory of its own in the same place", agent.does(nr::MAP, [CHILD_SPARE, 1, 0, 0]), E_BUSY);
+    c.works("revoking the page", sys::cap_revoke(page));
+    c.eq("the agent's slot for the page", cap(agent.index, 2).kind, CAP_NULL);
+    c.code("memory of its own in the same place afterwards", agent.does(nr::MAP, [CHILD_SPARE, 1, 0, 0]), 0);
+    c.code("the agent reads the port", agent.does(nr::IO_IN, [1, 0x80, 1, 0]), 0);
+    c.works("revoking the port", sys::cap_revoke(PORT));
+    c.code("the agent reads the port afterwards", agent.does(nr::IO_IN, [1, 0x80, 1, 0]), E_NOCAP);
+    c.works("reading the port oneself", sys::io_in(PORT, 0x80, 1));
+    c.works("dropping the page", sys::cap_drop(page));
+    c.ended("the agent", agent.stop(kids), CAUSE_KILLED, None);
+    test.done("revoking reaches another task: its copy and what it mapped through it", c);
+
+    let mut c = Check::new();
+    let agent = Agent::start(kids, R_RECV, &[])?;
+    c.yes("a child waits for a message", kids.wait_state(agent.kid, ST_RECV));
+    c.works("revoking the endpoint it waits on", sys::cap_revoke(agent.ep));
+    c.ended("the child that waited for a message", kids.end_of(agent.kid), CAUSE_EXIT, Some(GONE));
+    c.works("dropping that endpoint", sys::cap_drop(agent.ep));
+    let ep = sys::ep_create().ok()?;
+    let send = sys::cap_derive(ep, R_SEND, 0, 0).ok()?;
+    let caller = kids.start(mode::CALL_ONCE, 5, 6, &[send])?;
+    c.yes("a child waits to send", kids.wait_state(caller, ST_SEND));
+    c.works("revoking the send right it uses", sys::cap_revoke(send));
+    c.ended("the child that waited to send", kids.end_of(caller), CAUSE_EXIT, Some(GONE));
+    c.fails("receiving what it wanted to send", sys::recv(ep, &mut Msg::new(0), 0), E_TIMEOUT);
+    c.works("dropping the send right", sys::cap_drop(send));
+    c.works("dropping the endpoint", sys::cap_drop(ep));
+    test.done("revoking wakes the tasks that waited through the copies", c);
+
+    let mut c = Check::new();
+    let agent = Agent::start(kids, R_RECV, &[IRQ])?;
+    let mine = sys::ep_create().ok()?;
+    c.code("the agent binds line 5", agent.does(nr::IRQ_BIND, [1, 5, 0, 0]), 0);
+    c.fails("binding line 5 oneself", sys::irq_bind(IRQ, 5, mine), E_BUSY);
+    c.works("revoking the interrupt capability", sys::cap_revoke(IRQ));
+    c.works("binding line 5 oneself afterwards", sys::irq_bind(IRQ, 5, mine));
+    c.works("dropping the bound endpoint", sys::cap_drop(mine));
+    c.fails("acknowledging line 5 at the end", sys::irq_ack(IRQ, 5), E_PERM);
+    c.ended("the agent", agent.stop(kids), CAUSE_KILLED, None);
+    test.done("revoking an interrupt capability frees the line its holder had bound", c);
+    Some(())
+}
+
+/// Capabilities travel in messages, but only between two ends that both hold the grant
+/// right, and what arrives stays a copy that its sender can take back.
+fn delegation(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    let me = kids.me;
+    let agent = Agent::start(kids, R_RECV | R_GRANT, &[])?;
+    let plain = sys::cap_derive(agent.ep, R_SEND, 0, 0).ok()?;
+    // A request that does nothing, with the capability in `slot` attached.
+    let send = |via: u32, slot: u32| ask(via, nr::YIELD, [0; 4], slot);
+
+    let mut c = Check::new();
+    let landed = c.works("the call", send(agent.ep, PORT)).map_or(NO_CAP, |answer| answer.words[2]);
+    c.yes("the agent names the slot that the copy went to", landed < CAP_SLOTS as u32);
+    c.eq("source of the agent's copy", cap(agent.index, landed).from, me << 8 | PORT);
+    c.code("the agent reads the port", agent.does(nr::IO_IN, [landed, 0x80, 1, 0]), 0);
+    test.done("a capability goes along with a call when both ends hold the grant right", c);
+
+    let mut c = Check::new();
+    let deaf = Agent::start(kids, R_RECV, &[])?;
+    let held = (task(agent.index).caps, task(deaf.index).caps);
+    c.fails("sending through a capability without the grant right", send(plain, PORT), E_PERM);
+    c.fails("sending to a task that waits without it", send(deaf.ep, PORT), E_PERM);
+    c.fails("sending an empty slot", send(agent.ep, EMPTY), E_NOCAP);
+    c.fails("sending slot 1000000", send(agent.ep, 1_000_000), E_NOCAP);
+    c.works("a plain message through the same capability", send(plain, NO_CAP));
+    c.works("a plain message to the same task", send(deaf.ep, NO_CAP));
+    c.eq("capabilities of the agent", task(agent.index).caps, held.0);
+    c.eq("capabilities of the task without the grant right", task(deaf.index).caps, held.1);
+    c.ended("the task without the grant right", deaf.stop(kids), CAUSE_KILLED, None);
+    test.done("without the grant right at both ends nothing is handed over", c);
+
+    let mut c = Check::new();
+    c.works("revoking the port", sys::cap_revoke(PORT));
+    c.eq("the agent's slot afterwards", cap(agent.index, landed).kind, CAP_NULL);
+    c.code("the agent reads the port", agent.does(nr::IO_IN, [landed, 0x80, 1, 0]), E_NOCAP);
+    c.works("reading the port oneself", sys::io_in(PORT, 0x80, 1));
+    test.done("the sender takes back what it sent", c);
+
+    let mut c = Check::new();
+    let again = c.works("sending the port again", send(agent.ep, PORT));
+    let held = again.map_or(NO_CAP, |answer| answer.words[2]);
+    if let Some(answer) = c.works("asking for it without the grant right", fetch(plain, held)) {
+        c.eq("slot that it came back to", answer.cap, NO_CAP);
+        c.eq("why it did not come back", answer.words[3], E_PERM.unsigned_abs());
+    }
+    let back = c.works("asking for it", fetch(agent.ep, held)).map_or(NO_CAP, |answer| answer.cap);
+    c.eq("source of what came back", cap(me, back).from, agent.index << 8 | held);
+    c.works("reading the port through it", sys::io_in(back, 0x80, 1));
+    c.works("revoking the port", sys::cap_revoke(PORT));
+    c.fails("reading the port through it afterwards", sys::io_in(back, 0x80, 1), E_NOCAP);
+    c.eq("the agent's slot afterwards", cap(agent.index, held).kind, CAP_NULL);
+    c.works("dropping the capability without the grant right", sys::cap_drop(plain));
+    c.ended("the agent", agent.stop(kids), CAUSE_KILLED, None);
+    test.done("a reply carries a capability back, still linked to where it came from", c);
+
+    let mut c = Check::new();
+    let ep = sys::ep_create().ok()?;
+    let lender = sys::cap_derive(ep, R_RECV | R_GRANT, 0, 0).ok()?;
+    let quiet = sys::cap_derive(ep, R_RECV, 0, 0).ok()?;
+    let agent = Agent::behind(kids, ep, lender, &[quiet])?;
+    c.yes("the agent waits for a message", kids.wait_state(agent.kid, ST_RECV));
+    c.works("revoking its capability with the grant right", sys::cap_revoke(lender));
+    c.eq("state of the agent, which has another capability", task(agent.index).state, ST_RECV);
+    c.fails("sending it a capability", send(ep, PORT), E_PERM);
+    c.works("a plain message", send(ep, NO_CAP));
+    c.ended("the agent, whose slot 0 is empty now", kids.end_of(agent.kid), CAUSE_EXIT, Some(GONE));
+    for slot in [lender, quiet, ep] {
+        c.works("dropping a capability for the endpoint", sys::cap_drop(slot));
+    }
+    test.done("a waiting task that loses the grant right takes no more capabilities", c);
+
+    let mut c = Check::new();
+    let agent = Agent::start(kids, R_RECV | R_GRANT, &[PORT])?;
+    let (copies, count, error) = fill_table();
+    c.code("a copy when every slot is taken", error, E_NOSLOT);
+    if let Some(answer) = c.works("asking the agent for its port capability", fetch(agent.ep, 1)) {
+        c.eq("slot that it came to", answer.cap, NO_CAP);
+        c.eq("why it did not come", answer.words[3], E_NOSLOT.unsigned_abs());
+    }
+    for &slot in &copies[..count] {
+        c.works("dropping a copy", sys::cap_drop(slot));
+    }
+    for _ in 0..CAP_SLOTS {
+        if agent.does(nr::CAP_DERIVE, [0, R_RECV, 0, 0]) < 0 {
+            break;
+        }
+    }
+    c.eq("capabilities of the agent", task(agent.index).caps, CAP_SLOTS as u32);
+    c.fails("sending the agent a capability", send(agent.ep, PORT), E_NOSLOT);
+    c.works("a plain message", send(agent.ep, NO_CAP));
+    c.ended("the agent", agent.stop(kids), CAUSE_KILLED, None);
+    test.done("a capability is not handed to a task whose table is full", c);
+    Some(())
+}
+
 /// Memory is zeroed, bounded by a quota, and kept inside user space.
 fn memory(test: &mut Test, kids: &mut Kids) -> Option<()> {
     let me = kids.me;
@@ -1009,7 +1292,7 @@ const ENDS: [(&str, u32, u32, Option<u32>); 14] = [
     ("floating-point instructions are refused", mode::FPU, 7, None),
 ];
 
-/// Tasks end without taking anything with them, and the kernel's tables fill and recover.
+/// Tasks end without taking anything with them, and a full capability table recovers.
 fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
     let me = kids.me;
     kids.run(mode::EXIT, 0, 0)?;
@@ -1048,6 +1331,7 @@ fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
     let mut c = Check::new();
     let tasks_before = stats().tasks;
     let archive_pages = cap(me, ARCHIVE).b;
+    kids.lend(1, 0);
     let parent = kids.start_with(mode::GRANDCHILD, archive_pages, 0, &[NO_CAP, ARCHIVE], 96).ok()?;
     c.yes("a child and its own child are running", wait_until(|| stats().tasks == tasks_before + 2));
     c.ended("the child", kids.kill(parent), CAUSE_KILLED, None);
@@ -1123,18 +1407,7 @@ fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
     test.done("the same image, repaired, starts and runs", c);
 
     let mut c = Check::new();
-    let mut copies = [NO_CAP; CAP_SLOTS];
-    let mut count = 0;
-    let error = loop {
-        match sys::cap_derive(CONSOLE, R_SEND, 0, 0) {
-            Ok(slot) if count < CAP_SLOTS => {
-                copies[count] = slot;
-                count += 1;
-            }
-            Ok(_) => break 0,
-            Err(error) => break error,
-        }
-    };
+    let (copies, count, error) = fill_table();
     c.code("a copy when every slot is taken", error, E_NOSLOT);
     c.fails("a new endpoint", sys::ep_create(), E_NOSLOT);
     let spawn = kids.spawn_args(mode::EXIT, 0, 0, &[], CHILD_PAGES, CHILD_STACK);
@@ -1145,25 +1418,76 @@ fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
     let again = sys::cap_derive(CONSOLE, R_SEND, 0, 0).and_then(sys::cap_drop);
     c.works("a copy after the drops", again);
     test.done("a full capability table gives E_NOSLOT and recovers", c);
+    Some(())
+}
+
+/// Tasks and endpoints are made only within the quotas that a parent lends its children,
+/// and every share comes back to the parent.
+fn quotas(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    let me = kids.me;
+
+    let mut c = Check::new();
+    let before = task(me);
+    kids.lend(0, 1);
+    let agent = Agent::start(kids, R_RECV, &[])?;
+    c.eq("quota of tasks that is left", task(me).tasks, before.tasks - 1);
+    c.eq("quota of endpoints that is left", task(me).endpoints, before.endpoints - 2);
+    c.eq("the child's quota of tasks", task(agent.index).tasks, 0);
+    c.eq("the child's quota of endpoints", task(agent.index).endpoints, 1);
+    let made = agent.does(nr::EP_CREATE, [0; 4]);
+    c.yes("the child makes an endpoint", made >= 0);
+    c.code("the child makes a second one", agent.does(nr::EP_CREATE, [0; 4]), E_NOSLOT);
+    c.code("the child drops the first", agent.does(nr::CAP_DROP, [made as u32, 0, 0, 0]), 0);
+    c.yes("the child makes another", agent.does(nr::EP_CREATE, [0; 4]) >= 0);
+    let archive_pages = cap(me, ARCHIVE).b;
+    let parent = kids.start_with(mode::GRANDCHILD, archive_pages, 0, &[NO_CAP, ARCHIVE], 96).ok()?;
+    c.ended("a child that starts a child without a quota", kids.end_of(parent), CAUSE_EXIT, Some(0xE3));
+    let mut spawn = kids.spawn_args(mode::EXIT, 0, 0, &[], CHILD_PAGES, CHILD_STACK);
+    spawn.tasks = task(me).tasks;
+    c.fails("lending a child every task that is left", sys::spawn(kids.image.bytes(), &spawn), E_NOSLOT);
+    spawn.tasks = 0;
+    spawn.endpoints = task(me).endpoints + 1;
+    c.fails("lending a child one endpoint too many", sys::spawn(kids.image.bytes(), &spawn), E_NOSLOT);
+    c.ended("the child", agent.stop(kids), CAUSE_KILLED, None);
+    c.eq("quota of tasks afterwards", task(me).tasks, before.tasks);
+    c.eq("quota of endpoints afterwards", task(me).endpoints, before.endpoints);
+    test.done("a child gets the share of the quotas that its parent lends, and no more", c);
+
+    let mut c = Check::new();
+    let before = task(me).endpoints;
+    kids.lend(0, 1);
+    let agent = Agent::start(kids, R_RECV | R_GRANT, &[])?;
+    let made = agent.does(nr::EP_CREATE, [0; 4]) as u32;
+    let fetched = c.works("asking the child for its endpoint", fetch(agent.ep, made));
+    let got = fetched.map_or(NO_CAP, |answer| answer.cap);
+    c.eq("source of the copy", cap(me, got).from, agent.index << 8 | made);
+    c.ended("the child", agent.stop(kids), CAUSE_KILLED, None);
+    c.eq("source of the copy afterwards", cap(me, got).from, NO_CAP);
+    c.fails("receiving from the endpoint", sys::recv(got, &mut Msg::new(0), 0), E_TIMEOUT);
+    c.eq("quota of endpoints while it exists", task(me).endpoints, before - 1);
+    c.works("dropping it", sys::cap_drop(got));
+    c.eq("quota of endpoints afterwards", task(me).endpoints, before);
+    test.done("an endpoint outlives the task that made it, and its parent pays for it", c);
 
     let mut c = Check::new();
     let endpoints_before = stats().endpoints;
+    let quota = task(me).endpoints;
     let reports = sys::ep_create().ok()?;
     let door = sys::cap_derive(reports, R_SEND, 0, 0).ok()?;
+    let third = (quota - 1) / 3;
     let mut makers = [None; 3];
-    let mut made = 0;
     let mut msg = Msg::new(0);
-    for maker in makers.iter_mut() {
+    for (maker, share) in makers.iter_mut().zip([third, third, quota - 1 - 2 * third]) {
+        kids.lend(0, share);
         *maker = kids.start(mode::ENDPOINTS, 0, 0, &[door]);
         if c.works("a report from a child", sys::recv(reports, &mut msg, 3000)).is_some() {
-            made += msg.words[0];
+            c.eq("endpoints the child made", msg.words[0], share);
             c.eq("why the child stopped", msg.words[1], E_NOSLOT.unsigned_abs());
             c.works("reply", sys::reply(msg.token, &Msg::new(0)));
         }
     }
-    let all = MAX_ENDPOINTS as u32;
-    c.eq("endpoints the children made", made, all - endpoints_before - 1);
-    c.eq("endpoints in use", stats().endpoints, all);
+    c.eq("endpoints in use", stats().endpoints, endpoints_before + quota);
+    c.eq("quota of endpoints that is left", task(me).endpoints, 0);
     c.fails("one more endpoint", sys::ep_create(), E_NOSLOT);
     for maker in makers.into_iter().flatten() {
         c.ended("a child", kids.kill(maker), CAUSE_KILLED, None);
@@ -1171,11 +1495,13 @@ fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
     c.works("dropping the send right", sys::cap_drop(door));
     c.works("dropping the endpoint", sys::cap_drop(reports));
     c.eq("endpoints in use afterwards", stats().endpoints, endpoints_before);
+    c.eq("quota of endpoints afterwards", task(me).endpoints, quota);
     c.works("a new endpoint afterwards", sys::ep_create().and_then(sys::cap_drop));
-    test.done("a full endpoint table gives E_NOSLOT and recovers", c);
+    test.done("endpoints are created only within a quota, and the quota comes back", c);
 
     let mut c = Check::new();
     let tasks_before = stats().tasks;
+    let quota = task(me).tasks;
     let first_badge = kids.launches + 1;
     let mut started = 0;
     let error = loop {
@@ -1189,15 +1515,17 @@ fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
             Err(error) => break error,
         }
     };
-    c.code("a child when every place is taken", error, E_NOSLOT);
-    c.eq("tasks", stats().tasks, MAX_TASKS as u32);
-    c.eq("children started", started, MAX_TASKS as u32 - tasks_before);
+    c.code("a child when the quota is used up", error, E_NOSLOT);
+    c.eq("children started", started, quota);
+    c.eq("tasks", stats().tasks, tasks_before + quota);
+    c.eq("quota of tasks that is left", task(me).tasks, 0);
     for badge in first_badge..first_badge + started {
         c.ended("a child", kids.end_of_badge(badge, 3000), CAUSE_EXIT, Some(0));
     }
     c.eq("tasks afterwards", stats().tasks, tasks_before);
+    c.eq("quota of tasks afterwards", task(me).tasks, quota);
     c.ended("one more child", kids.run(mode::EXIT, 9, 0), CAUSE_EXIT, Some(9));
-    test.done("a full task table gives E_NOSLOT and recovers", c);
+    test.done("tasks are started only within a quota, and the quota comes back", c);
     Some(())
 }
 
@@ -1251,12 +1579,15 @@ pub fn main() {
     match (Kids::new(), scratch) {
         (Some(mut kids), Ok(())) => {
             let before = usage(kids.me);
-            let groups: [(&str, Group); 6] = [
+            let groups: [(&str, Group); 9] = [
                 ("argument", arguments),
                 ("capability", capabilities),
                 ("message", ipc),
+                ("revocation", revocation),
+                ("delegation", delegation),
                 ("memory", memory),
                 ("task", tasks),
+                ("quota", quotas),
                 ("clock and file", time_and_files),
             ];
             for (name, group) in groups {
@@ -1273,7 +1604,7 @@ pub fn main() {
             test.done("the kernel met nothing unexpected", c);
             let mut c = Check::new();
             c.same(usage(kids.me), before);
-            test.done("no task, endpoint or page frame was lost", c);
+            test.done("no task, endpoint, page frame or quota was lost", c);
         }
         _ => test.check("loading the child program and mapping scratch pages", false),
     }
