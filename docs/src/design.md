@@ -39,7 +39,7 @@ The prompt appeared {{boot.guest_ms}} ms after the kernel started, by the system
 - Pages are {{limits.page_bytes}} bytes. Programs live between `0x4000_0000` and `0xC000_0000`. The kernel maps the first {{limits.max_ram_mib}} MiB of physical memory for itself, out of reach of ring 3.
 - The kernel never dereferences an address a program gave it. It walks the task's page tables in software and touches the frame through its own mapping, so a bad pointer is an error code (`E_FAULT`) and never a page fault inside the kernel.
 - Every frame has exactly one owner and every task has a memory quota. A child's quota is taken out of its parent's when it is started and returns when the child is gone, so a program cannot use more memory than it was given, however many children it starts.
-- Program code is mapped read-only, so a program cannot overwrite its own code.
+- **W^X: no page is both writable and executable.** The kernel uses PAE paging, whose page-table entries have a no-execute bit. A page of a program is either code, which is read-only and executable, or data that the processor refuses to run: the stack, the program's data, memory it maps later and its message buffers. The loader refuses an image with a segment that is both writable and executable, and an image with two segments on one page. No system call changes the protection of a page once it is mapped, and device memory is never executable. The kernel's own code is read-only and nothing else in its part of memory can be executed. All of this needs a processor with the no-execute bit; without it the kernel still boots and says in its boot log that W^X is not enforced (see [Limitations](#limitations)).
 - The kernel has no heap. All of its state is one value made of fixed-size tables: {{limits.tasks}} tasks, {{limits.endpoints}} endpoints, {{limits.irq_lines}} interrupt lines. Nothing is allocated at run time, so nothing can leak; a full table is the error `E_NOSLOT`.
 
 ## Tasks
@@ -105,7 +105,7 @@ Each server gets a memory quota of {{supervisor.server_pages}} pages.
 `init` is the root task and the supervisor of {{supervisor.services}} services: the two servers and the shell. Its whole policy is a handful of constants at the top of `user/src/bin/init.rs`:
 
 - **Crashes.** When a service ends, for whatever reason, the kernel sends `init` a message and `init` starts a fresh copy with the same capabilities.
-- **Hangs.** Every {{supervisor.ping_every_ms}} ms `init` pings each server. A server that has not answered within {{supervisor.ping_timeout_ms}} ms is ended and replaced. In the worst case a hang is therefore noticed after {{supervisor.hang_worst_ms}} ms. A new copy gets {{supervisor.grace_ms}} ms before its first ping. The shell is not pinged.
+- **Hangs.** Every {{supervisor.ping_every_ms}} ms `init` pings each server. A server that has not answered within {{supervisor.ping_timeout_ms}} ms is ended and replaced. `init` waits for the answer in slices of {{supervisor.ping_slice_ms}} ms and deals with whatever else happened between two slices, so another service that fails during the wait is restarted then and not after the timeout. In the worst case a single hang is noticed after {{supervisor.hang_worst_ms}} ms. Servers are pinged one after the other, so two that hang at the same moment are found one after the other. A new copy gets {{supervisor.grace_ms}} ms before its first ping. The shell is not pinged.
 - **Crash loops.** An end within {{supervisor.quick_end_s}} s of the start counts as a quick end. From quick end number {{supervisor.backoff_from}} in a row, each restart is delayed by {{supervisor.backoff_step_ms}} ms more than the one before, up to {{supervisor.backoff_cap_ms}} ms. A service is never given up on.
 - **The supervisor itself.** If `init` ends, the kernel ends every task and starts `init` again from the boot archive, at most once every {{kernel.root_restart_gap_s}} s.
 
@@ -117,6 +117,12 @@ A hang, as the serial port recorded it:
 
 ```log
 {{log.hang_fs}}
+```
+
+Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of {{double.runs}} runs, and that the shell and a file listing answer afterwards. The file server answered again after {{double.fs_ms}} ms and the console driver after {{double.console_ms}} ms (medians):
+
+```log
+{{log.double}}
 ```
 
 A crash loop. The third and fourth quick ends in a row were delayed by {{backoff.third_ms}} ms and {{backoff.fourth_ms}} ms:
@@ -162,6 +168,9 @@ What the shell's `svc` command showed at the end of the test run:
 19. Authority only narrows: every capability is an original, or a copy of a capability that still exists and is at least as strong.
 20. Nothing outlives the capability it came through: no device page is mapped without its Memory capability, a task waits on an endpoint only while one of its capabilities lets it, a waiting sender may hand over a capability only while its own still carries the grant right, and an interrupt binding needs the capabilities it was made with.
 21. The task and endpoint quotas balance: an ended task that waits to be noticed is charged to a living one, every endpoint in use is paid for by a living task, and slots in use plus unused quota equal the size of each table.
+22. A mapped user page is user-accessible and has no unknown bit; it is never both writable and executable; device memory is never executable; and where the processor has the no-execute bit, every page that is not program code carries it.
+23. The kernel's own map is what was built at boot, so kernel code is still read-only and nothing else in the kernel can be executed.
+24. A task that waits for a message still owns the writable buffer it named, so the kernel can deliver into it later.
 
 After the whole test run, with every injected fault and the fuzz run behind it, the checker still reported that all rules hold:
 
@@ -171,19 +180,33 @@ After the whole test run, with every injected fault and the fuzz run behind it, 
 
 ## How it is tested
 
-Everything runs in QEMU from one script, `tools/test.py`, which talks to the shell over the serial port and keeps the raw log (`evidence/test_serial.log`).
+Everything runs in QEMU from one script, `tools/test.py`, which talks to the shell over the serial port and keeps the raw log (`evidence/test_serial.log`). QEMU is started with the processor model `{{test.cpu:raw}}`, because its default 32-bit model has no no-execute bit.
 
 {{table.checks}}
 
 - **`selftest`** is an ordinary program that checks {{selftest.checks}} promises of the kernel from user space: arguments, capabilities, messages, revocation, delegation, memory, tasks and faults, quotas, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
 - **`rogue`** is the hostile program described in [weaknesses and sources](weaknesses.md). Its {{rogue.all_total}} attempts are {{rogue.software}} through the system call interface, each tried with every one of its capability slots where a slot is needed, and {{rogue.by_cpu}} directly on the hardware, one fresh task per attempt.
 - **`fuzz`** keeps {{fuzz.kids}} child tasks running, each making random and almost-right system calls for up to {{fuzz.kid_life_ms}} ms before it is replaced. Every {{fuzz.check_every_ms}} ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint, frame or quota went missing. `cap_revoke` is among the random calls, some of the messages name a capability to hand over, and each child works within a quota of tasks and endpoints lent by the fuzzer, part of which it lends to children of its own. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
-- **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one {{test.fault_runs}} times, checks that the shell still answers and that a file can still be read, and records the times.
-- **The browser.** `tools/web_check.py` boots the same disk image in {{web.emulator}} under {{web.browser}}, types {{web.commands}} commands ({{web.command_list:raw}}) and checks each result. All {{web.commands_ok}} passed; the prompt appeared after {{web.boot_seconds}} s.
+- **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one {{test.fault_runs}} times, checks that the shell still answers and that a file can still be read, and records the times. `double`, the two failures at once shown above, is run {{double.runs}} times as well.
+- **Without the no-execute bit.** The script boots the same image once more with the processor model `{{test.cpu_without_nx:raw}}`. The kernel then says in its boot log that W^X is not enforced. The self-test passes its other {{nonx.selftest_passed}} checks and reports the {{nonx.selftest_skipped}} execute checks as skipped, `rogue all` reports {{nonx.rogue_denied}} of {{nonx.rogue_total}} attempts denied and names the {{nonx.rogue_not_denied}} that were not, the kernel's rules still hold and nothing panics.
+- **The guided tour.** `tour` runs {{tour.steps}} steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took {{tour.seconds}} s in QEMU and {{web.tour_seconds}} s in the browser check, which fails if the tour takes a minute or longer.
+- **The browser.** `tools/web_check.py` boots the same disk image in {{web.emulator}} under {{web.browser}}, types {{web.commands}} commands ({{web.command_list:raw}}) and checks each result. All {{web.commands_ok}} passed; the prompt appeared after {{web.boot_seconds}} s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
 - **The gates.** `python build.py gates` does all of the above from a clean tree and then runs `tools/check_claims.py` over these documents.
 
 ```log
 {{log.selftest}}
+```
+
+What the browser run shows about W^X: the kernel's boot line, then the execute checks of the self-test and the execute attempts of the hostile program:
+
+```weblog
+{{weblog.wx}}
+```
+
+The boot without the no-execute bit, shortened to the telling lines:
+
+```nonxlog
+{{nonxlog.summary}}
 ```
 
 What the kernel's basic operations cost in this emulator. These figures describe QEMU as much as Inti and are here for completeness, not as a claim about speed:
@@ -211,20 +234,20 @@ Hardware and scope:
 Security:
 
 - No formal verification. The kernel is tested, fuzzed and self-checking; that is evidence, not proof.
-- No no-execute protection: code pages are read-only, but every readable page is executable. Marking data pages no-execute needs the PAE paging mode and its NX bit; the kernel uses the older two-level page tables, which have no such bit.
+- W^X depends on the processor's no-execute bit and has only been shown in two emulators: QEMU, which must be started with `{{test.cpu:raw}}` because its default 32-bit model lacks the bit, and v86. It has never been tried on a real processor. Without the bit the kernel still runs and prints that W^X is not enforced, and a program can then run code from its stack, its data and memory it mapped; the test run boots that way once, and the hostile program's {{nonx.rogue_not_denied}} execute attempts are reported as not denied. W^X stops injected code, not the reuse of code that is already in a program, and there is no address-space randomisation: programs are loaded at fixed addresses.
 - No IOMMU support: a task holding I/O ports for a device that can access memory directly could subvert the kernel. Only `init` holds the full port range.
 - Revocation is coarse. `cap_revoke` takes back all copies of a capability at once, not a chosen one, and dropping a capability does not revoke its copies.
 - Revocation does not reach back in time. A call that the server has already taken is carried through after the caller's capability is revoked, and its reply can still carry a capability. A task that waits through a revoked capability keeps waiting if another of its capabilities still reaches the same endpoint.
 - A server that holds the grant right has to drop the capabilities it does not want, or a client with the grant right could fill its table. In the shipped system no client of the servers holds the grant right.
-- The kernel writes a message into the buffer of a blocked task long after it checked that buffer. The buffer has to lie in the task's own memory, which a revocation never unmaps. No test program holds writable device memory, so this is argued from the code and not tested.
+- The kernel writes a message into the buffer of a blocked task long after it checked that buffer. That late write is safe only if the buffer is still the task's own writable memory. The checker has a rule for exactly this, and the argument behind it has four parts: a blocked task is not running, so it cannot unmap its own pages; an ended task gets no delivery; no system call changes a page's protection; and device memory, the only memory a revocation can take from a waiting task, is refused as a message buffer, also in part. The self-test checks the last part directly, with a device page taken from a task while it waits, and checks that a reply still reaches a caller whose capability was revoked in between. This is a tested argument, not a proof.
 - `init` is trusted with everything. The shell holds the Info capability, the test capabilities it passes on, and a capability to ask `init` for a shutdown or an injected fault.
 - Page tables are not freed when memory is unmapped, only when the task ends. A parent cannot change a child's quotas after starting it, and processor time is not charged to anyone.
-- With the quotas in place, user space can no longer make the kernel's task table or endpoint table run full, so the kernel's own "table full" paths are not exercised by any test.
+- The kernel's own "table full" paths for tasks and endpoints are never executed by a test. User space cannot reach them while the rule that quotas balance holds, and that rule is checked throughout every fuzz and self-test run. If one were ever reached, the kernel would count it as an anomaly, which breaks the rule that the kernel has never met a state it considered impossible. A full capability table, by contrast, is reached and tested.
 
 Robustness:
 
 - A hang is detected only by the ping. The shell itself is not monitored for hangs.
-- While `init` waits for a ping to be answered it does not handle other events, so a second failure in that moment waits for the ping to time out.
+- While `init` waits for a ping to be answered it handles other failures only between slices of {{supervisor.ping_slice_ms}} ms. Servers are pinged one after the other, so two that hang at the same moment are noticed one after the other. Only one combination of two failures is tested: the console driver hanging while the file server crashes.
 - A client whose request was in flight when the server died sends it again, so a console write can be duplicated. A half-typed line and anything typed ahead are lost when the console driver restarts.
 - The kernel is not pre-emptible, and the scheduler has no processor quotas: a task cannot starve the kernel, but it can take its full share of the processor. Revoking a capability and checking the invariants are scans of fixed-size tables that run to their end inside the kernel.
 - The kernel log and the console driver share one serial port, so in the raw log a line from the kernel can land in the middle of a line from the shell.

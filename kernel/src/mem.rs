@@ -4,6 +4,11 @@
 //! virtual address. User memory is reached by walking the task's page tables in software and
 //! touching the frame through the identity map, so a bad user pointer is an error code and
 //! never a page fault in the kernel.
+//!
+//! Paging is the three-level PAE form with 64-bit entries, because only that form has the
+//! no-execute bit. Where the processor has that bit, memory is writable or executable and
+//! never both (W^X): kernel code and program code are read-only, and nothing else can be
+//! executed. A processor without the bit still runs Inti, without that protection.
 
 use crate::arch;
 use crate::task::Kernel;
@@ -14,36 +19,66 @@ use core::ops::Range;
 /// The kernel manages at most this much RAM (the size of its identity map).
 const MAX_RAM: u32 = 128 << 20;
 const FRAMES: usize = (MAX_RAM / PAGE) as usize;
-const KERNEL_TABLES: usize = (MAX_RAM >> 22) as usize;
-pub const ENTRIES: usize = 1024;
+/// Page tables of the identity map; each maps 2 MiB.
+const KERNEL_TABLES: usize = (MAX_RAM >> 21) as usize;
+pub const ENTRIES: usize = 512;
 
 /// Page table entry bits: present, writable, user-accessible.
-pub const P: u32 = 1;
-pub const RW: u32 = 2;
-pub const US: u32 = 4;
-/// The processor sets this bit by itself in every entry it walks through.
-pub const ACCESSED: u32 = 0x20;
+pub const P: u64 = 1;
+pub const RW: u64 = 2;
+pub const US: u64 = 4;
+/// The processor sets these two bits by itself: in every entry it walks through, and in the
+/// entry of a page it writes to.
+pub const ACCESSED: u64 = 0x20;
+pub const DIRTY: u64 = 0x40;
 /// Software bit: the frame comes from a Memory capability and is not owned by the task.
 /// It is never freed, never charged, and the kernel never writes through it.
-pub const FOREIGN: u32 = 0x200;
-pub const ADDR: u32 = !(PAGE - 1);
-/// Page directory slots that belong to user space.
-pub const USER_PDES: Range<usize> = (USER_BASE >> 22) as usize..(USER_END >> 22) as usize;
+pub const FOREIGN: u64 = 0x200;
+/// Software bit: the page holds program code. Only such a page may be executed, and it is
+/// never writable.
+pub const EXEC: u64 = 0x400;
+/// No-execute. Only valid on a processor that has the bit (see `Mem::nx`).
+pub const NX: u64 = 1 << 63;
+/// The frame address in an entry. Inti uses physical memory below 4 GiB only.
+pub const ADDR: u64 = 0xFFFF_F000;
+/// Root table slots that belong to user space; each covers 1 GiB through one directory.
+pub const USER_ROOTS: Range<usize> = (USER_BASE >> 30) as usize..(USER_END >> 30) as usize;
+/// Page tables that the user range can hold.
+pub const USER_TABLES: usize = ((USER_END - USER_BASE) >> 21) as usize;
+
+// The kernel map fills root slot 0; the user range is whole gigabytes above it.
+const _: () = assert!(MAX_RAM <= 1 << 30 && USER_BASE >= 1 << 30);
+const _: () = assert!(USER_BASE % (1 << 30) == 0 && USER_END % (1 << 30) == 0);
 
 #[repr(C, align(4096))]
-struct Table([u32; ENTRIES]);
+struct Table([u64; ENTRIES]);
 
 const EMPTY_TABLE: Table = Table([0; ENTRIES]);
-static KERNEL_DIRECTORY: Global<Table> = Global::new(EMPTY_TABLE);
-static KERNEL_MAP: Global<[Table; KERNEL_TABLES]> = Global::new([EMPTY_TABLE; KERNEL_TABLES]);
+/// The kernel's own map, shared by every address space: tables `0..KERNEL_TABLES`
+/// identity-map the RAM, then come the directory that points to them and the root table.
+static KERNEL_PAGING: Global<[Table; KERNEL_TABLES + 2]> = Global::new([EMPTY_TABLE; KERNEL_TABLES + 2]);
+const DIRECTORY: usize = KERNEL_TABLES;
+const ROOT: usize = KERNEL_TABLES + 1;
 
 extern "C" {
     static __kernel_start: u8;
+    static __text_end: u8;
     static __rodata_end: u8;
 }
 
 pub fn page_up(value: u32) -> u32 {
-    (value + PAGE - 1) & ADDR
+    (value + PAGE - 1) & !(PAGE - 1)
+}
+
+/// The frame address in a page table entry.
+pub fn frame_of(entry: u64) -> u32 {
+    (entry & ADDR) as u32
+}
+
+/// The address of table `table` of the kernel's own map.
+fn kernel_table(table: usize) -> u32 {
+    assert!(table < KERNEL_TABLES + 2);
+    KERNEL_PAGING.get() as u32 + table as u32 * PAGE
 }
 
 /// Check that `pages` pages starting at `va` are page-aligned and inside user space.
@@ -72,9 +107,13 @@ pub struct Mem {
     pub free: u32,
     pub total: u32,
     hint: usize,
+    /// The kernel's own root table, in use while no task's address space is.
     pub kernel_pd: u32,
     /// Size of the kernel image plus the boot archive, in pages.
     pub kernel_pages: u32,
+    /// `NX` if the processor has the no-execute bit, else 0: the bit to put in every entry
+    /// that maps something other than code. Without it, W^X is not enforced.
+    pub nx: u64,
 }
 
 impl Mem {
@@ -88,6 +127,7 @@ impl Mem {
             hint: 0,
             kernel_pd: 0,
             kernel_pages: 0,
+            nx: 0,
         }
     }
 
@@ -111,27 +151,21 @@ impl Mem {
         assert!(self.total > 0, "the BIOS reported no usable memory");
         self.free = self.total;
 
+        let (pae, nx) = arch::cpu_features();
+        assert!(pae, "this processor has no PAE paging, which Inti needs");
+        self.nx = if nx { NX } else { 0 };
         let kernel_start = &raw const __kernel_start as u32;
-        let rodata_end = &raw const __rodata_end as u32;
         self.kernel_pages = (kernel_end - kernel_start) / PAGE;
         // SAFETY: boot time, single CPU, interrupts off: nothing else refers to the static
-        // page tables yet, so the two exclusive references are unique.
-        let (directory, tables) = unsafe { (&mut *KERNEL_DIRECTORY.get(), &mut *KERNEL_MAP.get()) };
-        for (t, table) in tables.iter_mut().enumerate() {
-            for (i, entry) in table.0.iter_mut().enumerate() {
-                let address = ((t * ENTRIES + i) as u32) * PAGE;
-                let read_only = (kernel_start..rodata_end).contains(&address);
-                // Page 0 stays unmapped so that a null pointer in the kernel faults.
-                *entry = match address {
-                    0 => 0,
-                    _ if read_only => address | P,
-                    _ => address | P | RW,
-                };
+        // page tables yet, so the exclusive reference is unique.
+        let tables = unsafe { &mut *KERNEL_PAGING.get() };
+        for (table, entries) in tables.iter_mut().enumerate() {
+            for (index, entry) in entries.0.iter_mut().enumerate() {
+                *entry = self.kernel_entry(table, index);
             }
-            directory.0[t] = Self::kernel_pde(t);
         }
-        self.kernel_pd = KERNEL_DIRECTORY.get() as u32;
-        arch::enable_paging(self.kernel_pd);
+        self.kernel_pd = kernel_table(ROOT);
+        arch::enable_paging(self.kernel_pd, nx);
     }
 
     fn add(&mut self, frame: u32) {
@@ -144,19 +178,59 @@ impl Mem {
         }
     }
 
-    /// The directory entry that maps the `index`-th 4 MiB of the kernel half.
-    fn kernel_pde(index: usize) -> u32 {
-        (KERNEL_MAP.get() as u32 + (index as u32) * PAGE) | P | RW
+    /// What entry `index` of table `table` of the kernel's own map must hold. `init` fills
+    /// the map from this, and the invariant checker compares the map with it ever after.
+    fn kernel_entry(&self, table: usize, index: usize) -> u64 {
+        match table {
+            ROOT => Self::kernel_root(index),
+            DIRECTORY if index < KERNEL_TABLES => kernel_table(index) as u64 | P | RW,
+            DIRECTORY => 0,
+            _ => self.kernel_pte((table * ENTRIES + index) as u32 * PAGE),
+        }
     }
 
-    /// What slot `index` of every page directory must hold outside the user range: the shared
-    /// kernel mapping (never user-accessible) or nothing. Used by the invariant checker.
-    pub fn kernel_slot(index: usize) -> u32 {
-        if index < KERNEL_TABLES {
-            Self::kernel_pde(index)
+    /// The entry that identity-maps `address` for the kernel. Kernel code is read-only;
+    /// constants are read-only and cannot be executed; all other memory is writable and
+    /// cannot be executed. No entry is user-accessible.
+    fn kernel_pte(&self, address: u32) -> u64 {
+        let start = &raw const __kernel_start as u32;
+        let text_end = &raw const __text_end as u32;
+        let rodata_end = &raw const __rodata_end as u32;
+        let entry = address as u64 | P;
+        if address == 0 {
+            0 // page 0 stays unmapped so that a null pointer in the kernel faults
+        } else if (start..text_end).contains(&address) {
+            entry
+        } else if (text_end..rodata_end).contains(&address) {
+            entry | self.nx
+        } else {
+            entry | RW | self.nx
+        }
+    }
+
+    /// What slot `index` of every root table must hold outside the user range: the shared
+    /// kernel map in slot 0 and nothing anywhere else. Used by the invariant checker.
+    pub fn kernel_root(index: usize) -> u64 {
+        if index == 0 {
+            kernel_table(DIRECTORY) as u64 | P
         } else {
             0
         }
+    }
+
+    /// True if the kernel's own map still holds exactly what `init` put there.
+    pub fn kernel_map_intact(&self) -> bool {
+        (0..KERNEL_TABLES + 2).all(|table| {
+            (0..ENTRIES).all(|index| {
+                let address = kernel_table(table) as usize + index * 8;
+                // SAFETY: the address lies inside the static `KERNEL_PAGING` (both indices
+                // are in range) and is aligned for a u64. After boot only the processor
+                // writes there (the accessed and dirty bits), hence a volatile read through
+                // a raw address and no reference.
+                let entry = unsafe { (address as *const u64).read_volatile() };
+                entry & !(ACCESSED | DIRTY) == self.kernel_entry(table, index)
+            })
+        })
     }
 
     /// True if `frame` is the address of a page of RAM this allocator hands out.
@@ -201,18 +275,18 @@ impl Mem {
     // ---- the only five places where the kernel touches memory it does not own as a Rust
     // ---- object; each checks that the access stays inside one legitimate page
 
-    pub fn read_entry(&self, table: u32, index: usize) -> u32 {
+    pub fn read_entry(&self, table: u32, index: usize) -> u64 {
         assert!(self.managed(table) && index < ENTRIES);
         // SAFETY: `table` is a managed RAM page inside the identity map and `index` keeps the
         // read inside it. Managed frames are never part of a Rust object.
-        unsafe { ((table as usize + index * 4) as *const u32).read_volatile() }
+        unsafe { ((table as usize + index * 8) as *const u64).read_volatile() }
     }
 
-    fn write_entry(&mut self, table: u32, index: usize, value: u32) {
+    fn write_entry(&mut self, table: u32, index: usize, value: u64) {
         assert!(self.managed(table) && index < ENTRIES);
         // SAFETY: as in `read_entry`; managed frames are mapped writable for the kernel and
         // contain no kernel code or data, so the write cannot corrupt the kernel itself.
-        unsafe { ((table as usize + index * 4) as *mut u32).write_volatile(value) }
+        unsafe { ((table as usize + index * 8) as *mut u64).write_volatile(value) }
     }
 
     fn zero(&mut self, frame: u32) {
@@ -246,23 +320,34 @@ impl Mem {
 
     // ---- user address spaces
 
-    /// The page table entry for user address `va` in address space `pd`, if present.
-    pub fn lookup(&self, pd: u32, va: u32) -> Option<u32> {
+    /// The `n`-th page table of the user range of address space `root`, if it exists.
+    /// Each maps 2 MiB.
+    pub fn user_table(&self, root: u32, n: usize) -> Option<u32> {
+        if n >= USER_TABLES {
+            return None;
+        }
+        let directory = self.read_entry(root, USER_ROOTS.start + n / ENTRIES);
+        if directory & P == 0 {
+            return None;
+        }
+        let entry = self.read_entry(frame_of(directory), n % ENTRIES);
+        (entry & P != 0).then(|| frame_of(entry))
+    }
+
+    /// The page table entry for user address `va` in address space `root`, if present.
+    pub fn lookup(&self, root: u32, va: u32) -> Option<u64> {
         if !(USER_BASE..USER_END).contains(&va) {
             return None;
         }
-        let pde = self.read_entry(pd, (va >> 22) as usize);
-        if pde & P == 0 {
-            return None;
-        }
-        let pte = self.read_entry(pde & ADDR, (va >> 12) as usize % ENTRIES);
+        let table = self.user_table(root, ((va - USER_BASE) >> 21) as usize)?;
+        let pte = self.read_entry(table, (va >> 12) as usize % ENTRIES);
         (pte & P != 0).then_some(pte)
     }
 
     /// The frame behind user address `va` if the task itself may read (or write) there.
     fn user_frame(&self, pd: u32, va: u32, write: bool) -> Option<u32> {
         let pte = self.lookup(pd, va)?;
-        let frame = pte & ADDR;
+        let frame = frame_of(pte);
         let allowed = if write {
             pte & (RW | FOREIGN) == RW && self.managed(frame)
         } else {
@@ -337,57 +422,54 @@ impl Kernel {
         self.tasks[t].charged -= 1;
     }
 
-    /// Give task `t` an empty address space: a page directory that shares the kernel half.
+    /// Give task `t` an empty address space: a root table that shares the kernel map, and
+    /// the directories of the user range. The root is never changed afterwards.
     pub fn new_space(&mut self, t: usize) -> Result<(), i32> {
-        let pd = self.alloc_for(t)?;
-        for index in 0..KERNEL_TABLES {
-            self.mem.write_entry(pd, index, Mem::kernel_pde(index));
+        let root = self.alloc_for(t)?;
+        self.tasks[t].pd = root;
+        self.mem.write_entry(root, 0, Mem::kernel_root(0));
+        for slot in USER_ROOTS {
+            let directory = self.alloc_for(t)?;
+            self.mem.write_entry(root, slot, directory as u64 | P);
         }
-        self.tasks[t].pd = pd;
         Ok(())
     }
 
     /// Map `frame` at user address `va` of task `t`. The page table is allocated on demand
-    /// and charged to the task.
-    pub fn map_page(&mut self, t: usize, va: u32, frame: u32, flags: u32) -> Result<(), i32> {
+    /// and charged to the task. Only a page with `EXEC` can be executed, and such a page is
+    /// never writable.
+    pub fn map_page(&mut self, t: usize, va: u32, frame: u32, flags: u64) -> Result<(), i32> {
         assert!((USER_BASE..USER_END).contains(&va) && va % PAGE == 0);
-        let pd = self.tasks[t].pd;
-        let slot = (va >> 22) as usize;
-        let pde = self.mem.read_entry(pd, slot);
+        assert!(flags & (RW | EXEC) != RW | EXEC, "a page is never writable and executable");
+        let directory = frame_of(self.mem.read_entry(self.tasks[t].pd, (va >> 30) as usize));
+        let slot = (va >> 21) as usize % ENTRIES;
+        let pde = self.mem.read_entry(directory, slot);
         let table = if pde & P != 0 {
-            pde & ADDR
+            frame_of(pde)
         } else {
             let table = self.alloc_for(t)?;
-            self.mem.write_entry(pd, slot, table | P | RW | US);
+            self.mem.write_entry(directory, slot, table as u64 | P | RW | US);
             table
         };
         let index = (va >> 12) as usize % ENTRIES;
         if self.mem.read_entry(table, index) & P != 0 {
             return Err(E_BUSY);
         }
-        self.mem.write_entry(table, index, frame | flags | P);
+        let no_execute = if flags & EXEC == 0 { self.mem.nx } else { 0 };
+        self.mem.write_entry(table, index, frame as u64 | flags | P | no_execute);
         if flags & FOREIGN != 0 {
             self.tasks[t].foreign += 1;
         }
         Ok(())
     }
 
-    /// Map a fresh zeroed page of the task's own memory.
-    pub fn map_anon(&mut self, t: usize, va: u32, writable: bool) -> Result<(), i32> {
+    /// Map a fresh zeroed page of the task's own memory with the access that `flags` gives.
+    pub fn map_anon(&mut self, t: usize, va: u32, flags: u64) -> Result<(), i32> {
         if self.mem.lookup(self.tasks[t].pd, va).is_some() {
             return Err(E_BUSY);
         }
         let frame = self.alloc_for(t)?;
-        let flags = if writable { US | RW } else { US };
         self.map_page(t, va, frame, flags).inspect_err(|_| self.free_for(t, frame))
-    }
-
-    /// Make an already mapped page of task `t` writable (used while loading a program).
-    pub fn make_writable(&mut self, t: usize, va: u32) {
-        let pde = self.mem.read_entry(self.tasks[t].pd, (va >> 22) as usize);
-        let index = (va >> 12) as usize % ENTRIES;
-        let pte = self.mem.read_entry(pde & ADDR, index);
-        self.mem.write_entry(pde & ADDR, index, pte | RW);
     }
 
     /// Unmap `pages` pages starting at `va` (validated by the caller); holes are skipped.
@@ -397,17 +479,16 @@ impl Kernel {
         let end = va as u64 + pages as u64 * PAGE as u64;
         let mut address = va;
         while (address as u64) < end {
-            let pde = self.mem.read_entry(pd, (address >> 22) as usize);
-            if pde & P == 0 {
-                address = (address | 0x3F_FFFF) + 1; // skip the whole 4 MiB
+            let Some(table) = self.mem.user_table(pd, ((address - USER_BASE) >> 21) as usize) else {
+                address = (address | 0x1F_FFFF) + 1; // skip the whole 2 MiB
                 continue;
-            }
+            };
             let index = (address >> 12) as usize % ENTRIES;
-            let pte = self.mem.read_entry(pde & ADDR, index);
+            let pte = self.mem.read_entry(table, index);
             if pte & P != 0 {
-                self.mem.write_entry(pde & ADDR, index, 0);
+                self.mem.write_entry(table, index, 0);
                 if pte & FOREIGN == 0 {
-                    self.free_for(t, pte & ADDR);
+                    self.free_for(t, frame_of(pte));
                 } else {
                     self.tasks[t].foreign -= 1;
                 }
@@ -426,16 +507,13 @@ impl Kernel {
         if self.tasks[t].foreign == 0 {
             return;
         }
-        for slot in USER_PDES {
-            let pde = self.mem.read_entry(pd, slot);
-            if pde & P == 0 {
-                continue;
-            }
+        for n in 0..USER_TABLES {
+            let Some(table) = self.mem.user_table(pd, n) else { continue };
             for index in 0..ENTRIES {
-                let pte = self.mem.read_entry(pde & ADDR, index);
+                let pte = self.mem.read_entry(table, index);
                 let device = pte & (P | FOREIGN) == P | FOREIGN;
-                if device && !self.tasks[t].has_memory(pte & ADDR, pte & RW != 0) {
-                    self.mem.write_entry(pde & ADDR, index, 0);
+                if device && !self.tasks[t].has_memory(frame_of(pte), pte & RW != 0) {
+                    self.mem.write_entry(table, index, 0);
                     self.tasks[t].foreign -= 1;
                 }
             }
@@ -445,7 +523,7 @@ impl Kernel {
         }
     }
 
-    /// Free everything task `t` owns: its pages, page tables and directory.
+    /// Free everything task `t` owns: its pages, page tables, directories and root table.
     /// The address space must not be the one loaded in the CPU.
     pub fn destroy_space(&mut self, t: usize) {
         let pd = self.tasks[t].pd;
@@ -453,18 +531,21 @@ impl Kernel {
             return;
         }
         assert!(pd != self.space);
-        for slot in USER_PDES {
-            let pde = self.mem.read_entry(pd, slot);
-            if pde & P == 0 {
-                continue;
-            }
+        for n in 0..USER_TABLES {
+            let Some(table) = self.mem.user_table(pd, n) else { continue };
             for index in 0..ENTRIES {
-                let pte = self.mem.read_entry(pde & ADDR, index);
+                let pte = self.mem.read_entry(table, index);
                 if pte & P != 0 && pte & FOREIGN == 0 {
-                    self.free_for(t, pte & ADDR);
+                    self.free_for(t, frame_of(pte));
                 }
             }
-            self.free_for(t, pde & ADDR);
+            self.free_for(t, table);
+        }
+        for slot in USER_ROOTS {
+            let directory = self.mem.read_entry(pd, slot);
+            if directory & P != 0 {
+                self.free_for(t, frame_of(directory));
+            }
         }
         self.free_for(t, pd);
         self.tasks[t].pd = 0;

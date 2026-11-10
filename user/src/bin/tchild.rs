@@ -8,6 +8,7 @@
 
 use core::arch::asm;
 use core::slice;
+use core::sync::atomic::{AtomicU8, Ordering};
 
 use rt::abi::{
     archive, nr, Msg, SpawnArgs, FOREVER, INFO_CHECK, NO_CAP, PAGE, STACK_TOP, USER_BASE, USER_END,
@@ -25,6 +26,10 @@ const READ_ONLY: u32 = 0x6010_0000;
 /// 64 pages that a fuzz kid maps and unmaps at random.
 const PLAY: u32 = 0x6100_0000;
 const PLAY_PAGES: u32 = 64;
+/// The one-byte instruction `ret`.
+const RET: u8 = 0xC3;
+/// A writable byte in the program's data; EXEC_DATA puts a `ret` there and calls it.
+static IN_DATA: AtomicU8 = AtomicU8::new(0);
 
 #[no_mangle]
 pub fn main() {
@@ -33,6 +38,7 @@ pub fn main() {
         mode::EXIT => sys::exit(a),
         mode::NULL_READ..=mode::STACK_OVERFLOW => misbehave(what),
         mode::PANIC => panic!("asked to panic"),
+        mode::EXEC_STACK..=mode::EXEC_MAPPED => run_data(what),
         mode::SPIN => loop {
             core::hint::spin_loop();
         },
@@ -86,6 +92,33 @@ fn misbehave(what: u32) -> ! {
             _ => {}
         }
     }
+    sys::exit(0xBAD1)
+}
+
+/// Puts a `ret` instruction into memory that holds data (the stack, a static, or a page
+/// mapped just now) and calls it. The no-execute bit must stop the call; on a processor
+/// without that bit the call returns and the task exits with 0xBAD1.
+fn run_data(what: u32) -> ! {
+    let mut on_stack = [RET; 16];
+    let target = match what {
+        mode::EXEC_STACK => core::hint::black_box(&mut on_stack).as_mut_ptr() as usize,
+        mode::EXEC_DATA => {
+            IN_DATA.store(RET, Ordering::Relaxed);
+            IN_DATA.as_ptr() as usize
+        }
+        _ => {
+            if sys::map(PLAY, 1, true).is_err() {
+                sys::exit(0xBAD2)
+            }
+            // SAFETY: the page at PLAY was mapped writable just above; nothing else uses it.
+            unsafe { (PLAY as *mut u8).write(RET) };
+            PLAY as usize
+        }
+    };
+    // SAFETY: not safe, on purpose: `target` is a `ret` instruction in a page that holds
+    // data, and the no-execute bit must stop the call. Where the processor lacks that bit
+    // the call comes straight back, having used one word of stack and nothing else.
+    unsafe { asm!("call {target}", target = in(reg) target, clobber_abi("C")) };
     sys::exit(0xBAD1)
 }
 

@@ -31,6 +31,7 @@ TEMPLATES = {
 }
 CLAIMS = gates.EVIDENCE / "claims.json"
 SERIAL_LOG = gates.EVIDENCE / "test_serial.log"
+NONX_SERIAL_LOG = gates.EVIDENCE / "test_nonx_serial.log"  # the same image on a processor without NX
 PLACEHOLDER = re.compile(r"\{\{([a-z0-9_.]+)(:raw)?\}\}")
 ELLIPSIS = "..."  # stands for lines left out of a log excerpt
 
@@ -38,6 +39,7 @@ TEST = "evidence/test.json"
 WEB = "evidence/web.json"
 GATES = "evidence/gates.json"
 LOG = "evidence/test_serial.log"
+NONX_LOG = "evidence/test_nonx_serial.log"
 SOURCES = "evidence/sources.json"
 
 FAULTS = {
@@ -56,7 +58,7 @@ BENCH = {
     "check every kernel invariant": "check",
 }
 # Attempts shown in the short excerpt.
-ROGUE_SAMPLE = (1, 2, 3, 4, 5, 9, 11, 15, 20, 24, 25, 26, 27, 30, 34, 35, 39, 45)
+ROGUE_SAMPLE = (1, 2, 3, 4, 5, 9, 11, 15, 20, 24, 25, 26, 27, 30, 34, 35, 39, 45, 48, 49, 50)
 
 Put = Callable[[str, object, str], None]
 
@@ -194,6 +196,20 @@ def add_test(put: Put, test: dict) -> None:
     put("backoff.fourth_ms", delays[1], TEST)
     put("init_crash.host_ms", measured["init_crash"]["host_ms"], TEST)
 
+    double = measured["double"]
+    for server in ("fs", "console"):
+        times = double[f"{server}_us"]
+        put(f"double.{server}_ms", milliseconds(times["median"]), TEST)
+        put(f"double.{server}_min_ms", milliseconds(times["min"]), TEST)
+        put(f"double.{server}_max_ms", milliseconds(times["max"]), TEST)
+    put("double.runs", double["fs_us"]["runs"], TEST)
+    put("tour.steps", measured["tour"]["steps"], TEST)
+    put("tour.seconds", round(measured["tour"]["host_ms"] / 1000, 1), TEST)
+    for key in ("selftest_passed", "selftest_skipped", "rogue_denied", "rogue_total", "rogue_not_denied"):
+        put(f"nonx.{key}", measured["no_nx"][key], TEST)
+    put("test.cpu", test["cpu"], TEST)
+    put("test.cpu_without_nx", test["cpu_without_nx"], TEST)
+
     fuzz = measured["fuzz"]
     for key in ("calls", "requested", "tasks", "calls_per_second", "checks", "violations", "anomalies",
                 "leaks", "exited", "stopped", "exceptions", "seed"):
@@ -218,6 +234,7 @@ def add_web(put: Put, web: dict) -> None:
     put("web.commands", len(commands), WEB)
     put("web.commands_ok", sum(1 for entry in commands.values() if entry["ok"]), WEB)
     put("web.command_list", ", ".join(f"`{name}`" for name in commands), WEB)
+    put("web.tour_seconds", commands["tour"]["seconds"], WEB)
 
 
 def add_gates(put: Put, result: dict) -> None:
@@ -261,6 +278,7 @@ def add_source(put: Put) -> None:
     put("supervisor.poll_ms", constant(init, "POLL_MS"), init)
     put("supervisor.ping_every_ms", constant(init, "PING_EVERY_US") // 1000, init)
     put("supervisor.ping_timeout_ms", constant(init, "PING_TIMEOUT_MS"), init)
+    put("supervisor.ping_slice_ms", constant(init, "PING_SLICE_MS"), init)
     put("supervisor.grace_ms", constant(init, "GRACE_US") // 1000, init)
     put("supervisor.quick_end_s", constant(init, "QUICK_END_US") // 1_000_000, init)
     put("supervisor.retry_ms", constant(init, "RETRY_US") // 1000, init)
@@ -361,7 +379,7 @@ def add_tables(put: Put, test: dict, result: dict) -> None:
     ), "abi/src/lib.rs")
 
 
-def add_logs(put: Put, log: list[str], web: dict) -> None:
+def add_logs(put: Put, log: list[str], web: dict, nonx: list[str]) -> None:
     def put_log(key: str, lines: list[str], source: str = LOG) -> None:
         put(key, "\n".join(lines), source)
 
@@ -384,6 +402,9 @@ def add_logs(put: Put, log: list[str], web: dict) -> None:
     put_log("log.crash_fs", block(log, r"^inti> crash fs$", r"^RECOVERY: fs crash"))
     put_log("log.hang_console", block(log, r"^inti> hang console$", r"^RECOVERY: console hang"))
     put_log("log.hang_fs", block(log, r"^inti> hang fs$", r"^RECOVERY: fs hang"))
+    put_log("log.double", block(log, r"^inti> double$", r"^DOUBLE FAILURE:"))
+    tour = block(log, r"^inti> tour$", r"^TOUR: done")
+    put_log("log.tour", shorten(tour, lambda line: re.match(r"\s*\d+\. ", line) is None))
 
     slowed = next(index for index, line in enumerate(log) if "times in a row" in line)
     first = max(index for index in range(slowed) if log[index].startswith("inti> crash fs"))
@@ -402,6 +423,16 @@ def add_logs(put: Put, log: list[str], web: dict) -> None:
     rogue = block(browser, r"^inti> rogue$", r"^kernel invariants:")
     put_log("weblog.rogue", shorten(rogue, lambda line: re.match(r"\s*\d+\. ", line) is None or "skipped" in line), WEB)
     put_log("weblog.faults", block(browser, r"^inti> crash console$", r"^RECOVERY: fs hang"), WEB)
+    # What the browser run shows about W^X: the kernel's boot line, then the execute checks of
+    # the self-test and the execute attempts of the hostile program, before the tour repeats them.
+    tour_at = next((index for index, line in enumerate(browser) if line.startswith("inti> tour")), len(browser))
+    executing = re.compile(r"W\^X|run code from|^inti> (selftest|rogue)$|^SELFTEST:|^ROGUE:")
+    put_log("weblog.wx", shorten(browser[:tour_at], lambda line: executing.search(line) is not None), WEB)
+
+    telling = re.compile(
+        r"W\^X|^\s*skip |^SELFTEST:|NOT DENIED|^ROGUE:|no-execute bit|^inti> (selftest|rogue all)$|^kernel invariants:"
+    )
+    put_log("nonxlog.summary", shorten(nonx, lambda line: telling.search(line) is not None), NONX_LOG)
 
 
 def add_sources(put: Put, result: dict) -> None:
@@ -446,7 +477,12 @@ def collect() -> dict[str, dict]:
     add_source(put)
     add_tables(put, test, result)
     add_sources(put, gates.load("sources.json"))
-    add_logs(put, SERIAL_LOG.read_text(encoding="utf-8").splitlines(), web)
+    add_logs(
+        put,
+        SERIAL_LOG.read_text(encoding="utf-8").splitlines(),
+        web,
+        NONX_SERIAL_LOG.read_text(encoding="utf-8").splitlines(),
+    )
     return claims
 
 

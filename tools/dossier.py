@@ -30,6 +30,9 @@ EXCERPTS = (
     ("kernel/src/sys.rs", "sys_cap_revoke", "Taking back every copy of a capability, in every task."),
     ("kernel/src/task.rs", "release", "What losing a capability undoes: mappings, interrupt bindings, waits."),
     ("kernel/src/check.rs", "check_caps", "Rule 19 of the invariant checker: authority only narrows."),
+    ("kernel/src/elf.rs", "load_segment", "Loading a program: a segment that is writable and executable is refused."),
+    ("kernel/src/check.rs", "page_ok", "Rule 22 of the invariant checker, applied to every mapped user page."),
+    ("user/src/bin/init.rs", "ping_all", "The supervisor's health check, which keeps handling other failures while it waits."),
 )
 WHOLE_FILES = (
     ("user/src/bin/hello.rs", "A complete user program."),
@@ -76,6 +79,29 @@ def samples_table(test: dict) -> str:
     )
 
 
+def double_table(test: dict) -> str:
+    double = test["measured"]["double"]
+    servers = (("fs_us", "File server, which crashed"), ("console_us", "Console driver, which hung"))
+    return claims.table(
+        ["Answering again", "Every run, system clock (microseconds)"],
+        [[label, ", ".join(str(sample) for sample in double[key]["samples"])] for key, label in servers],
+    )
+
+
+def no_nx_table(test: dict) -> str:
+    run = test["measured"]["no_nx"]
+    return claims.table(
+        ["Item", "Value"],
+        [
+            ["Processor model given to QEMU", f"`{test['cpu_without_nx']}`"],
+            ["Self-test checks passed", run["selftest_passed"]],
+            ["Self-test checks skipped", run["selftest_skipped"]],
+            ["Hostile attempts denied", f"{run['rogue_denied']} of {run['rogue_total']}"],
+            ["Attempts not denied", "; ".join(run["not_denied"])],
+        ],
+    )
+
+
 def main() -> int:
     test = gates.load("test.json")
     result = gates.load("gates.json")
@@ -94,6 +120,7 @@ def main() -> int:
                 ["Image tested in QEMU", f"`{test['image_sha256']}`"],
                 ["Image tested in the browser", f"`{web['image_sha256']}`"],
                 ["Emulator", test["emulator"]],
+                ["Processor model given to QEMU", f"`{test['cpu']}`"],
                 ["Toolchain", f"{result['toolchain']['rustc']}; Python {result['toolchain']['python']}"],
             ],
         ),
@@ -110,6 +137,8 @@ def main() -> int:
 
     parts.append("---\n\n# Raw measurements")
     parts.append("## Every recovery time\n\n" + samples_table(test))
+    parts.append("## Every double-failure time\n\n" + double_table(test))
+    parts.append("## The boot without the no-execute bit\n\n" + no_nx_table(test))
     parts.append(
         "## The browser check\n\n"
         + claims.table(

@@ -3,9 +3,9 @@
 
 **A small operating system, written from scratch, that you can break on purpose.**
 
-Inti (Indonesian for "core") is a boot sector, a capability microkernel of 2,673 lines of Rust, and device drivers that run as ordinary programs. It was built to take three well-documented weaknesses of mainstream operating systems, do the opposite, and measure what happens.
+Inti (Indonesian for "core") is a boot sector, a capability microkernel of 2,795 lines of Rust, and device drivers that run as ordinary programs. It was built to take three well-documented weaknesses of mainstream operating systems, do the opposite, and measure what happens.
 
-**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and it has buttons that crash a driver, hang the file server, run a hostile program and fuzz the kernel.
+**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of 5 announced steps that takes under a minute (9.27 s in the last browser check): a hostile program, a crashed driver, a hung file server, two failures at once and the kernel's counters. Other buttons do each of these on its own and fuzz the kernel.
 
 Inti is not the best operating system in the world, and nothing here says so. It is a research toy: no network, no disk file system, no applications, one processor, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
 
@@ -23,26 +23,26 @@ These are captures of the emulated screen, taken by the test scripts during the 
 
 | Weakness of mainstream systems | What Inti does | Measured on this build |
 |---|---|---|
-| **A driver bug takes the whole system down.** Drivers run inside the kernel. Device drivers caused 85% of recently reported Windows XP failures ([Swift, Bershad and Levy, SOSP 2003](https://dl.acm.org/doi/10.1145/945445.945466)), and on 19 July 2024 one faulty update for a kernel driver crashed an estimated 8.5 million Windows devices ([Microsoft](https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/)). | Drivers are ordinary programs with no kernel privileges. A supervisor restarts a driver that crashes or stops answering, and programs that were waiting get their answer from the new one. | A crashed console driver answers again after 5.8 ms (median of 5 runs), a hung one after 657 ms. When the supervisor itself is crashed, the kernel restarts user space. |
-| **Kernels are written in memory-unsafe languages.** About 70% of the vulnerabilities Microsoft assigns a CVE each year are memory-safety issues ([MSRC, 2019](https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code)); Chromium reports the same share of its high-severity bugs ([Chromium](https://www.chromium.org/Home/chromium-security/memory-safety)). | The kernel is Rust with no heap: every table has a fixed size. Each of its 37 `unsafe` blocks carries a written justification, and a checker inside the kernel recounts everything the kernel owns against 21 rules. | 1,001,123 random system calls from 2,034 throw-away programs: 0 rule violations in 3,839 checks, 0 kernel anomalies, 0 leaked resources. |
-| **Programs run with all the rights of their user.** A program that acts with the full power of its user can reach everything that user can; Watson and others call such implicit access ambient authority ([Capsicum, USENIX Security 2010](https://www.usenix.org/legacy/event/sec10/tech/full_papers/Watson.pdf)). | There is no ambient authority. Every system call starts from a capability the program was handed, and a capability can be narrowed but never widened. | A hostile program that holds one capability makes 47 attempts on the kernel, the hardware and other programs. 47 are denied and the system stays up. |
+| **A driver bug takes the whole system down.** Drivers run inside the kernel. Device drivers caused 85% of recently reported Windows XP failures ([Swift, Bershad and Levy, SOSP 2003](https://dl.acm.org/doi/10.1145/945445.945466)), and on 19 July 2024 one faulty update for a kernel driver crashed an estimated 8.5 million Windows devices ([Microsoft](https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/)). | Drivers are ordinary programs with no kernel privileges. A supervisor restarts a driver that crashes or stops answering, and programs that were waiting get their answer from the new one. | A crashed console driver answers again after 7.5 ms (median of 5 runs), a hung one after 746 ms. With the console driver hung and the file server crashed at the same moment, both answer again (after 805 ms and 49.6 ms). When the supervisor itself is crashed, the kernel restarts user space. |
+| **Kernels are written in memory-unsafe languages.** About 70% of the vulnerabilities Microsoft assigns a CVE each year are memory-safety issues ([MSRC, 2019](https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code)); Chromium reports the same share of its high-severity bugs ([Chromium](https://www.chromium.org/Home/chromium-security/memory-safety)). | The kernel is Rust with no heap: every table has a fixed size. Each of its 41 `unsafe` blocks carries a written justification, and a checker inside the kernel recounts everything the kernel owns against 24 rules. | 1,002,227 random system calls from 2,040 throw-away programs: 0 rule violations in 3,995 checks, 0 kernel anomalies, 0 leaked resources. |
+| **Programs run with all the rights of their user.** A program that acts with the full power of its user can reach everything that user can; Watson and others call such implicit access ambient authority ([Capsicum, USENIX Security 2010](https://www.usenix.org/legacy/event/sec10/tech/full_papers/Watson.pdf)). | There is no ambient authority. Every system call starts from a capability the program was handed, and a capability can be narrowed but never widened. | A hostile program that holds one capability makes 50 attempts on the kernel, the hardware and other programs. 50 are denied and the system stays up. |
 
 None of these ideas is new: MINIX 3 restarts user-mode drivers, seL4 is a capability kernel with proofs, Redox is a microkernel system in Rust. Inti is a small system that combines them and shows its evidence. [Weaknesses and sources](docs/weaknesses.md) has the details and what Inti does not solve.
 
 ## What was measured
 
-`python build.py gates` builds from a clean tree, runs every test in QEMU, boots the same image in a headless browser and checks these documents. Result of 2026-11-10 (QEMU 11.1.0 (TCG, no hardware virtualisation) on Windows 10): **9 of 9 gates pass.**
+`python build.py gates` builds from a clean tree, runs every test in QEMU, boots the same image in a headless browser and checks these documents. Result of 2026-11-11 (QEMU 11.1.0 (TCG, no hardware virtualisation) on Windows 10): **9 of 9 gates pass.**
 
 | Gate | Requirement | Result | Measured |
 |---|---|---|---|
-| G1 | One command builds the disk image from a clean tree | pass | clean build in 50 s wrote build/inti.img (2,097,152 bytes) |
-| G2 | Boots from its own boot sector to a shell prompt in QEMU within 20 s | pass | shell prompt 264 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel |
-| G3 | The self-test inside the system passes with at least 30 checks | pass | SELFTEST: PASS 82/82 after boot and 82/82 again after every injected fault and the fuzz run |
-| G4 | Each supervised service is crashed and hung, restarted automatically, and timed | pass | console crash 5.8 ms, fs crash 2.7 ms, console hang 657.0 ms, fs hang 647.1 ms (median of 5 runs each, guest clock); the shell answered after every run |
-| G5 | Every attempt of the hostile program without capabilities is denied | pass | 47/47 attempts denied (port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers |
-| G6 | At least 1,000,000 random system calls: no kernel panic, no invariant violated | pass | 1,001,123 random system calls from 2,034 tasks, 3,839 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log |
-| G7 | No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code | pass | no alloc crate in the kernel; 75 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,673 lines of kernel code (limit 4,000) |
-| G8 | The same disk image boots to the shell prompt in a web browser | pass | shell prompt after 2.46 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless); 6 commands answered; byte-for-byte the image of the QEMU test |
+| G1 | One command builds the disk image from a clean tree | pass | clean build in 129 s wrote build/inti.img (2,097,152 bytes) |
+| G2 | Boots from its own boot sector to a shell prompt in QEMU within 20 s | pass | shell prompt 806 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel |
+| G3 | The self-test inside the system passes with at least 30 checks | pass | SELFTEST: PASS 90/90 after boot and 90/90 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx) |
+| G4 | Each supervised service is crashed and hung, restarted automatically, and timed | pass | console crash 7.5 ms, fs crash 2.4 ms, console hang 746.4 ms, fs hang 718.0 ms, fs crash during a console hang: fs 49.6 ms and console 805.3 ms (median of 5 runs each, guest clock); the shell answered after every run |
+| G5 | Every attempt of the hostile program without capabilities is denied | pass | 50/50 attempts denied (including port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers |
+| G6 | At least 1,000,000 random system calls: no kernel panic, no invariant violated | pass | 1,002,227 random system calls from 2,040 tasks, 3,995 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log |
+| G7 | No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code | pass | no alloc crate in the kernel; 83 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,795 lines of kernel code (limit 4,000) |
+| G8 | The same disk image boots to the shell prompt in a web browser | pass | shell prompt after 2.16 s in v86 0.5.473 (WebAssembly) under chromium 140.0.7339.16 (headless); 7 commands answered; byte-for-byte the image of the QEMU test |
 | G9 | Every number in the documents comes from a script or carries a source | pass | tools/check_claims.py passes: claims recomputed, documents re-rendered and compared |
 
 All timings are emulator timings. They show that a restart is quick compared with a reboot; they say nothing about real hardware, which Inti has never run on.
@@ -51,10 +51,10 @@ A driver crash, exactly as the serial port recorded it:
 
 ```log
 inti> crash console
-init: console crashed: page fault at address 0x10, eip 0x40001116
-init: console restarted after 2337 us (restart 1)
+init: console crashed: page fault at address 0x10, eip 0x40002096
+init: console restarted after 2956 us (restart 1)
 [console restarted]
-RECOVERY: console crash -> answering again after 6039 us
+RECOVERY: console crash -> answering again after 7503 us
 ```
 
 The hostile program (a sample; `...` marks lines left out, and the full list is in [weaknesses and sources](docs/weaknesses.md)):
@@ -91,24 +91,29 @@ Attempts that need a capability are made with each of the 32 slots.
 ...
 45. return to ring 0 with a forged iret frame  denied: general protection fault
 ...
-ROGUE: 47/47 attempts denied
+48. run code from its stack                    denied: page fault
+49. run code from its data                     denied: page fault
+50. run code from memory it just mapped        denied: page fault
+ROGUE: 50/50 attempts denied
 kernel invariants: all hold
 ```
 
 ## Try it
 
-In the browser: open the [live demo](https://juw12.github.io/inti/) and press the buttons, or click the screen and type.
+In the browser: open the [live demo](https://juw12.github.io/inti/) and press "Take the guided tour" or any other button, or click the screen and type.
 
 On your own machine, with QEMU installed, `python build.py run` builds the image and boots it in a window (`run.bat` does the same on Windows). Things to type at the `inti>` prompt:
 
 | Command | What happens |
 |---|---|
 | `help` | lists every command |
+| `tour` | the guided tour: a hostile program, a driver crash, a server hang, two failures at once and the kernel's counters, each step announced before it runs |
 | `crash console` | the screen and keyboard driver dies of a page fault; the supervisor replaces it and the shell prints how long that took |
 | `hang fs` | the file server stops answering; the supervisor notices, ends it and starts a new one |
-| `rogue` | a hostile program tries to read kernel memory, touch hardware, forge or revoke capabilities and exceed its quotas |
+| `double` | the console driver hangs and, while the supervisor is waiting for it, the file server crashes; both are replaced |
+| `rogue` | a hostile program tries to read kernel memory, touch hardware, run code from its own data, forge or revoke capabilities and exceed its quotas |
 | `fuzz 20000` | random system calls from throw-away programs while the kernel checks its own rules |
-| `selftest` | 82 promises of the kernel, checked one by one from an ordinary program |
+| `selftest` | 90 promises of the kernel, checked one by one from an ordinary program |
 | `crash init` | the supervisor itself dies; the kernel starts every program again |
 | `svc`, `ps`, `caps <task>`, `mem`, `uptime` | what is running, who holds which capabilities and what each was copied from, quotas, memory, counters |
 
@@ -124,12 +129,12 @@ python build.py test     # run every test in QEMU
 python build.py gates    # every check, from a clean build
 ```
 
-The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used rustc 1.99.1 (58cf8f9c3 2026-10-13), Python 3.13.2 and QEMU 11.1.0 (TCG, no hardware virtualisation); its test run took 154 s.
+The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used rustc 1.99.1 (58cf8f9c3 2026-10-13), Python 3.13.2 and QEMU 11.1.0 (TCG, no hardware virtualisation); its test run took 206 s.
 
 ## How it works
 
 - **Boot.** A boot sector of 512 bytes, written in Rust, loads the kernel through the BIOS. No GRUB, no multiboot.
-- **Kernel.** 2,673 lines of Rust, 60.2 KiB when built. It hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts, through 22 system calls. It has no heap, no drivers and no file system.
+- **Kernel.** 2,795 lines of Rust, 68.2 KiB when built. It hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts, through 22 system calls. It has no heap, no drivers and no file system. It uses PAE paging and, where the processor has the no-execute bit, enforces W^X: no page is both writable and executable, for programs and for the kernel itself.
 - **Capabilities.** A program can only name what it holds: 7 kinds of capability (endpoints, I/O ports, interrupt lines, memory, tasks, the kernel log, kernel information). No system call takes a global name such as a process id or a path. A capability can be copied with fewer rights but never more, passed on in a message when both sides hold the grant right, and revoked: whoever handed it out takes back every copy while the holders keep running.
 - **Quotas.** Memory, tasks and endpoints are lent by a parent to its children and returned when they end, so a program can exhaust its own share and nothing else.
 - **Drivers.** The console driver (screen, keyboard, serial port) and the file server are ordinary programs, each started with a handful of capabilities.
@@ -151,10 +156,10 @@ No number in these documents is typed by hand unless a source link stands next t
 | Path | What is there |
 |---|---|
 | `boot/` | the boot sector (127 lines) |
-| `kernel/` | the kernel (2,339 lines) |
-| `abi/` | the interface that the kernel and the programs share (334 lines) |
-| `user/` | the runtime library, the supervisor, the drivers, the shell and the test programs (4,327 lines) |
-| `build.py`, `tools/` | the build, test, gate and document scripts (2,093 lines of Python) |
+| `kernel/` | the kernel (2,459 lines) |
+| `abi/` | the interface that the kernel and the programs share (336 lines) |
+| `user/` | the runtime library, the supervisor, the drivers, the shell and the test programs (4,622 lines) |
+| `build.py`, `tools/` | the build, test, gate and document scripts (2,319 lines of Python) |
 | `evidence/` | the raw serial log and every measured number of the last gate run |
 | `docs/` | the browser demo, these documents and their templates |
 | `rubric.md`, `refine_log.md` | the criteria this project was built against, and the log of the run that built it |

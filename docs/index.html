@@ -39,9 +39,13 @@
 
   <section class="try" aria-label="Things to try">
     <h2>Break something</h2>
-    <p>Each button types a command into the shell. You can also click the screen and type;
-    <code>help</code> lists every command.</p>
+    <p>Each button types a command into the shell. New here? Start with the guided tour.
+    You can also click the screen and type; <code>help</code> lists every command.</p>
     <div class="buttons">
+      <button class="tour" data-command="tour" disabled>Take the guided tour
+        <span>Five steps, each announced before it runs: a hostile program, a crashed driver,
+        a hung driver, two failures at once, then the counters. It takes under a minute and
+        nothing is rebooted.</span></button>
       <button data-command="crash console" disabled>Crash the screen driver
         <span>The program that draws the screen dies. The supervisor starts a new one.</span></button>
       <button data-command="hang fs" disabled>Hang the file server

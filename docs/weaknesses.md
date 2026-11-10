@@ -3,7 +3,7 @@
 
 Inti does not try to beat mainstream operating systems at what they are good at. It picks three weaknesses that their own makers and the research literature document, and shows a design in which each one is absent. For each weakness this page gives the evidence, what Inti does, what was measured, and what Inti does **not** solve.
 
-The measurements are from the gate run of 2026-11-10 in QEMU 11.1.0 (TCG, no hardware virtualisation). `python build.py gates` repeats them. They are emulator figures.
+The measurements are from the gate run of 2026-11-11 in QEMU 11.1.0 (TCG, no hardware virtualisation). `python build.py gates` repeats them. They are emulator figures.
 
 ## Drivers that can take the whole system down
 
@@ -20,43 +20,43 @@ The measurements are from the gate run of 2026-11-10 in QEMU 11.1.0 (TCG, no har
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 5.8 ms | 4.9 to 6.0 ms | 9 ms | 2.1 ms |
-| file server crashes (page fault) | 5 | 2.7 ms | 2.0 to 3.3 ms | 5 ms | 1.4 ms |
-| console driver hangs (stops answering) | 5 | 657 ms | 635 to 678 ms | 661 ms | 1.5 ms |
-| file server hangs (stops answering) | 5 | 647 ms | 617 to 668 ms | 650 ms | 0.9 ms |
-| file server hangs right after a restart | 3 | 1044 ms | 1031 to 1052 ms | 1047 ms | 0.8 ms |
+| console driver crashes (page fault) | 5 | 7.5 ms | 4.9 to 9.1 ms | 12 ms | 3.1 ms |
+| file server crashes (page fault) | 5 | 2.4 ms | 2.0 to 4.1 ms | 6 ms | 1.4 ms |
+| console driver hangs (stops answering) | 5 | 746 ms | 705 to 749 ms | 751 ms | 1.6 ms |
+| file server hangs (stops answering) | 5 | 718 ms | 664 to 736 ms | 721 ms | 0.8 ms |
+| file server hangs right after a restart | 3 | 1160 ms | 1154 to 1206 ms | 1163 ms | 0.9 ms |
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer.
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 49.6 ms and the console driver after 805 ms. The log is in [How Inti works](design.md).
 
 ```log
 inti> crash fs
-init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 790 us (restart 1)
-RECOVERY: fs crash -> answering again after 1975 us
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 807 us (restart 1)
+RECOVERY: fs crash -> answering again after 2052 us
 ```
 
 ```log
 inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
-init: console restarted after 1626 us (restart 6)
+init: console restarted after 1206 us (restart 6)
 [console restarted]
-RECOVERY: console hang -> answering again after 676390 us
+RECOVERY: console hang -> answering again after 746384 us
 ```
 
 The same two faults in the browser demo, where the emulator is slower:
 
 ```weblog
 inti> crash console
-init: console crashed: page fault at address 0x10, eip 0x40001116
-init: console restarted after 1300 us (restart 1)
+init: console crashed: page fault at address 0x10, eip 0x40002096
+init: console restarted after 1101 us (restart 1)
 [console restarted]
-RECOVERY: console crash -> answering again after 4701 us
+RECOVERY: console crash -> answering again after 6200 us
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 2400 us (restart 1)
-RECOVERY: fs hang -> answering again after 543184 us
+init: fs restarted after 1400 us (restart 1)
+RECOVERY: fs hang -> answering again after 766387 us
 ```
 
 **What Inti does not solve.**
@@ -74,40 +74,40 @@ RECOVERY: fs hang -> answering again after 543184 us
 - Around 70% of Chromium's high-severity security bugs are memory-unsafety problems ([The Chromium Projects, "Memory safety"](https://www.chromium.org/Home/chromium-security/memory-safety)).
 - The Linux kernel has started to accept Rust code for this reason ([kernel.org, "Rust"](https://docs.kernel.org/rust/index.html)).
 
-**What Inti does.** The kernel is written in Rust and does not link the `alloc` crate: it has no heap, and all of its state is one value made of fixed-size tables. Hardware access needs `unsafe` (port I/O, page tables, the switch between tasks); there are 37 such blocks in the kernel and its interface crate, each with a comment that says why it is sound, and the gate script fails if one is missing. Arithmetic overflow checks stay on in the release build. The kernel never dereferences an address a program gave it. On top of that, a checker inside the kernel recounts everything the kernel owns against 21 rules whenever a program with the right capability asks.
+**What Inti does.** The kernel is written in Rust and does not link the `alloc` crate: it has no heap, and all of its state is one value made of fixed-size tables. Hardware access needs `unsafe` (port I/O, page tables, the switch between tasks); there are 41 such blocks in the kernel and its interface crate, each with a comment that says why it is sound, and the gate script fails if one is missing. Arithmetic overflow checks stay on in the release build. The kernel never dereferences an address a program gave it. On top of that, a checker inside the kernel recounts everything the kernel owns against 24 rules whenever a program with the right capability asks.
 
 **What was measured.** The fuzzer keeps 4 throw-away programs running, each making random and almost-right system calls, and asks the kernel to check its rules every 25 ms.
 
 ```log
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 81466103.
-   10%  100518 calls, 199 tasks ended, 388 checks
+Fuzzing the kernel with 1000000 random system calls, seed 114101615.
+   10%  100175 calls, 208 tasks ended, 404 checks
 ...
-  100%  1000020 calls, 2031 tasks ended, 3835 checks
-FUZZ: 1001123 random system calls from 2034 tasks in 60757 ms
-FUZZ: 3839 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 584 exited, 1062 were stopped, 388 hit a CPU exception
+  100%  1001198 calls, 2037 tasks ended, 3991 checks
+FUZZ: 1002227 random system calls from 2040 tasks in 70107 ms
+FUZZ: 3995 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 590 exited, 1034 were stopped, 416 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14446 /   14446    io_in           14334 /    1979
-  exit              458 /     458    io_out          14137 /    1999
-  call            14305 /    2190    irq_bind        14368 /     935
-  recv            14362 /     368    irq_ack         14345 /     597
-  reply           14487 /      60    spawn           14267 /    1128
-  ep_create       14397 /    5838    task_kill       14429 /      62
-  cap_derive      14255 /    2520    sleep           14359 /   14359
-  cap_drop        13933 /    3496    time            14198 /   14198
-  map             14490 /    2506    log             14371 /       0
-  unmap           14073 /    3771    sysinfo         14346 /    2108
-  map_mem         14416 /    1630    cap_revoke      14299 /    5930
+  yield           14159 /   14159    io_in           14226 /    2012
+  exit              459 /     459    io_out          14224 /    2075
+  call            14409 /    2157    irq_bind        14349 /     895
+  recv            14254 /     327    irq_ack         14111 /     636
+  reply           14384 /      56    spawn           14443 /     994
+  ep_create       14205 /    6087    task_kill       14295 /      53
+  cap_derive      14250 /    2532    sleep           14288 /   14288
+  cap_drop        13565 /    3502    time            14299 /   14299
+  map             14266 /    2518    log             14295 /       0
+  unmap           14004 /    3871    sysinfo         14081 /    2147
+  map_mem         14272 /    1572    cap_revoke      14392 /    5927
 FUZZ: PASS
 ```
 
 **What Inti does not solve.**
 
-- Rust's guarantees end where `unsafe` begins. The 37 blocks were written and reviewed by one author; they are not verified.
+- Rust's guarantees end where `unsafe` begins. The 41 blocks were written and reviewed by one author; they are not verified.
 - Memory safety does not rule out logic errors. The checker and the fuzzer found none in this run, which is evidence and not proof. seL4 has machine-checked proofs of functional correctness ([seL4 FAQ](https://sel4.systems/About/FAQ.html)); Inti has nothing of that kind.
 - The fuzzer is random, not guided by coverage, and its programs hold no capability for the kernel log, so that one call is fuzzed only up to its capability check.
-- Code pages are read-only, but this paging mode has no no-execute bit, so a program's data pages are executable.
+- W^X stops a program from running code it wrote into its own data, but only on a processor with the no-execute bit, and Inti has only run in emulators. It does nothing against the reuse of code that is already in the program, and there is no address-space randomisation.
 
 ## Programs that run with all the rights of their user
 
@@ -118,7 +118,7 @@ FUZZ: PASS
 
 **What Inti does.** There is nothing a program can reach by naming it. Every system call starts from a slot in the caller's own capability table, a new program starts with exactly the capabilities its parent copied into it, and a capability can be copied with fewer rights or a smaller range but never more. A capability can also arrive in a message, but only when the sending and the receiving end of that conversation both carry the grant right, and whoever handed a capability out can take back every copy of it while the holders keep running. Memory, tasks and endpoints are lent the same way, as quotas that a parent gives its child. A program started from the shell gets one capability: the right to send text to the console.
 
-**What was measured.** `rogue all` starts a hostile program with that one capability. It makes 47 attempts: 29 through the system call interface and 18 directly on the hardware. The kernel refuses 26 with an error code, the console driver refuses 2, the processor ignores 1 and stops the program on the other 18. Among the attempts: creating an endpoint without endpoint quota, giving a child more task quota than it has, handing a capability to the console driver, and revoking capabilities it does not hold. Afterwards the kernel's rules still hold.
+**What was measured.** `rogue all` starts a hostile program with that one capability. It makes 50 attempts: 29 through the system call interface and 21 directly on the hardware. The kernel refuses 26 with an error code, the console driver refuses 2, the processor ignores 1 and stops the program on the other 21. Among the attempts: creating an endpoint without endpoint quota, giving a child more task quota than it has, handing a capability to the console driver, and revoking capabilities it does not hold. Among the attempts on the hardware are running code from the program's stack, from its data and from memory it has just mapped; with the no-execute bit the processor stops each one with a page fault. Afterwards the kernel's rules still hold.
 
 ```log
 inti> rogue all
@@ -171,7 +171,10 @@ Attempts that need a capability are made with each of the 32 slots.
 45. return to ring 0 with a forged iret frame  denied: general protection fault
 46. write a model-specific register (wrmsr)    denied: general protection fault
 47. enter the kernel through sysenter          denied: general protection fault
-ROGUE: 47/47 attempts denied
+48. run code from its stack                    denied: page fault
+49. run code from its data                     denied: page fault
+50. run code from memory it just mapped        denied: page fault
+ROGUE: 50/50 attempts denied
 kernel invariants: all hold
 ```
 
@@ -184,7 +187,7 @@ Attempts that need a capability are made with each of the 32 slots.
 ...
 45. return to ring 0 with a forged iret frame  skipped
 ...
-ROGUE: 46/46 attempts denied, 1 skipped
+ROGUE: 49/49 attempts denied, 1 skipped
 The skipped attempt stops the v86 browser emulator; "rogue all" runs it.
 kernel invariants: all hold
 ```

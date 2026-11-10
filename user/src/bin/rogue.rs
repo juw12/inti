@@ -3,12 +3,14 @@
 //! The shell starts it the way it starts any program: with one capability, the right to
 //! send text to the console. Mode 0 then tries 29 things through the system call interface
 //! that such a program must not be able to do, and exits with `denied << 16 | attempts`.
-//! Modes 1 to 18 each try one thing directly on the hardware; the CPU must stop the task,
-//! and the shell reports how it ended.
+//! Modes 1 to 21 each try one thing directly on the hardware; the CPU must stop the task,
+//! and the shell reports how it ended. The last three run code from memory that holds
+//! data, which only a processor with the no-execute bit stops.
 #![no_std]
 #![no_main]
 
 use core::arch::asm;
+use core::sync::atomic::{AtomicU8, Ordering};
 
 use rt::abi::{nr, Msg, SpawnArgs, CAP_SLOTS, E_NOCAP, E_NOSYS, R_RECV, R_SEND};
 use rt::io::{errname, set_output, Num, Pad, Sink};
@@ -25,6 +27,10 @@ const KERNEL: u32 = 0x10_0000;
 const SPARE: u32 = 0x6000_0000;
 /// How many attempts mode 0 makes.
 const SOFTWARE_ATTEMPTS: u32 = 29;
+/// The one-byte instruction `ret`.
+const RET: u8 = 0xC3;
+/// A writable byte in this program's data, for the attempt to run code from there.
+static IN_DATA: AtomicU8 = AtomicU8::new(0);
 
 struct Tally {
     denied: u32,
@@ -264,8 +270,10 @@ fn software(quota: u32) -> ! {
     sys::exit(tally.denied << 16 | tally.total)
 }
 
-/// Modes 1 to 18: one attempt on the hardware itself. Each must end in a CPU exception that
+/// Modes 1 to 21: one attempt on the hardware itself. Each must end in a CPU exception that
 /// the kernel turns into the end of this task; reaching the `exit` means it was not stopped.
+/// Modes 19 to 21 put a `ret` instruction into data and call it: with the no-execute bit
+/// that is a page fault, without it the call simply returns.
 /// With `attempt` false the task only prints what it would have tried (the shell skips it).
 fn hardware(what: u32, attempt: bool) -> ! {
     let text = match what {
@@ -287,6 +295,9 @@ fn hardware(what: u32, attempt: bool) -> ! {
         16 => "return to ring 0 with a forged iret frame",
         17 => "write a model-specific register (wrmsr)",
         18 => "enter the kernel through sysenter",
+        19 => "run code from its stack",
+        20 => "run code from its data",
+        21 => "run code from memory it just mapped",
         _ => sys::exit(0),
     };
     out!(Num(SOFTWARE_ATTEMPTS + what, 2), ". ", Pad(text.as_bytes(), WIDTH));
@@ -296,6 +307,16 @@ fn hardware(what: u32, attempt: bool) -> ! {
     let kernel = KERNEL as usize;
     let code = main as *const () as usize;
     let table = [0u8; 6];
+    let mut on_stack = [RET; 16];
+    let data = match what {
+        19 => core::hint::black_box(&mut on_stack).as_mut_ptr() as usize,
+        20 => {
+            IN_DATA.store(RET, Ordering::Relaxed);
+            IN_DATA.as_ptr() as usize
+        }
+        21 => fresh_code(),
+        _ => 0,
+    };
     // SAFETY: none of this is safe, on purpose. Each arm is one way of taking over the
     // machine that ring 3, paging or the interrupt table must stop; the task is expected to
     // die in the attempt, and the shell counts a survivor as a failure of the system.
@@ -318,10 +339,22 @@ fn hardware(what: u32, attempt: bool) -> ! {
             15 => asm!("2:", "push eax", "jmp 2b"),
             16 => asm!("push 0x2", "push 0x08", "push 0x100000", "iretd"),
             17 => asm!("wrmsr", in("ecx") 0x174, in("eax") 0, in("edx") 0),
-            _ => asm!("sysenter"),
+            18 => asm!("sysenter"),
+            _ => asm!("call {p}", p = in(reg) data, clobber_abi("C")),
         }
     }
     sys::exit(0)
+}
+
+/// Maps one writable page, puts a `ret` instruction there and returns its address.
+fn fresh_code() -> usize {
+    if sys::map(SPARE, 1, true).is_err() {
+        outln!("could not map a page to try");
+        sys::exit(1)
+    }
+    // SAFETY: the page at SPARE was mapped writable just above; nothing else uses it.
+    unsafe { (SPARE as *mut u8).write(RET) };
+    SPARE as usize
 }
 
 #[no_mangle]

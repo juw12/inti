@@ -44,7 +44,7 @@ Reading this table fairly:
 
 - **Hardware and software.** No real hardware, no network, no persistent storage, no applications, one processor.
 - **Assurance.** No formal verification, one author, one day. seL4's proofs are in a different class.
-- **Security mechanisms.** No no-execute protection for data pages and no IOMMU. Revocation takes back all copies of a capability or none, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
+- **Security mechanisms.** W^X is enforced only on processors with the no-execute bit and has only been shown in emulators; there is no address-space randomisation and no IOMMU. Revocation takes back all copies of a capability or none, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
 - **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; the scheduler has no processor quotas, so a program can take its full share of the processor; page tables are freed only when a task ends.
 - **Performance.** Never measured outside an emulator, so nothing is claimed.
 

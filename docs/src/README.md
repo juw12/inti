@@ -4,7 +4,7 @@
 
 Inti (Indonesian for "core") is a boot sector, a capability microkernel of {{loc.kernel_total}} lines of Rust, and device drivers that run as ordinary programs. It was built to take three well-documented weaknesses of mainstream operating systems, do the opposite, and measure what happens.
 
-**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and it has buttons that crash a driver, hang the file server, run a hostile program and fuzz the kernel.
+**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of {{tour.steps}} announced steps that takes under a minute ({{web.tour_seconds}} s in the last browser check): a hostile program, a crashed driver, a hung file server, two failures at once and the kernel's counters. Other buttons do each of these on its own and fuzz the kernel.
 
 Inti is not the best operating system in the world, and nothing here says so. It is a research toy: no network, no disk file system, no applications, one processor, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
 
@@ -22,7 +22,7 @@ These are captures of the emulated screen, taken by the test scripts during the 
 
 | Weakness of mainstream systems | What Inti does | Measured on this build |
 |---|---|---|
-| **A driver bug takes the whole system down.** Drivers run inside the kernel. Device drivers caused 85% of recently reported Windows XP failures ([Swift, Bershad and Levy, SOSP 2003](https://dl.acm.org/doi/10.1145/945445.945466)), and on 19 July 2024 one faulty update for a kernel driver crashed an estimated 8.5 million Windows devices ([Microsoft](https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/)). | Drivers are ordinary programs with no kernel privileges. A supervisor restarts a driver that crashes or stops answering, and programs that were waiting get their answer from the new one. | A crashed console driver answers again after {{recovery.console_crash.median_ms}} ms (median of {{recovery.console_crash.runs}} runs), a hung one after {{recovery.console_hang.median_ms}} ms. When the supervisor itself is crashed, the kernel restarts user space. |
+| **A driver bug takes the whole system down.** Drivers run inside the kernel. Device drivers caused 85% of recently reported Windows XP failures ([Swift, Bershad and Levy, SOSP 2003](https://dl.acm.org/doi/10.1145/945445.945466)), and on 19 July 2024 one faulty update for a kernel driver crashed an estimated 8.5 million Windows devices ([Microsoft](https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/)). | Drivers are ordinary programs with no kernel privileges. A supervisor restarts a driver that crashes or stops answering, and programs that were waiting get their answer from the new one. | A crashed console driver answers again after {{recovery.console_crash.median_ms}} ms (median of {{recovery.console_crash.runs}} runs), a hung one after {{recovery.console_hang.median_ms}} ms. With the console driver hung and the file server crashed at the same moment, both answer again (after {{double.console_ms}} ms and {{double.fs_ms}} ms). When the supervisor itself is crashed, the kernel restarts user space. |
 | **Kernels are written in memory-unsafe languages.** About 70% of the vulnerabilities Microsoft assigns a CVE each year are memory-safety issues ([MSRC, 2019](https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code)); Chromium reports the same share of its high-severity bugs ([Chromium](https://www.chromium.org/Home/chromium-security/memory-safety)). | The kernel is Rust with no heap: every table has a fixed size. Each of its {{count.unsafe_kernel}} `unsafe` blocks carries a written justification, and a checker inside the kernel recounts everything the kernel owns against {{count.invariant_rules}} rules. | {{fuzz.calls}} random system calls from {{fuzz.tasks}} throw-away programs: {{fuzz.violations}} rule violations in {{fuzz.checks}} checks, {{fuzz.anomalies}} kernel anomalies, {{fuzz.leaks}} leaked resources. |
 | **Programs run with all the rights of their user.** A program that acts with the full power of its user can reach everything that user can; Watson and others call such implicit access ambient authority ([Capsicum, USENIX Security 2010](https://www.usenix.org/legacy/event/sec10/tech/full_papers/Watson.pdf)). | There is no ambient authority. Every system call starts from a capability the program was handed, and a capability can be narrowed but never widened. | A hostile program that holds one capability makes {{rogue.all_total}} attempts on the kernel, the hardware and other programs. {{rogue.all_denied}} are denied and the system stays up. |
 
@@ -50,16 +50,18 @@ The hostile program (a sample; `...` marks lines left out, and the full list is 
 
 ## Try it
 
-In the browser: open the [live demo](https://juw12.github.io/inti/) and press the buttons, or click the screen and type.
+In the browser: open the [live demo](https://juw12.github.io/inti/) and press "Take the guided tour" or any other button, or click the screen and type.
 
 On your own machine, with QEMU installed, `python build.py run` builds the image and boots it in a window (`run.bat` does the same on Windows). Things to type at the `inti>` prompt:
 
 | Command | What happens |
 |---|---|
 | `help` | lists every command |
+| `tour` | the guided tour: a hostile program, a driver crash, a server hang, two failures at once and the kernel's counters, each step announced before it runs |
 | `crash console` | the screen and keyboard driver dies of a page fault; the supervisor replaces it and the shell prints how long that took |
 | `hang fs` | the file server stops answering; the supervisor notices, ends it and starts a new one |
-| `rogue` | a hostile program tries to read kernel memory, touch hardware, forge or revoke capabilities and exceed its quotas |
+| `double` | the console driver hangs and, while the supervisor is waiting for it, the file server crashes; both are replaced |
+| `rogue` | a hostile program tries to read kernel memory, touch hardware, run code from its own data, forge or revoke capabilities and exceed its quotas |
 | `fuzz {{fuzz.default_calls:raw}}` | random system calls from throw-away programs while the kernel checks its own rules |
 | `selftest` | {{selftest.checks}} promises of the kernel, checked one by one from an ordinary program |
 | `crash init` | the supervisor itself dies; the kernel starts every program again |
@@ -82,7 +84,7 @@ The browser check also needs Playwright with Chromium (`pip install playwright`,
 ## How it works
 
 - **Boot.** A boot sector of {{size.boot_sector_bytes}} bytes, written in Rust, loads the kernel through the BIOS. No GRUB, no multiboot.
-- **Kernel.** {{loc.kernel_total}} lines of Rust, {{size.kernel_kib}} KiB when built. It hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts, through {{count.syscalls}} system calls. It has no heap, no drivers and no file system.
+- **Kernel.** {{loc.kernel_total}} lines of Rust, {{size.kernel_kib}} KiB when built. It hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts, through {{count.syscalls}} system calls. It has no heap, no drivers and no file system. It uses PAE paging and, where the processor has the no-execute bit, enforces W^X: no page is both writable and executable, for programs and for the kernel itself.
 - **Capabilities.** A program can only name what it holds: {{count.cap_types}} kinds of capability (endpoints, I/O ports, interrupt lines, memory, tasks, the kernel log, kernel information). No system call takes a global name such as a process id or a path. A capability can be copied with fewer rights but never more, passed on in a message when both sides hold the grant right, and revoked: whoever handed it out takes back every copy while the holders keep running.
 - **Quotas.** Memory, tasks and endpoints are lent by a parent to its children and returned when they end, so a program can exhaust its own share and nothing else.
 - **Drivers.** The console driver (screen, keyboard, serial port) and the file server are ordinary programs, each started with a handful of capabilities.

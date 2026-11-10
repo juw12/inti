@@ -25,16 +25,20 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 EVIDENCE = ROOT / "evidence"
 PROMPT = "inti> "
-DEFAULT_COMMANDS = ["hello", "selftest", "rogue", "crash console", "hang fs", "uptime"]
+DEFAULT_COMMANDS = ["hello", "selftest", "rogue", "crash console", "hang fs", "tour", "uptime"]
+TOUR_LIMIT_S = 60  # the page says the guided tour takes under a minute
 
 # What a command's output must contain. A command not listed here only has to come back
 # to the prompt without a kernel panic.
 EXPECT = {
-    "selftest": r"SELFTEST: PASS (\d+)/\1\b",
+    # Nothing may follow the count: the self-test appends what it skipped, and in v86, which has
+    # the no-execute bit, it must skip nothing.
+    "selftest": r"SELFTEST: PASS (\d+)/\1\s*\n",
     "rogue": r"ROGUE: (\d+)/\1 attempts denied",
     "uptime": r"kernel invariants: all hold",
     "crash console": r"RECOVERY: console crash -> answering again after \d+ us",
     "hang fs": r"RECOVERY: fs hang -> answering again after \d+ us",
+    "tour": r"TOUR: done",
 }
 
 
@@ -107,6 +111,9 @@ def run(commands: list[str], timeout: float, save: bool) -> int:
             page.wait_for_function("window.inti && window.inti.ready", timeout=timeout * 1000)
             result["boot_seconds"] = round(time.perf_counter() - started, 2)
             print(f"web: shell prompt after {result['boot_seconds']} s", flush=True)
+            result["wx_enforced"] = "W^X enforced" in page.evaluate("window.inti.serial")
+            if not result["wx_enforced"]:
+                failures.append("the boot log does not say that W^X is enforced")
             for line in commands:
                 mark = page.evaluate("window.inti.serial.length")
                 began = time.perf_counter()
@@ -122,6 +129,8 @@ def run(commands: list[str], timeout: float, save: bool) -> int:
                 good = "KERNEL PANIC" not in output
                 if wanted:
                     good = good and re.search(wanted, output) is not None
+                if line.strip() == "tour":
+                    good = good and seconds < TOUR_LIMIT_S
                 result["commands"][line] = {"ok": good, "seconds": seconds, "output": output}
                 print(f"web: {line}: {'ok' if good else 'FAILED'} ({seconds} s)", flush=True)
                 if not good:

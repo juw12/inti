@@ -4,9 +4,11 @@ SECTIONS {
     . = 0x100000;
     __kernel_start = .;
     .text : { KEEP(*(.head)) *(.text .text.*) }
+    . = ALIGN(4096);
+    __text_end = .;                   /* code is mapped read-only and is all that can run */
     .rodata : { *(.rodata .rodata.*) }
     . = ALIGN(4096);
-    __rodata_end = .;                 /* text + rodata are mapped read-only */
+    __rodata_end = .;                 /* constants are mapped read-only */
     .data : { *(.data .data.*) *(.got .got.*) }
     .bss (NOLOAD) : ALIGN(16) {
         __bss_start = .;

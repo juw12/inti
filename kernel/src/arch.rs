@@ -300,17 +300,61 @@ pub fn read_cr2() -> u32 {
     value
 }
 
-/// Switch address space.
-pub fn write_cr3(directory: u32) {
-    // SAFETY: `directory` is a page directory built by `mem.rs`; all of them share the same
-    // kernel mappings, so the running kernel code and data stay mapped across the switch.
-    unsafe { asm!("mov cr3, {}", in(reg) directory, options(nostack)) }
+/// Run CPUID for `leaf`; returns EAX and EDX.
+fn cpuid(leaf: u32) -> (u32, u32) {
+    let (eax, edx): (u32, u32);
+    // SAFETY: CPUID only loads identification data into the four registers named here.
+    // Inti is built for the Pentium, and every Pentium has the instruction.
+    unsafe {
+        asm!(
+            "cpuid",
+            inout("eax") leaf => eax,
+            out("ebx") _,
+            inout("ecx") 0u32 => _,
+            out("edx") edx,
+            options(nomem, nostack),
+        )
+    }
+    (eax, edx)
 }
 
-/// Turn on paging, write protection in ring 0, and trapping of every FPU instruction.
-pub fn enable_paging(directory: u32) {
-    write_cr3(directory);
-    // SAFETY: the directory identity-maps the kernel, so the next instruction is still mapped.
+/// Does this processor have PAE paging, and does it have the no-execute bit?
+pub fn cpu_features() -> (bool, bool) {
+    let pae = cpuid(1).1 & (1 << 6) != 0;
+    let extended = cpuid(0x8000_0000).0 >= 0x8000_0001;
+    let nx = extended && cpuid(0x8000_0001).1 & (1 << 20) != 0;
+    (pae, nx)
+}
+
+/// Switch address space.
+pub fn write_cr3(root: u32) {
+    // SAFETY: `root` is a root table built by `mem.rs`; all of them share the same kernel
+    // map, so the running kernel code and data stay mapped across the switch.
+    unsafe { asm!("mov cr3, {}", in(reg) root, options(nostack)) }
+}
+
+/// Turn on PAE paging (with no-execute if the processor has it, as `nx` says), write
+/// protection in ring 0, and trapping of every FPU instruction.
+pub fn enable_paging(root: u32, nx: bool) {
+    // SAFETY: paging is still off, which is when the processor allows CR4.PAE to be set.
+    unsafe { asm!("mov {tmp}, cr4", "or {tmp}, 0x20", "mov cr4, {tmp}", tmp = out(reg) _, options(nostack)) }
+    if nx {
+        // SAFETY: CPUID reported the no-execute bit, so the EFER register (0xC0000080)
+        // exists and its NXE bit (0x800) may be set. EAX and EDX are declared as clobbered.
+        unsafe {
+            asm!(
+                "rdmsr",
+                "or eax, 0x800",
+                "wrmsr",
+                in("ecx") 0xC000_0080u32,
+                out("eax") _,
+                out("edx") _,
+                options(nostack),
+            )
+        }
+    }
+    write_cr3(root);
+    // SAFETY: the root table identity-maps the kernel, so the next instruction is still mapped.
     unsafe {
         asm!(
             "mov {tmp}, cr0",

@@ -216,8 +216,9 @@ impl Kernel {
     /// `map`: add zeroed pages of the caller's own quota to its address space.
     fn sys_map(&mut self, me: usize, va: u32, pages: u32, writable: bool) -> Sys {
         user_range(va, pages)?;
+        let flags = if writable { US | RW } else { US };
         for done in 0..pages {
-            if let Err(code) = self.map_anon(me, va + done * PAGE, writable) {
+            if let Err(code) = self.map_anon(me, va + done * PAGE, flags) {
                 self.unmap_range(me, va, done); // all or nothing
                 return Err(code);
             }
@@ -434,11 +435,12 @@ impl Kernel {
                     self.stats.spawns,
                     self.stats.anomalies,
                     self.mem.kernel_pages,
+                    (self.mem.nx != 0) as u32,
                 ];
                 for (index, word) in words.into_iter().enumerate() {
                     put32(&mut out, index * 4, word);
                 }
-                48
+                52
             }
             INFO_TASK => {
                 let task = self.tasks.get(arg as usize).ok_or(E_INVAL)?;

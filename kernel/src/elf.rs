@@ -3,7 +3,7 @@
 //! The image is untrusted input. Every field is range-checked, every read is bounds-checked,
 //! and all memory the new program gets is charged to its own quota.
 
-use crate::mem::{Mem, ADDR};
+use crate::mem::{frame_of, Mem, EXEC, RW, US};
 use crate::task::Kernel;
 use crate::{get16, get32};
 use abi::{E_BUSY, E_FAULT, E_INVAL, PAGE, STACK_TOP, USER_BASE};
@@ -12,6 +12,7 @@ use abi::{E_BUSY, E_FAULT, E_INVAL, PAGE, STACK_TOP, USER_BASE};
 const IMAGE_END: u32 = 0xB000_0000;
 const MAX_STACK_PAGES: u32 = 256;
 const PT_LOAD: u32 = 1;
+const PF_EXEC: u32 = 1;
 const PF_WRITE: u32 = 2;
 
 /// Where the bytes of a program image come from.
@@ -69,16 +70,23 @@ impl Kernel {
             return Err(E_INVAL);
         }
         for page in 1..=stack_pages {
-            self.map_anon(t, STACK_TOP - page * PAGE, true)?;
+            self.map_anon(t, STACK_TOP - page * PAGE, US | RW)?;
         }
         Ok(entry)
     }
 
     /// Map one loadable segment and copy its bytes; memory beyond the file bytes stays zero.
+    /// A segment is constants, data or code, and no two segments share a page, so every page
+    /// has one kind of access. Code that is also writable is refused (W^X).
     fn load_segment(&mut self, t: usize, image: &Image, segment: &[u8; 32]) -> Result<(), i32> {
         let (offset, start) = (get32(segment, 4), get32(segment, 8));
         let (file_size, size) = (get32(segment, 16), get32(segment, 20));
-        let writable = get32(segment, 24) & PF_WRITE != 0;
+        let flags = match get32(segment, 24) & (PF_WRITE | PF_EXEC) {
+            0 => US,
+            PF_WRITE => US | RW,
+            PF_EXEC => US | EXEC,
+            _ => return Err(E_INVAL),
+        };
         if size == 0 {
             return Ok(());
         }
@@ -86,15 +94,9 @@ impl Kernel {
         if file_size > size || start < USER_BASE || end > IMAGE_END as u64 {
             return Err(E_INVAL);
         }
-        let mut page = start & ADDR;
+        let mut page = start & !(PAGE - 1);
         while (page as u64) < end {
-            match self.map_anon(t, page, writable) {
-                Ok(()) => {}
-                // Two segments share this page; it is writable if either of them is.
-                Err(E_BUSY) if writable => self.make_writable(t, page),
-                Err(E_BUSY) => {}
-                Err(code) => return Err(code),
-            }
+            self.map_anon(t, page, flags).map_err(|code| if code == E_BUSY { E_INVAL } else { code })?;
             page += PAGE;
         }
         let pd = self.tasks[t].pd;
@@ -107,7 +109,7 @@ impl Kernel {
             let chunk = &mut chunk[..piece as usize];
             image.read(&self.mem, offset.checked_add(done).ok_or(E_INVAL)?, chunk)?;
             let entry = self.mem.lookup(pd, address).ok_or(E_INVAL)?;
-            self.mem.write_frame(entry & ADDR, in_page, chunk);
+            self.mem.write_frame(frame_of(entry), in_page, chunk);
             done += piece;
         }
         Ok(())

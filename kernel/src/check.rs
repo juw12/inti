@@ -5,9 +5,9 @@
 //! kernel bug that corrupts state is caught at once instead of crashing something later.
 //! The checker only reads kernel state (its bitmap of seen frames aside) and never panics.
 
-use crate::mem::{Mem, ACCESSED, ADDR, ENTRIES, FOREIGN, P, RW, USER_PDES};
+use crate::mem::{frame_of, Mem, ACCESSED, ADDR, DIRTY, ENTRIES, EXEC, FOREIGN, NX, P, RW, US, USER_ROOTS};
 use crate::task::{Cap, Kernel, State, Tcb, NONE, ORIGINAL};
-use abi::{CAP_SLOTS, MAX_ENDPOINTS, MAX_TASKS, PAGE, R_GRANT, R_RECV, R_SEND};
+use abi::{CAP_SLOTS, MAX_ENDPOINTS, MAX_TASKS, MSG_SIZE, PAGE, R_GRANT, R_RECV, R_SEND};
 
 impl Kernel {
     /// 0 if every invariant holds, otherwise the number of the first one that is violated.
@@ -35,11 +35,17 @@ impl Kernel {
         Ok(())
     }
 
-    /// Rules 1-7, 18 and 20: every frame is free or owned by exactly one task, each task is
-    /// charged for exactly what it owns, no address space can reach the kernel, and device
-    /// memory is mapped only where a Memory capability of the task covers it.
+    /// Rules 1-7, 18, 20, 22 and 23: every frame is free or owned by exactly one task, each
+    /// task is charged for exactly what it owns, no address space can reach the kernel, device
+    /// memory is mapped only where a Memory capability of the task covers it, and no memory is
+    /// both writable and executable.
     fn check_memory(&mut self) -> Result<(), u32> {
         self.scratch.fill(0);
+        // Rule 23: the kernel's own map is what was built at boot, so kernel code is still
+        // read-only and nothing else in the kernel can be executed.
+        if !self.mem.kernel_map_intact() {
+            return Err(23);
+        }
         let mut owned = 0;
         for t in 0..self.tasks.len() {
             let (alive, pd) = (self.tasks[t].alive(), self.tasks[t].pd);
@@ -51,42 +57,7 @@ impl Kernel {
                 }
                 continue;
             }
-            self.claim(pd)?;
-            let mut frames = 1;
-            let mut foreign = 0;
-            for slot in 0..ENTRIES {
-                let pde = self.mem.read_entry(pd, slot);
-                if !USER_PDES.contains(&slot) {
-                    // Rule 18: outside the user range a directory holds the shared kernel
-                    // mapping (not user-accessible) and nothing else. The processor marks
-                    // the entries it has used, so that one bit is not compared.
-                    if pde & !ACCESSED != Mem::kernel_slot(slot) {
-                        return Err(18);
-                    }
-                    continue;
-                }
-                if pde & P == 0 {
-                    continue;
-                }
-                self.claim(pde & ADDR)?;
-                frames += 1;
-                for index in 0..ENTRIES {
-                    let pte = self.mem.read_entry(pde & ADDR, index);
-                    if pte & P == 0 {
-                        continue;
-                    }
-                    if pte & FOREIGN == 0 {
-                        self.claim(pte & ADDR)?;
-                        frames += 1;
-                    } else if self.mem.managed(pte & ADDR) {
-                        return Err(18); // device memory is never ordinary RAM
-                    } else if !self.tasks[t].has_memory(pte & ADDR, pte & RW != 0) {
-                        return Err(20); // Rule 20: no device page without its capability
-                    } else {
-                        foreign += 1;
-                    }
-                }
-            }
+            let (frames, foreign) = self.check_space(t, pd)?;
             // Rule 4: the charge equals what the page tables show. Rule 5: within quota.
             if frames != charged {
                 return Err(4);
@@ -109,8 +80,71 @@ impl Kernel {
         Ok(())
     }
 
-    /// Rules 8-17, 20 and 21: reference counts, wait queues, the task tree, interrupt
-    /// bindings, and the quotas for the task table and the endpoint table.
+    /// Walk the three levels of task `t`'s page tables. Returns how many frames the task
+    /// owns (tables included) and how many pages of device memory it has mapped.
+    fn check_space(&mut self, t: usize, root: u32) -> Result<(u32, u32), u32> {
+        self.claim(root)?;
+        let (mut frames, mut foreign) = (1, 0);
+        for slot in 0..ENTRIES {
+            // QEMU marks a root entry it has walked through as accessed. A real processor
+            // keeps the root's entries in registers and writes nothing back. Either way the
+            // mark is the processor's and not the kernel's, so it is not compared.
+            let entry = self.mem.read_entry(root, slot) & !ACCESSED;
+            if !USER_ROOTS.contains(&slot) {
+                // Rule 18: outside the user range a root table holds the shared kernel map
+                // (which has no user-accessible entry) and nothing else.
+                if entry != Mem::kernel_root(slot) {
+                    return Err(18);
+                }
+                continue;
+            }
+            // Rule 18: a user slot of the root names a directory and carries no other bit.
+            let directory = frame_of(entry);
+            if entry != directory as u64 | P {
+                return Err(18);
+            }
+            self.claim(directory)?;
+            frames += 1;
+            for index in 0..ENTRIES {
+                let pde = self.mem.read_entry(directory, index);
+                if pde & P == 0 {
+                    continue;
+                }
+                // Rule 18: a directory entry names a page table and carries no other bit
+                // (the processor's accessed mark aside).
+                let table = frame_of(pde);
+                if pde & !ACCESSED != table as u64 | P | RW | US {
+                    return Err(18);
+                }
+                self.claim(table)?;
+                frames += 1;
+                for index in 0..ENTRIES {
+                    let pte = self.mem.read_entry(table, index);
+                    if pte & P == 0 {
+                        continue;
+                    }
+                    if !page_ok(pte, self.mem.nx) {
+                        return Err(22);
+                    }
+                    if pte & FOREIGN == 0 {
+                        self.claim(frame_of(pte))?;
+                        frames += 1;
+                    } else if self.mem.managed(frame_of(pte)) {
+                        return Err(18); // device memory is never ordinary RAM
+                    } else if !self.tasks[t].has_memory(frame_of(pte), pte & RW != 0) {
+                        return Err(20); // Rule 20: no device page without its capability
+                    } else {
+                        foreign += 1;
+                    }
+                }
+            }
+        }
+        Ok((frames, foreign))
+    }
+
+    /// Rules 8-17, 20, 21 and 24: reference counts, wait queues, the task tree, interrupt
+    /// bindings, the quotas for the task table and the endpoint table, and the buffers of
+    /// waiting tasks.
     fn check_objects(&self) -> Result<(), u32> {
         let mut refs = [0u16; MAX_ENDPOINTS];
         let mut recv_refs = [0u16; MAX_ENDPOINTS];
@@ -137,6 +171,12 @@ impl Kernel {
                 *refs.get_mut(task.fault_ep as usize).ok_or(8u32)? += 1;
             }
             let grant = if task.grant { R_GRANT } else { 0 };
+            // Rule 24: a task that waits for a message still owns the writable buffer it
+            // named, so the kernel can deliver into it later.
+            let waits = matches!(task.state, State::Send(_) | State::Recv(_) | State::Reply(_));
+            if waits && self.mem.check_user(task.pd, task.msg_ptr, MSG_SIZE, true).is_err() {
+                return Err(24);
+            }
             match task.state {
                 // Rule 10: a task blocked in `recv` is the registered waiter of its endpoint.
                 // Rule 20: a task waits on an endpoint only while a capability lets it, and
@@ -239,6 +279,17 @@ impl Kernel {
         }
         Ok(())
     }
+}
+
+/// Rule 22 (W^X): a mapped user page is user-accessible and has no unknown bit; it is never
+/// both writable and executable; device memory is never executable; and where the processor
+/// has the no-execute bit (`nx`), every page that is not program code carries it.
+fn page_ok(pte: u64, nx: u64) -> bool {
+    let known = P | RW | US | ACCESSED | DIRTY | FOREIGN | EXEC | NX | ADDR;
+    let code = pte & EXEC != 0;
+    let writable_code = code && pte & (RW | FOREIGN) != 0;
+    let no_execute = if code { 0 } else { nx };
+    pte & !known == 0 && pte & US != 0 && !writable_code && pte & NX == no_execute
 }
 
 /// True if `copy` could have been made from `source`: the same object and no added power.

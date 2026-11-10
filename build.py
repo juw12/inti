@@ -31,6 +31,8 @@ SECTOR = 512
 CHUNK = 32 * 1024  # the boot sector reads the payload in 32 KiB pieces
 MAX_CHUNKS = 17  # 0x10000..0x98000, the conventional memory the boot sector may use
 CHUNK_COUNT_AT = 0x1B0  # offset of `chunk_count` in the boot sector
+# QEMU's default 32-bit processor has no no-execute bit; "+nx" adds it, and with it W^X.
+QEMU_CPU = "qemu32,+nx"
 
 SHT_PROGBITS = 1
 SHF_ALLOC = 2
@@ -199,7 +201,8 @@ def main() -> int:
         sys.exit(__doc__)
     image = build()
     if command == "run":
-        qemu = [find_qemu(), "-drive", f"format=raw,file={image},if=ide", "-m", "64", "-serial", "stdio"]
+        qemu = [find_qemu(), "-cpu", QEMU_CPU, "-drive", f"format=raw,file={image},if=ide",
+                "-m", "64", "-serial", "stdio"]
         return subprocess.run(qemu).returncode
     if command == "test":
         return run_tool("test.py", sys.argv[2:])

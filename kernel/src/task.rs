@@ -108,7 +108,7 @@ pub struct Tcb {
     /// Endpoint that receives the `L_FAULT` message when this task ends.
     pub fault_ep: u8,
     pub name: [u8; 12],
-    /// Page directory (physical address), 0 if the task has no address space.
+    /// Root table of its address space (physical address), 0 if the task has none.
     pub pd: u32,
     /// Memory limit and current use, in page frames.
     pub quota: u32,
@@ -318,6 +318,11 @@ impl Kernel {
             self.mem.kernel_pages * 4,
             self.mem.total / 256
         );
+        if self.mem.nx != 0 {
+            kprintln!("kernel: PAE paging, W^X enforced (the processor has the no-execute bit)");
+        } else {
+            kprintln!("kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)");
+        }
         self.start_root();
     }
 

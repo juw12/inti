@@ -1,0 +1,172 @@
+
+Inti 0.1.0 kernel
+kernel: 552 KiB kernel and archive, 62 MiB for user space
+kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
+init: started console with 6 capabilities, 64 pages
+init: started fs with 2 capabilities, 64 pages
+init: started shell with 11 capabilities, 15555 pages
+Inti 0.1.0 shell ready at t=15839 us
+Type help for the list of commands, or tour for a guided tour.
+inti> selftest
+Each line is one promise of the kernel, checked from user space.
+  ok   the kernel's invariants hold at the start
+  ok   the kernel has met nothing unexpected so far
+  ok   system call numbers that do not exist give E_NOSYS
+  ok   a message buffer outside the caller's memory gives E_FAULT
+  ok   a message buffer the caller cannot write gives E_FAULT
+  ok   a message buffer is checked up to its last byte
+  ok   log checks the length and the address of the text
+  ok   sysinfo checks where it writes and what it is asked
+  ok   spawn checks the addresses of the image and of its arguments
+  ok   an empty or impossible capability slot gives E_NOCAP
+  ok   a capability of the wrong kind gives E_NOCAP
+  ok   a copy of a capability has the same rights or fewer
+  ok   a badge is set once, and only by a holder of the grant right
+  ok   a dropped capability is gone
+  ok   an I/O port capability reaches its ports and no others
+  ok   an interrupt capability reaches its lines and no others
+  ok   an interrupt line is released when its endpoint goes away
+selftest: this line was written through the Log capability
+  ok   the Log capability writes to the kernel log
+  ok   the Info capability describes tasks and their capabilities
+  ok   only init holds a capability for the reset port 0x64
+  ok   the drivers refuse to crash or hang for an ordinary program
+  ok   recv can poll, and can give up after a time limit
+  ok   a call that nobody receives times out and leaves nothing queued
+  ok   a call to an endpoint that nobody can receive from gives E_DEAD
+  ok   an endpoint has one receiver at a time
+  ok   a call carries its label, words and badge; a reply carries no badge
+  ok   a program cannot send the kernel's labels or an oversized message
+  ok   a 256-byte message crosses a page boundary in both directions
+  ok   a server can end in an orderly way, and its clients are told
+  ok   a reply needs the token of the call, and the token works once
+  ok   callers are served in the order in which they called
+  ok   a caller is told when the server dies with its request
+  ok   a caller that is killed while it waits leaves nothing queued
+  ok   a reply to a caller that was killed gives E_INVAL
+  ok   revoking a capability takes back its copies and theirs, and nothing else
+  ok   revoking reaches another task: its copy and what it mapped through it
+  ok   revoking wakes the tasks that waited through the copies
+  ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a capability goes along with a call when both ends hold the grant right
+  ok   without the grant right at both ends nothing is handed over
+  ok   the sender takes back what it sent
+  ok   a reply carries a capability back, still linked to where it came from
+  ok   a waiting task that loses the grant right takes no more capabilities
+  ok   a capability is not handed to a task whose table is full
+  ok   memory of a device is refused as a message buffer, also in part
+  ok   a device page taken from a waiting task was never its message buffer
+  ok   a reply reaches a caller whose capability was revoked in between
+  ok   map gives zeroed pages that can be written
+  ok   a map that fails part-way changes nothing
+  ok   map and unmap accept only whole pages inside user space
+  ok   unmap gives every page frame back
+  ok   a task cannot take more memory than its quota
+  ok   shared memory keeps the rights and the bounds of its capability
+  ok   a copy of a memory capability covers the same pages or fewer
+  skip a program cannot run code from its stack
+  skip a program cannot run code from its data
+  skip a program cannot run code from memory it mapped
+  ok   the exit code of a child reaches its parent
+  ok   a panic ends the program that panicked
+  ok   reading address 4 is a page fault at address 4
+  ok   a program cannot write to its own code
+  ok   a program cannot read kernel memory
+  ok   a program cannot write kernel memory
+  ok   a program cannot jump into the kernel
+  ok   a stack overflow ends the program with a page fault
+  ok   a division by zero ends the program
+  ok   an invalid instruction ends the program
+  ok   a program cannot switch interrupts off
+  ok   a program cannot halt the processor
+  ok   a program cannot use I/O ports without a capability
+  ok   floating-point instructions are refused
+  ok   fourteen children ended, twelve by a fault, and left nothing behind
+  ok   a task that never yields is pre-empted and can be killed, once
+  ok   the children of a task end with it
+  ok   the memory of a child comes out of its parent's quota and goes back
+  ok   damaged program images are refused and leave nothing behind
+  ok   an image with writable code, or with two segments on one page, is refused
+  ok   starting a child fails cleanly at every point where memory can run out
+  ok   the same image, repaired, starts and runs
+  ok   a full capability table gives E_NOSLOT and recovers
+  ok   a child gets the share of the quotas that its parent lends, and no more
+  ok   an endpoint outlives the task that made it, and its parent pays for it
+  ok   endpoints are created only within a quota, and the quota comes back
+  ok   tasks are started only within a quota, and the quota comes back
+  ok   sleep lasts as long as asked, and not much longer
+  ok   the clock never goes backwards
+  ok   files are read through the file server
+  ok   the kernel's invariants hold at the end
+  ok   the kernel met nothing unexpected
+  ok   no task, endpoint, page frame or quota was lost
+SELFTEST: PASS 87/87, 3 skipped (no no-execute bit)
+inti> rogue all
+Starting a hostile program that holds one capability: console output.
+Attempts that need a capability are made with each of the 32 slots.
+ 1. read the keyboard port 0x60                denied: E_NOCAP
+ 2. reset the machine through port 0x64        denied: E_NOCAP
+ 3. take over the keyboard interrupt           denied: E_NOCAP
+ 4. map physical memory                        denied: E_NOCAP
+ 5. kill another task                          denied: E_NOCAP
+ 6. read kernel and task information           denied: E_NOCAP
+ 7. write to the kernel log                    denied: E_NOCAP
+ 8. use capability number 1000000              denied: E_NOCAP
+ 9. add the receive right to its console cap   denied: E_PERM
+10. receive other programs' console requests   denied: E_PERM
+11. answer others' calls with forged tokens    denied: E_INVAL
+12. re-badge its console cap as the shell's    denied: E_PERM
+13. ask the console driver to crash            denied: refused by the driver
+14. ask the console driver to hang             denied: refused by the driver
+15. have the kernel write into kernel memory   denied: E_FAULT
+16. pass a message pointer that wraps around   denied: E_FAULT
+17. start a task from kernel memory            denied: E_FAULT
+18. map pages over kernel and video memory     denied: E_INVAL
+19. unmap kernel pages                         denied: E_INVAL
+20. take more memory than its quota            denied: E_NOMEM
+21. start a task from a garbage image          denied: E_INVAL
+22. give a child more memory than it has       denied: E_NOMEM
+23. give a child a capability it does not hold denied: E_NOCAP
+24. create an endpoint with no endpoint quota  denied: E_NOSLOT
+25. give a child more task quota than it has   denied: E_NOSLOT
+26. hand a capability to the console driver    denied: E_PERM
+27. revoke capabilities it does not hold       denied: E_NOCAP
+28. call system calls that do not exist        denied: E_NOSYS
+29. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+30. disable interrupts (cli)                   denied: general protection fault
+31. halt the processor (hlt)                   denied: general protection fault
+32. read the keyboard port directly (in)       denied: general protection fault
+33. reset the machine directly (out 0x64)      denied: general protection fault
+34. read kernel memory                         denied: page fault
+35. write kernel memory                        denied: page fault
+36. jump into kernel code                      denied: page fault
+37. load the kernel's data segment             denied: general protection fault
+38. raise the timer interrupt (int 0x20)       denied: general protection fault
+39. replace the page tables (mov cr3)          denied: general protection fault
+40. turn off paging and protection (mov cr0)   denied: general protection fault
+41. replace the interrupt table (lidt)         denied: general protection fault
+42. far jump to the kernel's code segment      denied: general protection fault
+43. overwrite its own code                     denied: page fault
+44. overflow its stack                         denied: page fault
+45. return to ring 0 with a forged iret frame  denied: general protection fault
+46. write a model-specific register (wrmsr)    denied: general protection fault
+47. enter the kernel through sysenter          denied: general protection fault
+48. run code from its stack                    NOT DENIED: no no-execute bit
+49. run code from its data                     NOT DENIED: no no-execute bit
+50. run code from memory it just mapped        NOT DENIED: no no-execute bit
+ROGUE: 47/50 attempts denied
+This processor has no no-execute bit, so a program can run code from its data.
+kernel invariants: all hold
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       69632 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> 

@@ -41,7 +41,8 @@ FENCE = re.compile(r"^\s*```\s*(\w*)\s*$")
 INLINE_CODE = re.compile(r"`[^`]*`")
 BLOCK_START = re.compile(r"^\s*(\||#|[-*+] |\d+\. )")
 LIST_NUMBER = re.compile(r"\d+\.")
-LOG_FENCES = {"log": "log.", "weblog": "weblog."}  # fence label -> the claims it may show
+# Fence label -> the claims it may show.
+LOG_FENCES = {"log": "log.", "weblog": "weblog.", "nonxlog": "nonxlog."}
 
 Problem = tuple[str, int, str]
 Lines = list[tuple[int, str]]
@@ -202,6 +203,7 @@ def check_excerpts() -> tuple[list[Problem], int]:
     raw = {
         "log": {line.rstrip() for line in claims.SERIAL_LOG.read_text(encoding="utf-8").splitlines()},
         "weblog": {line.rstrip() for line in gates.load("web.json")["serial"].splitlines()},
+        "nonxlog": {line.rstrip() for line in claims.NONX_SERIAL_LOG.read_text(encoding="utf-8").splitlines()},
     }
     problems: list[Problem] = []
     compared = 0

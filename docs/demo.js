@@ -52,7 +52,7 @@
         }
         if (!state.ready && state.serial.endsWith(PROMPT)) {
             state.ready = true;
-            status.textContent = "Running. Click the screen to type, or use the buttons below.";
+            status.textContent = "Running. Take the guided tour below, or click the screen and type.";
             status.className = "status ready";
             buttons.forEach(function (button) {
                 button.disabled = false;

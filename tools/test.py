@@ -5,9 +5,11 @@
 
 It writes
 
-    evidence/test_serial.log   everything the serial port produced (carriage returns removed)
-    evidence/test.json         every check with its result, and every measured number
-    docs/img/qemu-*.png        the emulated screen at three moments
+    evidence/test_serial.log        everything the serial port produced (carriage returns removed)
+    evidence/test_nonx_serial.log   the same for a second, short boot on a processor model
+                                    without the no-execute bit
+    evidence/test.json              every check with its result, and every measured number
+    docs/img/qemu-*.png             the emulated screen at three moments
 
 and exits with 0 only if every check passed. Nothing here is timed with QEMU tracing on.
 """
@@ -37,6 +39,37 @@ SERVICES = ("console", "fs")
 # restart back-off. Faults that are timed are therefore injected into settled servers.
 SETTLE_S = 2.6
 BANNER = r"Inti (\S+) shell ready at t=(\d+) us"
+# QEMU's plain 32-bit processor model has no no-execute bit. One short boot uses it, to
+# record what the system says and does where W^X cannot be enforced.
+CPU_WITHOUT_NX = "qemu32"
+# What the serial log must show, in this order, when fs crashes while the supervisor is
+# waiting for a hung console to answer a ping.
+DOUBLE_DONE = r"DOUBLE FAILURE: fs answering again after (\d+) us, console after (\d+) us"
+DOUBLE_ORDER = (
+    r"init: fs crashed: page fault",
+    r"init: noticed while waiting for console to answer a ping",
+    r"init: fs restarted after \d+ us",
+    r"init: console did not answer for \d+ ms; ending it",
+    r"init: console ended: killed",
+    r"init: console restarted after \d+ us",
+    DOUBLE_DONE,
+)
+# What the guided tour must print, in this order (the shell's own lines only).
+TOUR_ORDER = (
+    r"^TOUR 1/5: ",
+    r"ROGUE: (\d+)/\1 attempts denied, 1 skipped",
+    r"^TOUR 2/5: ",
+    r"RECOVERY: console crash -> answering again after \d+ us",
+    r"^TOUR 3/5: ",
+    r"RECOVERY: fs hang -> answering again after \d+ us",
+    r"^TOUR 4/5: ",
+    DOUBLE_DONE,
+    r"^TOUR 5/5: ",
+    r"\b0 kernel anomalies",
+    r"kernel invariants: all hold",
+    r"^TOUR: done",
+)
+ATTEMPT = r"^\s*(\d+)\. (.+?)\s+(denied: .+|NOT DENIED.*|skipped)\s*$"
 
 
 class Run:
@@ -78,16 +111,22 @@ def boot(run: Run) -> None:
         "guest_us": int(found[2]) if found else None,
         "version": found[1] if found else None,
     }
+    run.check("the kernel enforces W^X: its boot log says the no-execute bit is in use",
+              "W^X enforced" in run.vm.log(), f"QEMU -cpu {build.QEMU_CPU}")
 
 
 def selftest(run: Run, label: str) -> None:
     text = run.vm.command("selftest", timeout=90)
     found = re.search(r"SELFTEST: PASS (\d+)/(\d+)", text)
     failures = re.findall(r"^\s*FAIL (.+)$", text, re.M)
-    passed = found is not None and found[1] == found[2] and int(found[2]) >= 30 and not failures
+    skipped = re.findall(r"^\s*skip (.+)$", text, re.M)
+    passed = (found is not None and found[1] == found[2] and int(found[2]) >= 30
+              and not failures and not skipped)
     run.check(f"selftest {label}", passed, found[0] if found else text[-300:])
     if found:
-        run.measured.setdefault("selftest", {})[label.replace(" ", "_")] = int(found[2])
+        key = label.replace(" ", "_")
+        run.measured.setdefault("selftest", {})[key] = int(found[2])
+        run.measured["selftest"][f"{key}_skipped"] = len(skipped)
     if label == "after boot":
         written = "written through the Log capability" in run.vm.log()
         run.check("the selftest's line written through the Log capability is in the kernel log", written)
@@ -96,7 +135,7 @@ def selftest(run: Run, label: str) -> None:
 def rogue(run: Run) -> None:
     text = run.vm.command("rogue all", timeout=90)
     found = re.search(r"ROGUE: (\d+)/(\d+) attempts denied\n", text)
-    attempts = re.findall(r"^\s*(\d+)\. (.+?)\s+(denied: .+|NOT DENIED|skipped)\s*$", text, re.M)
+    attempts = re.findall(ATTEMPT, text, re.M)
     denied = [attempt for attempt in attempts if attempt[2].startswith("denied")]
     complete = found is not None and found[1] == found[2] and len(denied) == len(attempts) == int(found[2])
     run.check("rogue all: every attempt of the hostile program is denied", complete,
@@ -181,6 +220,70 @@ def recovery(run: Run, runs: int) -> None:
         inject(run, "crash", "fs")
         samples.append(inject(run, "hang", "fs"))
     summarise(run, "fs_hang_just_restarted", "fs hang right after a restart", samples)
+
+
+def in_order(patterns: tuple[str, ...], text: str) -> str | None:
+    """The first pattern that is not found after the one before it, or None if all are."""
+    position = 0
+    for pattern in patterns:
+        found = re.compile(pattern, re.M).search(text, position)
+        if found is None:
+            return pattern
+        position = found.end()
+    return None
+
+
+def double_failure(run: Run, runs: int) -> None:
+    """Two servers fail at once: fs crashes while the supervisor waits for a hung console."""
+    vm = run.vm
+    samples = []
+    for _ in range(runs):
+        time.sleep(SETTLE_S)
+        mark = len(vm.raw)
+        vm.send("double\r")
+        text = vm.read_until(DOUBLE_DONE, timeout=20)
+        vm.wait_for_prompt()
+        listing = vm.command("ls")
+        log = run.log_since(mark)
+        times = re.findall(DOUBLE_DONE, text)[-1]
+        samples.append({
+            "fs_us": int(times[0]),
+            "console_us": int(times[1]),
+            "missing": in_order(DOUBLE_ORDER, log),
+            "answers": "readme.txt" in listing,
+            "slowed": "times in a row" in log,
+        })
+    good = all(sample["missing"] is None and sample["answers"] and not sample["slowed"] for sample in samples)
+    fs_us = spread([sample["fs_us"] for sample in samples])
+    console_us = spread([sample["console_us"] for sample in samples])
+    detail = f"median fs {fs_us['median']} us, console {console_us['median']} us"
+    missing = sorted({sample["missing"] for sample in samples if sample["missing"]})
+    if missing:
+        detail += "; not found in order: " + "; ".join(missing)
+    run.check("double failure: fs crashes while the supervisor waits for a hung console; the supervisor "
+              "reports the crash during that wait, restarts both, and the shell and file listing answer, "
+              f"in {len(samples)} of {len(samples)} runs", good, detail)
+    run.measured["double"] = {"fs_us": fs_us, "console_us": console_us}
+
+
+def tour(run: Run) -> None:
+    """The guided tour: five announced steps, ending in the shell that started it."""
+    vm = run.vm
+    time.sleep(SETTLE_S)
+    mark = len(vm.raw)
+    started = time.monotonic()
+    vm.send("tour\r")
+    text = vm.read_until(r"TOUR: done[^\n]*\n", timeout=90)
+    host_ms = round((time.monotonic() - started) * 1000)
+    vm.wait_for_prompt()
+    listing = vm.command("ls")
+    missing = in_order(TOUR_ORDER, text)
+    steps = len(re.findall(r"^TOUR \d+/\d+: ", text, re.M))
+    good = missing is None and "times in a row" not in run.log_since(mark) and "readme.txt" in listing
+    run.check("tour: the guided tour announces and runs its steps in order (hostile program, crashed "
+              "driver, hung driver, two failures at once, counters) and ends in the shell that started it",
+              good, f"{steps} steps in {host_ms} ms" + (f"; not found in order: {missing}" if missing else ""))
+    run.measured["tour"] = {"steps": steps, "host_ms": host_ms}
 
 
 def backoff(run: Run) -> None:
@@ -315,6 +418,61 @@ def shutdown(run: Run) -> None:
     run.check("shutdown switches the machine off (QEMU exits with code 0)", code == 0, f"exit code {code}")
 
 
+def without_nx(run: Run) -> str:
+    """Boot the same image on a processor model without the no-execute bit; return its serial log.
+
+    W^X cannot be enforced there. The kernel has to say so, the selftest has to report its
+    execute tests as skipped and not as passed, and the hostile program has to report its
+    execute attempts as not denied.
+    """
+    where = "without the no-execute bit"
+    vm = VM(extra=["-cpu", CPU_WITHOUT_NX])
+    vm.start()
+    try:
+        vm.wait_for_prompt(timeout=20)
+        run.check(f"{where}: the kernel boots and says that W^X is not enforced",
+                  "W^X NOT enforced" in vm.log(), f"QEMU -cpu {CPU_WITHOUT_NX}")
+
+        text = vm.command("selftest", timeout=90)
+        found = re.search(r"SELFTEST: PASS (\d+)/(\d+), (\d+) skipped", text)
+        skipped = re.findall(r"^\s*skip (.+)$", text, re.M)
+        failures = re.findall(r"^\s*FAIL (.+)$", text, re.M)
+        honest = (found is not None and found[1] == found[2] and int(found[3]) == len(skipped) > 0
+                  and all("cannot run code from" in name for name in skipped) and not failures)
+        run.check(f"{where}: the selftest passes and reports each execute test as skipped, not as passed",
+                  honest, found[0] if found else text[-300:])
+
+        text = vm.command("rogue all", timeout=90)
+        total = re.search(r"ROGUE: (\d+)/(\d+) attempts denied\n", text)
+        attempts = re.findall(ATTEMPT, text, re.M)
+        denied = [attempt for attempt in attempts if attempt[2].startswith("denied")]
+        not_denied = [attempt for attempt in attempts if not attempt[2].startswith("denied")]
+        plain = (total is not None and len(attempts) == int(total[2]) and len(denied) == int(total[1])
+                 and len(not_denied) > 0
+                 and all(what.startswith("run code from") and result == "NOT DENIED: no no-execute bit"
+                         for _, what, result in not_denied))
+        run.check(f"{where}: the hostile program reports each execute attempt as not denied and every "
+                  "other attempt as denied", plain, total[0].strip() if total else text[-300:])
+        run.check(f"{where}: the kernel invariants hold after the hostile program",
+                  "kernel invariants: all hold" in text)
+        run.check(f"{where}: the system is still up (ls answers)", "readme.txt" in vm.command("ls"))
+        run.measured["no_nx"] = {
+            "selftest_passed": int(found[2]) if found else None,
+            "selftest_skipped": len(skipped),
+            "rogue_denied": len(denied),
+            "rogue_total": len(attempts),
+            "rogue_not_denied": len(not_denied),
+            "not_denied": [f"{number}. {what}: {result}" for number, what, result in not_denied],
+        }
+    except VMError as error:
+        run.check(f"{where}: the run reached its end", False, str(error)[-600:])
+    finally:
+        vm.close()
+    log = vm.log().replace("\r", "")
+    run.check(f"{where}: no kernel panic anywhere in the serial log", "KERNEL PANIC" not in log)
+    return log
+
+
 def qemu_version() -> str:
     answer = subprocess.run([build.find_qemu(), "--version"], capture_output=True, text=True, check=False)
     found = re.search(r"version (\S+)", answer.stdout)
@@ -339,6 +497,8 @@ def main() -> int:
         selftest(run, "after boot")
         rogue(run)
         recovery(run, options.runs)
+        double_failure(run, options.runs)
+        tour(run)
         backoff(run)
         supervisor_crash(run)
         fuzz(run, options.fuzz)
@@ -354,15 +514,19 @@ def main() -> int:
         vm.close()
     log = vm.log().replace("\r", "")
     run.check("no kernel panic anywhere in the serial log", "KERNEL PANIC" not in log)
+    log_without_nx = without_nx(run)
 
     passed = all(check["ok"] for check in run.checks)
     (EVIDENCE / "test_serial.log").write_text(log, encoding="utf-8", newline="\n")
+    (EVIDENCE / "test_nonx_serial.log").write_text(log_without_nx, encoding="utf-8", newline="\n")
     report = {
         "passed": passed,
         "date": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
         "duration_s": round(time.monotonic() - began),
         "emulator": f"QEMU {qemu_version()} (TCG, no hardware virtualisation)",
         "qemu_version": qemu_version(),
+        "cpu": build.QEMU_CPU,
+        "cpu_without_nx": CPU_WITHOUT_NX,
         "host": f"{platform.system()} {platform.release()}",
         "image_sha256": image_sha256,
         "options": {"fuzz": options.fuzz, "runs": options.runs},

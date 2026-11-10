@@ -184,10 +184,13 @@ def gate_selftest(test: dict) -> Result:
     selftest = test["measured"].get("selftest", {})
     after_boot = selftest.get("after_boot", 0)
     after_faults = selftest.get("after_all_faults", 0)
-    ok = (after_boot >= MIN_SELFTESTS and after_faults == after_boot
-          and passed(test, "selftest after boot") and passed(test, "selftest after all faults"))
+    none_skipped = selftest.get("after_boot_skipped") == 0 and selftest.get("after_all_faults_skipped") == 0
+    ok = (after_boot >= MIN_SELFTESTS and after_faults == after_boot and none_skipped
+          and passed(test, "selftest after boot") and passed(test, "selftest after all faults")
+          and passed(test, "the kernel enforces W^X"))
     return ok, (f"SELFTEST: PASS {after_boot}/{after_boot} after boot and {after_faults}/{after_faults} "
-                "again after every injected fault and the fuzz run")
+                "again after every injected fault and the fuzz run, none skipped, with W^X enforced "
+                f"(QEMU -cpu {test.get('cpu')})")
 
 
 def gate_recovery(test: dict) -> Result:
@@ -203,6 +206,13 @@ def gate_recovery(test: dict) -> Result:
             parts.append(f"{label} FAILED")
         else:
             parts.append(f"{label} {times['median'] / 1000:.1f} ms")
+    double = test["measured"].get("double")
+    if not double or double["fs_us"]["runs"] != runs or not passed(test, "double failure:"):
+        ok = False
+        parts.append("double failure FAILED")
+    else:
+        parts.append(f"fs crash during a console hang: fs {double['fs_us']['median'] / 1000:.1f} ms and "
+                     f"console {double['console_us']['median'] / 1000:.1f} ms")
     return ok, f"{', '.join(parts)} (median of {runs} runs each, guest clock); the shell answered after every run"
 
 
@@ -225,7 +235,7 @@ def gate_rogue(test: dict) -> Result:
             problems.append(f"check failed: {check}")
     if problems:
         return False, "; ".join(problems)
-    return True, (f"{len(denied)}/{len(attempts)} attempts denied ({', '.join(kinds)}); "
+    return True, (f"{len(denied)}/{len(attempts)} attempts denied (including {', '.join(kinds)}); "
                   "the kernel invariants hold and the shell still answers")
 
 

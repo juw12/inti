@@ -41,6 +41,9 @@ const FAULT_BADGE: u32 = 0x100;
 const POLL_MS: u32 = 50;
 const PING_EVERY_US: u64 = 200_000;
 const PING_TIMEOUT_MS: u32 = 500;
+/// `init` waits for the answer to a ping in slices of this length, and looks at its
+/// control endpoint between two slices.
+const PING_SLICE_MS: u32 = 50;
 /// A freshly started server is not pinged for this long.
 const GRACE_US: u64 = 500_000;
 /// A server that ends sooner than this after starting counts as a "quick end".
@@ -108,6 +111,8 @@ struct Supervisor {
     /// Endpoint for end-of-task notices and for requests from the shell.
     control: u32,
     last_ping: u64,
+    /// The service that is being pinged right now, if any.
+    pinging: Option<usize>,
     services: [Service; SERVICES],
 }
 
@@ -174,32 +179,72 @@ impl Supervisor {
         }
     }
 
+    /// Handle everything that already waits on the control endpoint, without blocking,
+    /// and start what is due.
+    fn drain(&mut self) {
+        loop {
+            let mut msg = Msg::new(0);
+            if sys::recv(self.control, &mut msg, 0).is_err() {
+                break;
+            }
+            self.handle(&msg);
+        }
+        self.start_due();
+    }
+
     /// Ask every pinged server whether it is still answering; end the ones that are not.
     /// The end-of-task notice that follows restarts them like any other crash.
+    ///
+    /// A server has PING_TIMEOUT_MS to answer, but `init` waits in slices of PING_SLICE_MS
+    /// and handles what arrived in between. So when one server hangs and another one
+    /// crashes, the crashed one is restarted within a slice; it does not have to wait
+    /// until `init` has given up on the hung one.
     fn ping_all(&mut self) {
         let now = sys::time();
         if now - self.last_ping < PING_EVERY_US {
             return;
         }
         self.last_ping = now;
-        for service in &self.services {
-            let settled = now - service.started_at >= GRACE_US;
+        for index in 0..SERVICES {
+            let service = &self.services[index];
+            // The clock is read again because an earlier ping of this round may have
+            // taken a while, and a server may have been restarted in the meantime.
+            let settled = sys::time() - service.started_at >= GRACE_US;
             if service.ping == NO_CAP || service.task == NO_CAP || !settled {
                 continue;
             }
-            let mut msg = Msg::new(PING);
-            if sys::call(service.ping, &mut msg, PING_TIMEOUT_MS) == Err(E_TIMEOUT) {
-                outln!(
-                    "init: ", service.name, " did not answer for ", PING_TIMEOUT_MS,
-                    " ms; ending it"
-                );
-                let _ = sys::task_kill(service.task);
+            let (ping, incarnation) = (service.ping, service.starts);
+            let mut waited_ms = 0;
+            self.pinging = Some(index);
+            while sys::call(ping, &mut Msg::new(PING), PING_SLICE_MS) == Err(E_TIMEOUT) {
+                waited_ms += PING_SLICE_MS;
+                self.drain();
+                let service = &self.services[index];
+                if service.task == NO_CAP || service.starts != incarnation {
+                    // It ended while it was being asked; `drain` has dealt with that.
+                    break;
+                }
+                if waited_ms >= PING_TIMEOUT_MS {
+                    outln!(
+                        "init: ", service.name, " did not answer for ", PING_TIMEOUT_MS,
+                        " ms; ending it"
+                    );
+                    let _ = sys::task_kill(service.task);
+                    break;
+                }
             }
+            self.pinging = None;
         }
     }
 
     fn ended(&mut self, msg: &Msg) {
         let index = msg.badge.wrapping_sub(FAULT_BADGE) as usize;
+        // If another server is being pinged right now, this notice was taken between two
+        // slices of that wait. The log says so; the double-failure test looks for it.
+        let pinged = match self.pinging {
+            Some(other) if other != index => Some(self.services[other].name),
+            _ => None,
+        };
         let Some(service) = self.services.get_mut(index) else { return };
         let now = sys::time();
         let cause = msg.words[0];
@@ -210,6 +255,9 @@ impl Supervisor {
             );
         } else {
             outln!("init: ", service.name, " ended: ", cause_name(cause));
+        }
+        if let Some(name) = pinged {
+            outln!("init: noticed while waiting for ", name, " to answer a ping");
         }
         if service.task != NO_CAP {
             let _ = sys::cap_drop(service.task);
@@ -293,7 +341,8 @@ impl Supervisor {
             match sys::recv(self.control, &mut msg, POLL_MS) {
                 Ok(()) => self.handle(&msg),
                 // Servers are pinged only when no notice is waiting, so that a crash
-                // is always handled before `init` blocks in a ping.
+                // is always handled before `init` starts a ping. A notice that arrives
+                // during a ping is handled within PING_SLICE_MS (see `ping_all`).
                 Err(E_TIMEOUT) => self.ping_all(),
                 Err(code) => {
                     outln!("init: receive failed: ", errname(code));
@@ -346,8 +395,10 @@ pub fn main() {
     // The file server: its request endpoint and the read-only archive. Nothing else.
     let files_caps = [derive(files, R_RECV, 0, 0), ARCHIVE];
     // The shell: badged send rights to the servers for itself and for the programs it
-    // starts, the read-only kernel statistics, the control endpoint of `init`, and four
-    // harmless capabilities that the self-test and the fuzzer use as test objects.
+    // starts, the read-only kernel statistics, the control endpoint of `init`, and five
+    // harmless capabilities that the self-test and the fuzzer use as test objects. The
+    // last one is the eighth page of video memory, which the text screen never shows:
+    // writable device memory for the self-test, which only ever maps it.
     let shell_caps = [
         derive(console, R_SEND, B_SHELL, 0),
         derive(files, R_SEND, B_SHELL, 0),
@@ -359,6 +410,7 @@ pub fn main() {
         ARCHIVE,
         derive(IRQS, 1 << 5, 0, 0),
         LOG,
+        derive(VGA, 7, 1, 1),
     ];
 
     let mut supervisor = Supervisor {
@@ -367,6 +419,7 @@ pub fn main() {
         root_starts,
         control,
         last_ping: 0,
+        pinging: None,
         services: [
             Service::new("console", SERVER_PAGES, &console_caps, console),
             Service::new("fs", SERVER_PAGES, &files_caps, files),

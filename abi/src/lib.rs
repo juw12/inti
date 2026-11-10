@@ -209,6 +209,9 @@ pub struct KStats {
     /// Internal "cannot happen" conditions seen by the kernel. Must stay 0.
     pub anomalies: u32,
     pub kernel_pages: u32,
+    /// 1 if the processor has the no-execute bit, so that no memory is both writable and
+    /// executable (W^X); 0 if it has none and W^X is not enforced.
+    pub nx: u32,
 }
 
 impl KStats {
@@ -225,6 +228,7 @@ impl KStats {
         spawns: 0,
         anomalies: 0,
         kernel_pages: 0,
+        nx: 0,
     };
 }
 

@@ -3,18 +3,18 @@
 
 Is Inti the best operating system in the world? **No.** It is not close, and one build session could not make it so. This page puts it next to five real systems, first on the things it was built to show and then on the things that make an operating system useful, and says plainly who is ahead.
 
-How to read it: figures and failure behaviour of other systems carry a link in the same row. "Not compared" means that no claim is made because no source was checked. Inti's own figures come from the gate run of 2026-11-10 (QEMU 11.1.0 (TCG, no hardware virtualisation)); they are emulator figures and `python build.py gates` reproduces them.
+How to read it: figures and failure behaviour of other systems carry a link in the same row. "Not compared" means that no claim is made because no source was checked. Inti's own figures come from the gate run of 2026-11-11 (QEMU 11.1.0 (TCG, no hardware virtualisation)); they are emulator figures and `python build.py gates` reproduces them.
 
 ## What Inti was built to show
 
 | | Inti | Linux | Windows | seL4 | MINIX 3 | Redox |
 |---|---|---|---|---|---|---|
 | Where drivers run | user mode, all of them | in the kernel, where the fault studies found them to be the most error-prone part ([Chou and others](https://dl.acm.org/doi/10.1145/502034.502042), [Palix and others](https://dl.acm.org/doi/10.1145/1961296.1950401)) | kernel-mode drivers share the kernel's address space ([Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/gettingstarted/user-mode-and-kernel-mode)); a user-mode driver framework exists as well | user mode ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | user mode ([MINIX 3 documentation](https://wiki.minix3.org/doku.php?id=www:documentation:reliability)) | user space ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
-| A failed driver is replaced without a reboot | yes: after 5.8 ms for a crash and 657 ms for a hang (median, emulated) | not compared | not for kernel-mode drivers: a crash in one crashes the whole system ([Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/gettingstarted/user-mode-and-kernel-mode)) | left to the system built on top of the kernel; not compared | yes, by its reincarnation server ([MINIX 3 documentation](https://wiki.minix3.org/doku.php?id=www:documentation:reliability)) | not compared |
-| Kernel language | Rust, with 37 `unsafe` blocks | C, with Rust support being added ([kernel.org](https://docs.kernel.org/rust/index.html)) | C and C++ ([MSRC](https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code)) | C and assembler ([Klein and others, SOSP 2009](https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf)) | C | Rust ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
-| Kernel size | 2,673 lines | "over 8 million lines" by its own, old, documentation ([kernel.org](https://docs.kernel.org/process/1.Intro.html)) | not published | 8,700 lines of C and 600 of assembler when it was verified ([Klein and others, SOSP 2009](https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf)) | about 4,000 lines of executable kernel code ([MINIX 3 documentation](https://wiki.minix3.org/doku.php?id=www:documentation:reliability)) | under 40,000 lines of Rust ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
+| A failed driver is replaced without a reboot | yes: after 7.5 ms for a crash and 746 ms for a hang (median, emulated) | not compared | not for kernel-mode drivers: a crash in one crashes the whole system ([Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/gettingstarted/user-mode-and-kernel-mode)) | left to the system built on top of the kernel; not compared | yes, by its reincarnation server ([MINIX 3 documentation](https://wiki.minix3.org/doku.php?id=www:documentation:reliability)) | not compared |
+| Kernel language | Rust, with 41 `unsafe` blocks | C, with Rust support being added ([kernel.org](https://docs.kernel.org/rust/index.html)) | C and C++ ([MSRC](https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code)) | C and assembler ([Klein and others, SOSP 2009](https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf)) | C | Rust ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
+| Kernel size | 2,795 lines | "over 8 million lines" by its own, old, documentation ([kernel.org](https://docs.kernel.org/process/1.Intro.html)) | not published | 8,700 lines of C and 600 of assembler when it was verified ([Klein and others, SOSP 2009](https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf)) | about 4,000 lines of executable kernel code ([MINIX 3 documentation](https://wiki.minix3.org/doku.php?id=www:documentation:reliability)) | under 40,000 lines of Rust ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
 | How a program gets access | only through capabilities it was handed, at its start or in a message; whoever handed one out can revoke every copy | users and permissions; a program runs with the ambient authority of its user ([Watson and others](https://www.usenix.org/legacy/event/sec10/tech/full_papers/Watson.pdf)) | users and access control lists | capabilities ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | not compared | not compared |
-| Evidence that the kernel is correct | 82 self-tests, 1,001,123 fuzzed system calls, a run-time checker with 21 rules; **no proof** | not compared | not compared | machine-checked proofs of functional correctness, integrity and confidentiality ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | not compared | not compared |
+| Evidence that the kernel is correct | 90 self-tests, 1,002,227 fuzzed system calls, a run-time checker with 24 rules; **no proof** | not compared | not compared | machine-checked proofs of functional correctness, integrity and confidentiality ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | not compared | not compared |
 
 Reading this table fairly:
 
@@ -33,7 +33,7 @@ Reading this table fairly:
 | Programs | 10 small ones, and a shell without pipes or scripts | everything people use computers for |
 | Drivers | one, for the screen, the keyboard and the serial port | thousands |
 | Assurance | tests, a fuzzer and a run-time checker, by one author | decades of use; for seL4, proofs |
-| Age | built in one session on 2026-11-10 | years to decades |
+| Age | built in one session on 2026-11-11 | years to decades |
 
 ## Where Inti is ahead, and how narrow that is
 
@@ -45,7 +45,7 @@ Reading this table fairly:
 
 - **Hardware and software.** No real hardware, no network, no persistent storage, no applications, one processor.
 - **Assurance.** No formal verification, one author, one day. seL4's proofs are in a different class.
-- **Security mechanisms.** No no-execute protection for data pages and no IOMMU. Revocation takes back all copies of a capability or none, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
+- **Security mechanisms.** W^X is enforced only on processors with the no-execute bit and has only been shown in emulators; there is no address-space randomisation and no IOMMU. Revocation takes back all copies of a capability or none, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
 - **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; the scheduler has no processor quotas, so a program can take its full share of the processor; page tables are freed only when a task ends.
 - **Performance.** Never measured outside an emulator, so nothing is claimed.
 

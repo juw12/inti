@@ -61,6 +61,9 @@ pub mod mode {
     pub const FPU: u32 = 12;
     pub const STACK_OVERFLOW: u32 = 13;
     pub const PANIC: u32 = 14;
+    pub const EXEC_STACK: u32 = 15;
+    pub const EXEC_DATA: u32 = 16;
+    pub const EXEC_MAPPED: u32 = 17;
     pub const SPIN: u32 = 20;
     pub const SLEEP: u32 = 21;
     pub const ECHO: u32 = 22;
@@ -90,7 +93,11 @@ pub const FUZZ_REPORT_EVERY: u32 = 512;
 pub const FUZZ_SETUP_CALLS: u32 = 8;
 
 /// Number of hardware-level attacks `rogue` knows (start argument 1..=ROGUE_HW_MODES).
-pub const ROGUE_HW_MODES: u32 = 18;
+pub const ROGUE_HW_MODES: u32 = 21;
+/// The first of the three hardware-level attacks that only the no-execute bit stops:
+/// running code from the stack, from data and from a fresh mapping. On a processor
+/// without that bit they succeed, and the shell says so.
+pub const ROGUE_FIRST_NX: u32 = 19;
 /// The hardware-level attack that only `rogue all` runs: an `iret` frame forged to name
 /// ring 0. A processor (and QEMU) answers it with a general protection fault, but the v86
 /// emulator the web demo runs in stops with an internal error instead, so plain `rogue`

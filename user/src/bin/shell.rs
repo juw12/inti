@@ -8,12 +8,13 @@
 #![no_main]
 
 use rt::abi::{CapInfo, Msg, SpawnArgs, CAP_ENDPOINT, CAP_INFO, CAP_IOPORT, CAP_IRQ, CAP_LOG};
-use rt::abi::{CAP_MEMORY, CAP_SLOTS, CAP_TASK, CAUSE_EXIT, CAUSE_KILLED, E_DEAD, FOREVER, L_FAULT};
+use rt::abi::{CAP_MEMORY, CAP_SLOTS, CAP_TASK, CAUSE_EXIT, CAUSE_KILLED, E_DEAD, E_TIMEOUT};
+use rt::abi::{FOREVER, L_FAULT};
 use rt::abi::{MAX_TASKS, MSG_DATA, NO_CAP, NO_TASK, ST_FREE, ST_READY, ST_RECV, ST_REPLY};
 use rt::abi::{ST_SEND, ST_SLEEP, ST_ZOMBIE, USER_BASE};
 use rt::io::{cause_name, errname, name, set_output, Emit, Hex, Line, Num, Pad, Sink};
 use rt::proto::{CON_INTR, DBG_CRASH, DBG_HANG, INIT_SHUTDOWN, INIT_STATUS, OK, PING};
-use rt::proto::{ROGUE_HW_MODES, ROGUE_ONLY_IN_ALL, SERVICE_RECORD};
+use rt::proto::{ROGUE_FIRST_NX, ROGUE_HW_MODES, ROGUE_ONLY_IN_ALL, SERVICE_RECORD};
 use rt::{client, outln, sys};
 
 // Capability slots, filled by `init`.
@@ -29,6 +30,19 @@ const TEST_PORT: u32 = 6;
 const TEST_MEMORY: u32 = 7;
 const TEST_IRQ: u32 = 8;
 const TEST_LOG: u32 = 9;
+/// A page of video memory that the screen never shows. Only the self-test receives it,
+/// as an example of writable memory that belongs to a device.
+const TEST_DEVICE: u32 = 10;
+
+/// `double` first gives the servers this long to settle, because `init` does not ping a
+/// server that it has just started.
+const SETTLE_MS: u32 = 600;
+/// `double` crashes the file server this long after it hung the console. By then `init`
+/// has pinged the console and is waiting for an answer that will not come.
+const HEAD_START_MS: u32 = 300;
+/// The guided tour waits this long before each step, so that its heading can be read.
+const TOUR_PAUSE_MS: u32 = 1200;
+const TOUR_STEPS: u32 = 5;
 
 /// Where a program file is loaded before it is started.
 const IMAGE_BASE: u32 = USER_BASE + 0x1000_0000;
@@ -125,6 +139,7 @@ fn number(word: &[u8]) -> Option<u32> {
 fn help() {
     outln!("Commands:");
     outln!("  help                    this list");
+    outln!("  tour                    a guided tour of the fault demonstrations");
     outln!("  ls                      files in the boot archive");
     outln!("  cat FILE                print a text file");
     outln!("  ps                      tasks with their memory quota and CPU time");
@@ -134,6 +149,7 @@ fn help() {
     outln!("  svc                     supervised services and their restarts");
     outln!("  crash console|fs|init   make that component fail with a page fault");
     outln!("  hang console|fs         make that server stop answering");
+    outln!("  double                  hang the console and crash fs at the same time");
     outln!("  rogue [all]             run a hostile program and count what it is denied");
     outln!("  shutdown                switch the machine off");
     outln!("  NAME [N ...]            run a program: hello, selftest, bench, fuzz 100000");
@@ -348,6 +364,38 @@ fn inject(label: u32, target: &[u8]) {
     }
 }
 
+/// Two failures at once: hang the console and, while `init` is still waiting for the
+/// console to answer its ping, crash the file server. Times both recoveries. Nothing can
+/// be printed while the console hangs, so the result appears at the end.
+fn double_failure() {
+    sys::sleep(SETTLE_MS);
+    let hang_at = sys::time();
+    // The console keeps this request and never answers; the wait is given up after
+    // HEAD_START_MS, and the console goes on hanging.
+    let hung = sys::call(CONSOLE, &mut Msg::new(DBG_HANG), HEAD_START_MS);
+    let crash_at = sys::time();
+    let crashed = sys::call(FILES, &mut Msg::new(DBG_CRASH), FOREVER);
+    let files_back = client::request(FILES, &mut Msg::new(PING));
+    let files_us = sys::time() - crash_at;
+    let console_back = client::request(CONSOLE, &mut Msg::new(PING));
+    let console_us = sys::time() - hang_at;
+    match (hung, crashed, files_back, console_back) {
+        (Err(E_TIMEOUT), Err(E_DEAD), Ok(()), Ok(())) => outln!(
+            "DOUBLE FAILURE: fs answering again after ", files_us, " us, console after ",
+            console_us, " us"
+        ),
+        (hung, crashed, _, _) => outln!(
+            "double: unexpected results: hang ", errname(code_of(hung)), ", crash ",
+            errname(code_of(crashed))
+        ),
+    }
+}
+
+/// The error of a system call, or 0.
+fn code_of(result: Result<(), i32>) -> i32 {
+    result.err().unwrap_or(0)
+}
+
 fn shutdown() {
     let _ = client::request(CONTROL, &mut Msg::new(INIT_SHUTDOWN));
     sys::sleep(500);
@@ -402,6 +450,9 @@ impl Shell {
         if tester {
             let extra = [APP_FILES, INFO, TEST_PORT, TEST_MEMORY, TEST_IRQ, TEST_LOG];
             spawn.caps[1..7].copy_from_slice(&extra);
+            if program == b"selftest" {
+                spawn.caps[7] = TEST_DEVICE;
+            }
             // One test program runs at a time. It gets every task and endpoint the shell may
             // still make; the kernel hands them back to the shell when the program ends.
             if let Ok(left) = sys::task_info(INFO, self.me) {
@@ -447,9 +498,11 @@ impl Shell {
     /// Run the hostile program: once for its system-call attacks, then once per
     /// hardware-level attack, each of which must end in a CPU exception. One attack makes
     /// the v86 browser emulator itself fail, so it runs only when `all` is asked for;
-    /// otherwise it is printed and counted as skipped.
+    /// otherwise it is printed and counted as skipped. The last three attacks are stopped
+    /// only by the no-execute bit; on a processor without it they are reported as such.
     fn rogue(&mut self, all: bool) {
         outln!("Starting a hostile program that holds one capability: console output.");
+        let no_execute = sys::stats(INFO).map_or(true, |stats| stats.nx != 0);
         let mut denied = 0;
         let mut total = 0;
         let mut skipped = 0u32;
@@ -478,6 +531,9 @@ impl Shell {
                     denied += 1;
                     outln!("denied: ", cause_name(end.words[0]));
                 }
+                Some(_) if mode >= ROGUE_FIRST_NX && !no_execute => {
+                    outln!("NOT DENIED: no no-execute bit")
+                }
                 Some(_) => outln!("NOT DENIED"),
                 None => {}
             }
@@ -488,7 +544,30 @@ impl Shell {
             outln!("ROGUE: ", denied, "/", total, " attempts denied, ", skipped, " skipped");
             outln!("The skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.");
         }
+        if !no_execute {
+            outln!("This processor has no no-execute bit, so a program can run code from its data.");
+        }
         invariants();
+    }
+
+    /// The guided tour: the fault demonstrations one after another, each under a line
+    /// that says what is about to happen. A step runs the command it names, nothing else.
+    fn tour(&mut self) {
+        self.step(1, "A hostile program tries to break out; watch what it is denied.", b"rogue");
+        self.step(2, "The screen driver crashes and is restarted like any program.", b"crash console");
+        self.step(3, "The file server stops answering; the supervisor replaces it.", b"hang fs");
+        self.step(4, "Two at once: the screen driver hangs, the file server crashes.", b"double");
+        self.step(5, "The kernel reports its counters and checks its own tables.", b"uptime");
+        outln!("");
+        outln!("TOUR: done. Nothing was rebooted; this is the shell that started the tour.");
+    }
+
+    fn step(&mut self, number: u32, what: &str, command: &[u8]) {
+        outln!("");
+        outln!("TOUR ", number, "/", TOUR_STEPS, ": ", what);
+        outln!("  (the command for this step: ", command, ")");
+        sys::sleep(TOUR_PAUSE_MS);
+        self.command(command);
     }
 
     fn command(&mut self, line: &[u8]) {
@@ -496,6 +575,7 @@ impl Shell {
         match verb {
             b"" => {}
             b"help" => help(),
+            b"tour" => self.tour(),
             b"ls" => list(),
             b"cat" => cat(first),
             b"ps" => tasks(),
@@ -505,6 +585,7 @@ impl Shell {
             b"svc" => services(),
             b"crash" => inject(DBG_CRASH, first),
             b"hang" => inject(DBG_HANG, first),
+            b"double" => double_failure(),
             b"rogue" => self.rogue(first == b"all"),
             b"shutdown" => shutdown(),
             program => {
@@ -533,7 +614,7 @@ pub fn main() {
         outln!("[shell restarted]");
     }
     outln!("Inti ", env!("CARGO_PKG_VERSION"), " shell ready at t=", sys::time(), " us");
-    outln!("Type help for the list of commands.");
+    outln!("Type help for the list of commands, or tour for a guided tour.");
     let mut shell = Shell { notices, launches: 0, quota, me };
     let mut line = [0; 120];
     loop {

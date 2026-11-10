@@ -76,6 +76,7 @@ class VM:
         monitor_port = free_port()
         command = [
             build.find_qemu(),
+            "-cpu", build.QEMU_CPU,  # a later "-cpu" in `extra` replaces this one
             "-drive", f"format=raw,file={self.image},if=ide",
             "-m", str(self.memory_mb),
             "-display", "none",

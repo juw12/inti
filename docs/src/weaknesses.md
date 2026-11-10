@@ -19,7 +19,7 @@ The measurements are from the gate run of {{gates.date}} in {{test.emulator}}. `
 
 {{table.recovery}}
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every {{supervisor.ping_every_ms}} ms and waits up to {{supervisor.ping_timeout_ms}} ms for the answer.
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every {{supervisor.ping_every_ms}} ms and waits up to {{supervisor.ping_timeout_ms}} ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after {{double.fs_ms}} ms and the console driver after {{double.console_ms}} ms. The log is in [How Inti works](design.md).
 
 ```log
 {{log.crash_fs}}
@@ -63,7 +63,7 @@ The same two faults in the browser demo, where the emulator is slower:
 - Rust's guarantees end where `unsafe` begins. The {{count.unsafe_kernel}} blocks were written and reviewed by one author; they are not verified.
 - Memory safety does not rule out logic errors. The checker and the fuzzer found none in this run, which is evidence and not proof. seL4 has machine-checked proofs of functional correctness ([seL4 FAQ](https://sel4.systems/About/FAQ.html)); Inti has nothing of that kind.
 - The fuzzer is random, not guided by coverage, and its programs hold no capability for the kernel log, so that one call is fuzzed only up to its capability check.
-- Code pages are read-only, but this paging mode has no no-execute bit, so a program's data pages are executable.
+- W^X stops a program from running code it wrote into its own data, but only on a processor with the no-execute bit, and Inti has only run in emulators. It does nothing against the reuse of code that is already in the program, and there is no address-space randomisation.
 
 ## Programs that run with all the rights of their user
 
@@ -74,7 +74,7 @@ The same two faults in the browser demo, where the emulator is slower:
 
 **What Inti does.** There is nothing a program can reach by naming it. Every system call starts from a slot in the caller's own capability table, a new program starts with exactly the capabilities its parent copied into it, and a capability can be copied with fewer rights or a smaller range but never more. A capability can also arrive in a message, but only when the sending and the receiving end of that conversation both carry the grant right, and whoever handed a capability out can take back every copy of it while the holders keep running. Memory, tasks and endpoints are lent the same way, as quotas that a parent gives its child. A program started from the shell gets one capability: the right to send text to the console.
 
-**What was measured.** `rogue all` starts a hostile program with that one capability. It makes {{rogue.all_total}} attempts: {{rogue.software}} through the system call interface and {{rogue.by_cpu}} directly on the hardware. The kernel refuses {{rogue.by_kernel}} with an error code, the console driver refuses {{rogue.by_driver}}, the processor ignores {{rogue.ignored}} and stops the program on the other {{rogue.by_cpu}}. Among the attempts: creating an endpoint without endpoint quota, giving a child more task quota than it has, handing a capability to the console driver, and revoking capabilities it does not hold. Afterwards the kernel's rules still hold.
+**What was measured.** `rogue all` starts a hostile program with that one capability. It makes {{rogue.all_total}} attempts: {{rogue.software}} through the system call interface and {{rogue.by_cpu}} directly on the hardware. The kernel refuses {{rogue.by_kernel}} with an error code, the console driver refuses {{rogue.by_driver}}, the processor ignores {{rogue.ignored}} and stops the program on the other {{rogue.by_cpu}}. Among the attempts: creating an endpoint without endpoint quota, giving a child more task quota than it has, handing a capability to the console driver, and revoking capabilities it does not hold. Among the attempts on the hardware are running code from the program's stack, from its data and from memory it has just mapped; with the no-execute bit the processor stops each one with a page fault. Afterwards the kernel's rules still hold.
 
 ```log
 {{log.rogue}}

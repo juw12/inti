@@ -1,11 +1,14 @@
 //! selftest: checks from user space that the kernel keeps its promises.
 //!
 //! Every check prints one line, `  ok   <name>` or `  FAIL <name>`. A failed check is
-//! preceded by lines that say what was expected and what happened. The last line is
-//! `SELFTEST: PASS n/n` or `SELFTEST: FAIL p/n`.
+//! preceded by lines that say what was expected and what happened. A check that this
+//! processor cannot make prints `  skip <name>` and counts neither way. The last line is
+//! `SELFTEST: PASS n/n`, with the number of skipped checks if there are any, or
+//! `SELFTEST: FAIL p/n`.
 //!
 //! Capabilities, handed over by the shell: 0 console, 1 files, 2 Info, 3 I/O port 0x80,
-//! 4 the archive (read-only memory), 5 IRQ 5, 6 Log.
+//! 4 the archive (read-only memory), 5 IRQ 5, 6 Log, 7 one writable page of device memory
+//! (the last page of the text screen's memory, which the screen never shows).
 #![no_std]
 #![no_main]
 
@@ -15,8 +18,8 @@ use rt::abi::{
     nr, CapInfo, KStats, Msg, SpawnArgs, TaskInfo, ARCHIVE_MAGIC, CAP_ENDPOINT, CAP_IOPORT,
     CAP_NULL, CAP_SLOTS, CAUSE_EXIT, CAUSE_KILLED, E_BUSY, E_DEAD, E_FAULT, E_INVAL, E_NOCAP,
     E_NOMEM, E_NOSLOT, E_NOSYS, E_PERM, E_TIMEOUT, INFO_CAP, INFO_STATS, INFO_TASK, L_FAULT,
-    L_IRQ, L_KERNEL, MAX_TASKS, MSG_DATA, NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND,
-    ST_FREE, ST_RECV, ST_SEND, USER_BASE, USER_END,
+    L_IRQ, L_KERNEL, MAP_WRITE, MAX_TASKS, MSG_DATA, NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND,
+    STACK_TOP, ST_FREE, ST_RECV, ST_REPLY, ST_SEND, USER_BASE, USER_END,
 };
 use rt::client::{self, Mapping};
 use rt::io::{set_output, Hex, Sink};
@@ -30,6 +33,7 @@ const PORT: u32 = 3;
 const ARCHIVE: u32 = 4;
 const IRQ: u32 = 5;
 const LOG: u32 = 6;
+const DEVICE: u32 = 7;
 /// A capability slot that stays empty.
 const EMPTY: u32 = 31;
 
@@ -46,6 +50,8 @@ const ARCHIVE_AT: u32 = 0x7000_0000;
 const QUOTA_AT: u32 = 0x8000_0000;
 /// An address in a child's address space that the child program itself never uses.
 const CHILD_SPARE: u32 = 0x7800_0000;
+/// Where a child maps the page that it then tries to run (`PLAY` in tchild.rs).
+const CHILD_PLAY: u32 = 0x6100_0000;
 /// The kernel is loaded at 1 MiB; the text screen is at 0xB8000.
 const KERNEL: u32 = 0x10_0000;
 const VIDEO: u32 = 0xB_8000;
@@ -56,6 +62,9 @@ const CHILD_STACK: u32 = 4;
 /// CPU exception numbers.
 const PAGE_FAULT: u32 = 14;
 const PROTECTION_FAULT: u32 = 13;
+/// The error code of a page fault when a program fetches an instruction from a page that
+/// is mapped but may not be executed: present, user mode, instruction fetch.
+const EXECUTE_FAULT: u32 = 0x15;
 /// The keyboard controller's command port; writing 0xFE to it resets the machine.
 const RESET_PORT: u32 = 0x64;
 /// The exit code of a child whose capability in slot 0 was taken away while it waited.
@@ -65,9 +74,16 @@ const GONE: u32 = 0xE000_0000 | E_NOCAP.unsigned_abs();
 struct Test {
     passed: u32,
     total: u32,
+    /// Checks that this processor cannot make. They count neither as passed nor as failed.
+    skipped: u32,
 }
 
 impl Test {
+    fn skip(&mut self, name: &str) {
+        self.skipped += 1;
+        outln!("  skip ", name);
+    }
+
     fn check(&mut self, name: &str, ok: bool) {
         self.total += 1;
         if ok {
@@ -91,6 +107,8 @@ struct End {
     /// The exit code, or the address that a page fault was about.
     detail: u32,
     eip: u32,
+    /// The error code that the processor gave with a fault.
+    code: u32,
 }
 
 /// What must be the same before and after a group of checks: tasks, endpoints, page
@@ -188,6 +206,12 @@ fn raw(number: u32, a: u32, b: u32, c: u32, d: u32) -> i32 {
     // scratch pages, which this program reaches only through raw addresses. If the kernel
     // wrongly accepted a bad argument, the damage would be the finding.
     unsafe { sys::raw(number, a, b, c, d).0 }
+}
+
+/// The number of the first kernel invariant that does not hold: 0 if all hold, -1 if the
+/// kernel could not be asked.
+fn broken_rule() -> i32 {
+    sys::check(INFO).map_or(-1, |rule| rule as i32)
 }
 
 fn stats() -> KStats {
@@ -350,7 +374,7 @@ impl Kids {
             launches: 0,
             lent: (0, 0),
             me,
-            ended: [End { badge: 0, cause: 0, detail: 0, eip: 0 }; 32],
+            ended: [End { badge: 0, cause: 0, detail: 0, eip: 0, code: 0 }; 32],
             count: 0,
         })
     }
@@ -412,6 +436,7 @@ impl Kids {
                     cause: msg.words[0],
                     detail: msg.words[1],
                     eip: msg.words[2],
+                    code: msg.words[3],
                 };
                 self.count += 1;
             }
@@ -562,8 +587,11 @@ fn arguments(test: &mut Test, kids: &mut Kids) -> Option<()> {
     test.done("a message buffer outside the caller's memory gives E_FAULT", c);
 
     let mut c = Check::new();
+    let own_code = main as *const () as u32;
     c.code("call", raw(nr::CALL, ep, READ_ONLY, 0, 0), E_FAULT);
     c.code("recv", raw(nr::RECV, ep, READ_ONLY, 0, 0), E_FAULT);
+    c.code("call with the buffer in the program's code", raw(nr::CALL, ep, own_code, 0, 0), E_FAULT);
+    c.code("recv with the buffer in the program's code", raw(nr::RECV, ep, own_code, 0, 0), E_FAULT);
     test.done("a message buffer the caller cannot write gives E_FAULT", c);
 
     let mut c = Check::new();
@@ -1393,6 +1421,59 @@ fn tasks(test: &mut Test, kids: &mut Kids) -> Option<()> {
     c.eq("spare pages", spare_pages(me), spare);
     test.done("damaged program images are refused and leave nothing behind", c);
 
+    // The image has three loadable segments: constants, code and data, in that order.
+    let (code_header, data_header) = (load + 32, load + 64);
+    let mut c = Check::new();
+    let before = usage(me);
+    let spare = spare_pages(me);
+    c.eq("kind of the second segment", word(copy, code_header), 1);
+    c.eq("access of the second segment", word(copy, code_header + 24), 5);
+    c.eq("kind of the third segment", word(copy, data_header), 1);
+    c.eq("access of the third segment", word(copy, data_header + 24), 6);
+    let code_start = word(copy, code_header + 8);
+    let code_last_page = (code_start + word(copy, code_header + 20) - 1) & !(PAGE - 1);
+    let damage = [
+        ("code that can be written", code_header + 24, 7),
+        ("data that can be executed", data_header + 24, 7),
+        ("data in the first page of the code", data_header + 8, code_start),
+        ("data in the last page of the code", data_header + 8, code_last_page),
+    ];
+    for (what, at, value) in damage {
+        let original = word(copy, at);
+        set_word(copy, at, value);
+        kids.refuse(&mut c, what, copy, CHILD_PAGES, CHILD_STACK, E_INVAL);
+        set_word(copy, at, original);
+    }
+    c.same(usage(me), before);
+    c.eq("spare pages", spare_pages(me), spare);
+    test.done("an image with writable code, or with two segments on one page, is refused", c);
+
+    // Each smaller quota stops the loader at an earlier allocation: the tables of the
+    // address space, the pages of each segment, the stack.
+    let mut c = Check::new();
+    let mut smallest = None;
+    for quota in 0..=CHILD_PAGES {
+        let spawn = kids.spawn_args(mode::EXIT, 33, 0, &[], quota, CHILD_STACK);
+        match sys::spawn(copy, &spawn) {
+            Ok(task) => {
+                let end = kids.end_of(Kid { task, badge: spawn.fault_badge });
+                c.ended("the first child with enough memory", end, CAUSE_EXIT, Some(33));
+                smallest = Some(quota);
+                break;
+            }
+            Err(error) => {
+                c.code("starting a child with too little memory", error, E_NOMEM);
+                c.same(usage(me), before);
+                c.eq("spare pages", spare_pages(me), spare);
+            }
+        }
+    }
+    let enough = smallest.is_some_and(|pages: u32| pages > CHILD_STACK + 3);
+    c.yes("a child needs more than its stack and three more pages", enough);
+    c.same(usage(me), before);
+    c.eq("spare pages", spare_pages(me), spare);
+    test.done("starting a child fails cleanly at every point where memory can run out", c);
+
     let mut c = Check::new();
     let spawn = kids.spawn_args(mode::EXIT, 33, 0, &[], CHILD_PAGES, CHILD_STACK);
     match sys::spawn(copy, &spawn) {
@@ -1566,26 +1647,120 @@ fn time_and_files(test: &mut Test, _kids: &mut Kids) -> Option<()> {
     Some(())
 }
 
+/// The kernel writes a message into a task's buffer after the task has blocked, so the
+/// buffer must still be the task's own writable memory by then. Memory of a device is the
+/// only memory that can be taken from a blocked task, and it is refused as a buffer.
+fn buffers(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    let ep = sys::ep_create().ok()?;
+
+    let mut c = Check::new();
+    let device_at = SCRATCH + 2 * PAGE;
+    let across = device_at - 100;
+    c.works("mapping the device page, writable", sys::map_mem(DEVICE, device_at, 0, 1, true));
+    c.code("call", raw(nr::CALL, ep, device_at, 0, 0), E_FAULT);
+    c.code("recv", raw(nr::RECV, ep, device_at, 0, 0), E_FAULT);
+    c.code("call that ends in the device page", raw(nr::CALL, ep, across, 0, 0), E_FAULT);
+    c.code("recv that ends in the device page", raw(nr::RECV, ep, across, 0, 0), E_FAULT);
+    c.code("statistics", raw(nr::SYSINFO, INFO, INFO_STATS, 0, device_at), E_FAULT);
+    // SAFETY: the page was mapped just above and nothing in this program refers to it.
+    c.works("unmapping the device page", unsafe { sys::unmap(device_at, 1) });
+    test.done("memory of a device is refused as a message buffer, also in part", c);
+
+    let mut c = Check::new();
+    let device = sys::cap_derive(DEVICE, 0, 1, 1).ok()?;
+    let agent = Agent::start(kids, R_RECV | R_SEND, &[device])?;
+    let map_device = [1, CHILD_SPARE, 0, 1 | MAP_WRITE];
+    let map_own = [CHILD_SPARE, 1, 1, 0];
+    c.code("the agent maps the device page, writable", agent.does(nr::MAP_MEM, map_device), 0);
+    c.code("the agent receives into it", agent.does(nr::RECV, [0, CHILD_SPARE, 0, 0]), E_FAULT);
+    c.code("the agent calls with it", agent.does(nr::CALL, [0, CHILD_SPARE, 0, 0]), E_FAULT);
+    c.code("memory of its own in the same place", agent.does(nr::MAP, map_own), E_BUSY);
+    c.yes("the agent waits for a message", kids.wait_state(agent.kid, ST_RECV));
+    c.code("rule that is broken while it waits", broken_rule(), 0);
+    c.works("revoking the device page", sys::cap_revoke(device));
+    c.eq("the agent's slot for the page", cap(agent.index, 1).kind, CAP_NULL);
+    c.eq("state of the agent", task(agent.index).state, ST_RECV);
+    c.code("rule that is broken afterwards", broken_rule(), 0);
+    c.code("memory of its own in the same place, now", agent.does(nr::MAP, map_own), 0);
+    c.works("dropping the capability", sys::cap_drop(device));
+    c.ended("the agent", agent.stop(kids), CAUSE_KILLED, None);
+    test.done("a device page taken from a waiting task was never its message buffer", c);
+
+    let mut c = Check::new();
+    let anomalies = stats().anomalies;
+    let send = sys::cap_derive(ep, R_SEND, 0, 0).ok()?;
+    let caller = kids.start(mode::CALL_ONCE, 5, 6, &[send])?;
+    let mut msg = Msg::new(0);
+    c.works("receiving the child's call", sys::recv(ep, &mut msg, 1000));
+    c.yes("the child waits for the reply", kids.wait_state(caller, ST_REPLY));
+    c.works("revoking the capability it called through", sys::cap_revoke(send));
+    c.eq("state of the child", task(kids.index_of(caller)).state, ST_REPLY);
+    c.code("rule that is broken while the reply is due", broken_rule(), 0);
+    let mut answer = Msg::new(0);
+    answer.words[0] = 77;
+    c.works("replying", sys::reply(msg.token, &answer));
+    c.ended("the child", kids.end_of(caller), CAUSE_EXIT, Some(77));
+    c.eq("anomalies", stats().anomalies, anomalies);
+    c.works("dropping the send capability", sys::cap_drop(send));
+    test.done("a reply reaches a caller whose capability was revoked in between", c);
+
+    sys::cap_drop(ep).ok()?;
+    Some(())
+}
+
+/// Only program code can be executed: the stack, data and mapped memory cannot (W^X).
+/// A processor without the no-execute bit cannot enforce this, so the checks are skipped.
+fn execution(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    type Place = fn(u32) -> bool;
+    let on_stack: Place = |at| (STACK_TOP - CHILD_STACK * PAGE..STACK_TOP).contains(&at);
+    let in_data: Place = |at| (USER_BASE..CHILD_PLAY).contains(&at);
+    let in_mapped: Place = |at| at == CHILD_PLAY;
+    let attempts = [
+        ("a program cannot run code from its stack", mode::EXEC_STACK, on_stack),
+        ("a program cannot run code from its data", mode::EXEC_DATA, in_data),
+        ("a program cannot run code from memory it mapped", mode::EXEC_MAPPED, in_mapped),
+    ];
+    let enforced = stats().nx != 0;
+    for (name, what, in_place) in attempts {
+        if !enforced {
+            test.skip(name);
+            continue;
+        }
+        let mut c = Check::new();
+        let end = kids.run(what, 0, 0);
+        c.ended("the child", end, PAGE_FAULT, None);
+        if let Some(end) = end {
+            c.yes("the fault is where the data is", in_place(end.detail));
+            c.eq("address of the instruction", end.eip, end.detail);
+            c.eq("error code of the fault", end.code, EXECUTE_FAULT);
+        }
+        test.done(name, c);
+    }
+    Some(())
+}
+
 type Group = fn(&mut Test, &mut Kids) -> Option<()>;
 
 #[no_mangle]
 pub fn main() {
     set_output(Sink::Console(CONSOLE));
     outln!("Each line is one promise of the kernel, checked from user space.");
-    let mut test = Test { passed: 0, total: 0 };
+    let mut test = Test { passed: 0, total: 0, skipped: 0 };
     test.check("the kernel's invariants hold at the start", sys::check(INFO) == Ok(0));
     test.check("the kernel has met nothing unexpected so far", stats().anomalies == 0);
     let scratch = sys::map(SCRATCH, 2, true).and_then(|()| sys::map(READ_ONLY, 1, false));
     match (Kids::new(), scratch) {
         (Some(mut kids), Ok(())) => {
             let before = usage(kids.me);
-            let groups: [(&str, Group); 9] = [
+            let groups: [(&str, Group); 11] = [
                 ("argument", arguments),
                 ("capability", capabilities),
                 ("message", ipc),
                 ("revocation", revocation),
                 ("delegation", delegation),
+                ("buffer", buffers),
                 ("memory", memory),
+                ("execution", execution),
                 ("task", tasks),
                 ("quota", quotas),
                 ("clock and file", time_and_files),
@@ -1597,7 +1772,7 @@ pub fn main() {
                 }
             }
             let mut c = Check::new();
-            c.code("rule that is broken", sys::check(INFO).map_or(-1, |rule| rule as i32), 0);
+            c.code("rule that is broken", broken_rule(), 0);
             test.done("the kernel's invariants hold at the end", c);
             let mut c = Check::new();
             c.eq("anomalies", stats().anomalies, 0);
@@ -1608,9 +1783,12 @@ pub fn main() {
         }
         _ => test.check("loading the child program and mapping scratch pages", false),
     }
-    if test.passed == test.total {
+    if test.passed != test.total {
+        outln!("SELFTEST: FAIL ", test.passed, "/", test.total);
+    } else if test.skipped == 0 {
         outln!("SELFTEST: PASS ", test.passed, "/", test.total);
     } else {
-        outln!("SELFTEST: FAIL ", test.passed, "/", test.total);
+        let (passed, skipped) = (test.passed, test.skipped);
+        outln!("SELFTEST: PASS ", passed, "/", test.total, ", ", skipped, " skipped (no no-execute bit)");
     }
 }
