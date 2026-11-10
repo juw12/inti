@@ -80,6 +80,29 @@ driver or a hostile program is demonstrably a non-event.
 - Assumed: 50 lessons from this run were appended to the hone skill's `lessons.md` and one row to the precedent log; the cairn session was ended as "partial", not "shipped", because the loop did not finish.
 - Assumed: no second improvement round was started. The session context had already been compacted, and a half-made kernel change would have left the published project worse than it is; the sync and the handoff below were finished instead.
 - Assumed: the next run revises from the published version (round 1, judged 8.2) and should count a round as kept only if it beats 8.2 by MIN_GAIN and wins the pairwise against it. The 7.95 of v0 belongs to a version that can no longer be rebuilt, so it is the wrong bar for new work.
+- Assumed: round 2 bundles W^X, the failure-path tests, the double-failure evidence and a guided tour. By the round-1 medians W^X alone was worth about a quarter of a point, and the keep rule needs 0.3.
+- Assumed: W^X uses PAE paging with the no-execute bit. The test harness and `build.py run` start QEMU with `-cpu qemu32,+nx` (constant `QEMU_CPU` in `build.py`). On a processor without the bit the kernel still boots and says in its boot log that W^X is not enforced.
+- Assumed: the program loader refuses two segments that share a page and any segment that is both writable and executable (`E_INVAL`).
+- Assumed: the invariant checker ignores the accessed bit in the PAE root entries, because QEMU sets it there. The checker was too strict; no rule was weakened.
+- Assumed: the kernel's two "table full" branches (task table, endpoint table) stay unreachable by design, because the quotas run out first. They are covered by the rule that quotas balance and by the anomaly counter, and the documents say that no test executes them.
+- Assumed: `init` waits for a ping answer in 50 ms slices and handles death notices between the slices. The kernel has only synchronous IPC, so a fully asynchronous ping is not built.
+- Assumed: the writable device-memory capability that the execute tests need goes only to `selftest`, not to `fuzz` or `bench`. The fuzzer is unchanged.
+- Assumed: without the no-execute bit the three execute tests are printed as skipped and are not counted as passes.
+- Assumed: the late-write rule holds by construction. The documents state the argument in four parts, name the two self-tests that check it directly and call it "a tested argument, not a proof".
+- Assumed: a task that waits for a reply keeps waiting when the capability it called through is revoked, and it still gets the reply. A test pins this behaviour.
+- Assumed: the evidence for the double failure is a log line from `init` plus the order of the log. The timing bound was dropped.
+- Assumed: the boot without the no-execute bit is logged to its own file `evidence/test_nonx_serial.log` and shown under the fence label `nonxlog`.
+- Assumed: the tour button says "Five steps, each announced before it runs", not "five failures".
+- Assumed: gate G5 still requires its seven named kinds of attempt; the execute attempts are an eighth kind.
+- Assumed: the browser's evidence for W^X is the log excerpt `weblog.wx`; there is no yes/no claim. The browser check fails if the self-test skips anything in v86.
+- Assumed: the documents refer to checker rules by description, not by number.
+- Assumed: the documents add two limits next to W^X (no protection against code reuse, no address-space randomisation) and state that servers are pinged one after the other.
+- Assumed: judging of round 2. The first score run returned only 2 of 3 judges (one judge sent no scores), so it cannot be compared with the 3-judge baseline, and the council tool itself puts judge noise at about 0.3. Before any further score was read the protocol was fixed: score each dossier (round 1 and round 2) three more times with the same settings; the score of a dossier is the mean of the council scores of all four of its runs (the tool's own `--runs` definition), with no run discarded; round 2 is kept only if its mean is at least the round-1 mean plus MIN_GAIN and the blind pairwise is won.
+- Assumed: round 2 is not kept. The rule fixed before the runs compares the four-run means; the gain is 0.0125 and the minimum is 0.3. The pairwise win and the 9/9 gates do not change that.
+- Assumed: the round 2 candidate is preserved as a draft pull request from branch `agent/r2-wx` and is not merged. A draft is reversible and leaves `main` and the public pages on round 1; the owner decides whether to adopt it.
+- Assumed: only this log lands on `main`, as its own commit. The claims check was run on the tree with the new log before the push.
+- Assumed: the public pages keep the round 1 numbers, because `main` is unchanged. Only the Obsidian note and the update log are synced.
+- Assumed: plateau ends this item, and a single-project run has no other item, so the run ends after the sync.
 
 ## Rubric
 
@@ -91,10 +114,38 @@ See `rubric.md` (id `inti-os-v1`, frozen before generating).
 |---|---|---|---|---|---|---|
 | v0 | baseline: first complete version | 9/9 | 7.95 | - | yes | three judges: 7.8, 7.95, 8.35 |
 | 1 | revocation, delegation in messages, quotas for tasks and endpoints; 12 new selftest checks, 4 new rogue attempts | 9/9 | 8.2 | yes (3 of 3 judges, in both orders) | no | three judges: 7.95, 8.2, 9.05; the gain of 0.25 is under MIN_GAIN 0.3 |
+| 2 | W^X through PAE paging and the no-execute bit; tests for failure paths; evidence for a double failure; guided tour in the browser demo; 8 new selftest checks, 3 new rogue attempts | 9/9 | 8.125 (mean of four runs: 7.8, 8.2, 8.3, 8.2); round 1 re-measured in the same session: 8.1125 (runs 8.2, 7.95, 8.35, 7.95) | yes (3 of 3 judges, in both orders) | no | the gain of 0.0125 is under MIN_GAIN 0.3; two of the round 2 runs had only two of the three judges; means of the three-judge runs only: 8.25 against 8.1125 |
 
-stop: over_budget (session context and time; one of five rounds used). By the loop's rule the best score stays 7.95 (v0); round 1, the version that is published, was judged 8.2 and won the blind pairwise, but its gain is under the minimum, so it is not counted as a demonstrated improvement. DONE_SCORE 8.5 was not reached. The judges' requested fixes are in the queue, not attempted.
+First session: stop: over_budget (session context and time; one of five rounds used). By the loop's rule the best score stays 7.95 (v0); round 1, the version that is published, was judged 8.2 and won the blind pairwise, but its gain is under the minimum, so it is not counted as a demonstrated improvement. DONE_SCORE 8.5 was not reached. The judges' requested fixes are in the queue, not attempted.
+
+stop: plateau (two rounds in a row under MIN_GAIN; round 2 used one of three gate tries). By the loop's rule the best score stays 7.95 (v0, one run). Round 1 re-measured: mean 8.1125 over four runs. Round 2: mean 8.125 over four runs, 9/9 gates, pairwise won, not kept. DONE_SCORE 8.5 was not reached. Round 2 is not on `main`; it waits in a draft pull request from branch `agent/r2-wx`.
+
+Every council run used for the round 2 decision (judge totals in a fixed order; "-" means the judge did not answer):
+
+| dossier | run | judges answering | council score | judge totals |
+|---|---|---|---|---|
+| round 1 | 1 (first session) | 3 | 8.2 | 9.05, 7.95, 8.2 |
+| round 1 | 2 | 3 | 7.95 | 7.4, 7.95, 8.2 |
+| round 1 | 3 | 3 | 8.35 | 7.7, 8.75, 8.35 |
+| round 1 | 4 | 3 | 7.95 | 7.5, 7.95, 8.15 |
+| round 2 | 1 | 2 | 7.8 | 7.4, 8.2, - |
+| round 2 | 2 | 3 | 8.2 | 7.4, 8.2, 8.82 |
+| round 2 | 3 | 3 | 8.3 | 7.6, 8.3, 8.45 |
+| round 2 | 4 | 2 | 8.2 | -, 8.2, 8.2 |
+
+For information, not used for the decision: against the single first-session run of round 1 the bar would be 8.5, and against v0 (7.95, one run, never re-measured) it would be 8.25. The four-run mean of round 2 is under both. The mean of its two three-judge runs is 8.25, which equals the v0 bar, but that reading drops two runs and compares a mean with a single run, so it is not used. One judge gave the unchanged round 1 dossier 9.05 and 7.4, so a single run cannot show a gain of 0.3.
 
 ## Handoff
+
+Second session (round 2). The loop stopped on plateau: two rounds in a row gained less than MIN_GAIN. `main` holds round 1 as published. The round 2 candidate passed every gate and won the blind pairwise, but its measured gain is under the minimum, so it is not merged.
+
+- Done: round 2 built on branch `agent/r2-wx` (W^X through PAE paging and the no-execute bit, tests for failure paths, evidence for a double failure, a guided tour in the browser demo); full gates 9/9 on that tree; blind pairwise against round 1 won with 3 of 3 judges in both orders; both dossiers scored four times in one session; decision taken by the rule written down before the runs; this log landed on `main` as its own commit.
+- After this commit, in the same session: the draft pull request from branch `agent/r2-wx` is opened and the close-out is done (Obsidian note and update log, lessons, precedent log, cairn session end). None of these changes a file on `main`.
+- In progress: nothing. No change on `main` is half-made.
+- Left: (1) the owner's decision on the draft pull request: adopt round 2 (then the public pages need the new numbers) or close it. (2) What the judges still object to, none of it removable by a small round: the kernel's "table full" paths for tasks and endpoints are never executed by a test; only one combination of two failures is tested; no formal verification and no independent review of the `unsafe` blocks; `init` is trusted with everything; no IOMMU and no address-space randomisation; never run on real hardware. (3) From the old queue: selective revocation; shell hang monitoring; a bounded model check of the capability rules; a script that boots the published demo and compares the image hash.
+- Exact next command: `gh pr list --repo juw12/inti --head agent/r2-wx` shows the draft. To adopt it: check the branch out in a worktree, run `python build.py gates` (9/9 expected; QEMU needs `-cpu qemu32,+nx`), mark the pull request ready, merge it, then run the public sync. To continue the loop instead: start a new run and measure its baseline with four council runs, because single runs differ by more than MIN_GAIN.
+
+### First session (kept for the record; superseded by the lines above)
 
 The run stopped at the session limit (context and time). The queue above is ticked, but the improvement loop is unfinished, so this run is not done.
 
