@@ -1,0 +1,464 @@
+{
+  "passed": true,
+  "date": "2026-11-10T17:25:53+07:00",
+  "duration_s": 203,
+  "emulator": "QEMU 11.1.0 (TCG, no hardware virtualisation)",
+  "qemu_version": "11.1.0",
+  "host": "Windows 10",
+  "image_sha256": "76f59b0ff3c1fab72ed3884dcd457f20e02a454600f24b4fc7695085e9895002",
+  "options": {
+    "fuzz": 1000000,
+    "runs": 5
+  },
+  "checks": [
+    {
+      "name": "boots from its own boot sector to the shell prompt within 20 s",
+      "ok": true,
+      "detail": "326 ms after QEMU started"
+    },
+    {
+      "name": "selftest after boot",
+      "ok": true,
+      "detail": "SELFTEST: PASS 70/70"
+    },
+    {
+      "name": "the selftest's line written through the Log capability is in the kernel log",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "rogue all: every attempt of the hostile program is denied",
+      "ok": true,
+      "detail": "ROGUE: 43/43 attempts denied"
+    },
+    {
+      "name": "rogue all: the kernel invariants hold afterwards",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "rogue: the default run denies every attempt it makes and reports the one it skips",
+      "ok": true,
+      "detail": "ROGUE: 42/42 attempts denied, 1 skipped"
+    },
+    {
+      "name": "the system is still up after the hostile program (ls answers)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
+      "ok": true,
+      "detail": "median 5140 us, worst 6825 us"
+    },
+    {
+      "name": "fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
+      "ok": true,
+      "detail": "median 2422 us, worst 4100 us"
+    },
+    {
+      "name": "console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
+      "ok": true,
+      "detail": "median 658671 us, worst 681730 us"
+    },
+    {
+      "name": "fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
+      "ok": true,
+      "detail": "median 658802 us, worst 689685 us"
+    },
+    {
+      "name": "fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs",
+      "ok": true,
+      "detail": "median 1096096 us, worst 1128466 us"
+    },
+    {
+      "name": "a server that dies again and again is restarted with a growing delay and still comes back",
+      "ok": true,
+      "detail": "ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms"
+    },
+    {
+      "name": "crash init: the kernel starts user space again and the new shell answers",
+      "ok": true,
+      "detail": "new prompt 25 ms later (host time)"
+    },
+    {
+      "name": "fuzz: the report is complete",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks",
+      "ok": true,
+      "detail": "FUZZ: 1001450 random system calls from 2238 tasks in 108792 ms; FUZZ: 5435 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks"
+    },
+    {
+      "name": "bench runs to the end",
+      "ok": true,
+      "detail": "6 results"
+    },
+    {
+      "name": "selftest after all faults",
+      "ok": true,
+      "detail": "SELFTEST: PASS 70/70"
+    },
+    {
+      "name": "keys pressed on the emulated PS/2 keyboard reach the shell",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the guest clock keeps time against the host clock over 5 idle seconds",
+      "ok": true,
+      "detail": "guest/host = 1.0025"
+    },
+    {
+      "name": "at the end: 0 kernel anomalies and every kernel invariant holds",
+      "ok": true,
+      "detail": "1794821 system calls, 1499 faults contained, 10765 tasks started"
+    },
+    {
+      "name": "shutdown switches the machine off (QEMU exits with code 0)",
+      "ok": true,
+      "detail": "exit code 0"
+    },
+    {
+      "name": "no kernel panic anywhere in the serial log",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "measured": {
+    "boot": {
+      "host_ms": 326,
+      "guest_us": 14070,
+      "version": "0.1.0"
+    },
+    "selftest": {
+      "after_boot": 70,
+      "after_all_faults": 70
+    },
+    "rogue": {
+      "all_denied": 43,
+      "all_total": 43,
+      "default_denied": 42,
+      "default_skipped": 1,
+      "attempts": [
+        "1. read the keyboard port 0x60: denied: E_NOCAP",
+        "2. reset the machine through port 0x64: denied: E_NOCAP",
+        "3. take over the keyboard interrupt: denied: E_NOCAP",
+        "4. map physical memory: denied: E_NOCAP",
+        "5. kill another task: denied: E_NOCAP",
+        "6. read kernel and task information: denied: E_NOCAP",
+        "7. write to the kernel log: denied: E_NOCAP",
+        "8. use capability number 1000000: denied: E_NOCAP",
+        "9. add the receive right to its console cap: denied: E_PERM",
+        "10. receive other programs' console requests: denied: E_PERM",
+        "11. answer others' calls with forged tokens: denied: E_INVAL",
+        "12. re-badge its console cap as the shell's: denied: E_PERM",
+        "13. ask the console driver to crash: denied: refused by the driver",
+        "14. ask the console driver to hang: denied: refused by the driver",
+        "15. have the kernel write into kernel memory: denied: E_FAULT",
+        "16. pass a message pointer that wraps around: denied: E_FAULT",
+        "17. start a task from kernel memory: denied: E_FAULT",
+        "18. map pages over kernel and video memory: denied: E_INVAL",
+        "19. unmap kernel pages: denied: E_INVAL",
+        "20. take more memory than its quota: denied: E_NOMEM",
+        "21. start a task from a garbage image: denied: E_INVAL",
+        "22. give a child more memory than it has: denied: E_NOMEM",
+        "23. give a child a capability it does not hold: denied: E_NOCAP",
+        "24. call system calls that do not exist: denied: E_NOSYS",
+        "25. set IOPL 3 and clear the interrupt flag: denied: ignored by the CPU",
+        "26. disable interrupts (cli): denied: general protection fault",
+        "27. halt the processor (hlt): denied: general protection fault",
+        "28. read the keyboard port directly (in): denied: general protection fault",
+        "29. reset the machine directly (out 0x64): denied: general protection fault",
+        "30. read kernel memory: denied: page fault",
+        "31. write kernel memory: denied: page fault",
+        "32. jump into kernel code: denied: page fault",
+        "33. load the kernel's data segment: denied: general protection fault",
+        "34. raise the timer interrupt (int 0x20): denied: general protection fault",
+        "35. replace the page tables (mov cr3): denied: general protection fault",
+        "36. turn off paging and protection (mov cr0): denied: general protection fault",
+        "37. replace the interrupt table (lidt): denied: general protection fault",
+        "38. far jump to the kernel's code segment: denied: general protection fault",
+        "39. overwrite its own code: denied: page fault",
+        "40. overflow its stack: denied: page fault",
+        "41. return to ring 0 with a forged iret frame: denied: general protection fault",
+        "42. write a model-specific register (wrmsr): denied: general protection fault",
+        "43. enter the kernel through sysenter: denied: general protection fault"
+      ]
+    },
+    "recovery": {
+      "console_crash": {
+        "guest_us": {
+          "min": 4800,
+          "median": 5140,
+          "max": 6825,
+          "runs": 5,
+          "samples": [
+            4800,
+            5140,
+            5061,
+            6825,
+            6385
+          ]
+        },
+        "host_ms": {
+          "min": 8,
+          "median": 9,
+          "max": 11,
+          "runs": 5,
+          "samples": [
+            9,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        "respawn_us": {
+          "min": 1732,
+          "median": 1738,
+          "max": 8737,
+          "runs": 5,
+          "samples": [
+            8737,
+            1732,
+            1871,
+            1738,
+            1734
+          ]
+        }
+      },
+      "fs_crash": {
+        "guest_us": {
+          "min": 1925,
+          "median": 2422,
+          "max": 4100,
+          "runs": 5,
+          "samples": [
+            1925,
+            4100,
+            2198,
+            2807,
+            2422
+          ]
+        },
+        "host_ms": {
+          "min": 5,
+          "median": 6,
+          "max": 8,
+          "runs": 5,
+          "samples": [
+            5,
+            8,
+            6,
+            6,
+            5
+          ]
+        },
+        "respawn_us": {
+          "min": 749,
+          "median": 1218,
+          "max": 2038,
+          "runs": 5,
+          "samples": [
+            749,
+            2038,
+            1052,
+            1343,
+            1218
+          ]
+        }
+      },
+      "console_hang": {
+        "guest_us": {
+          "min": 637436,
+          "median": 658671,
+          "max": 681730,
+          "runs": 5,
+          "samples": [
+            666927,
+            637436,
+            658671,
+            681730,
+            649328
+          ]
+        },
+        "host_ms": {
+          "min": 641,
+          "median": 664,
+          "max": 687,
+          "runs": 5,
+          "samples": [
+            670,
+            641,
+            664,
+            687,
+            653
+          ]
+        },
+        "respawn_us": {
+          "min": 1279,
+          "median": 1872,
+          "max": 3455,
+          "runs": 5,
+          "samples": [
+            3455,
+            1279,
+            2136,
+            1872,
+            1461
+          ]
+        }
+      },
+      "fs_hang": {
+        "guest_us": {
+          "min": 612424,
+          "median": 658802,
+          "max": 689685,
+          "runs": 5,
+          "samples": [
+            662775,
+            658802,
+            612424,
+            635495,
+            689685
+          ]
+        },
+        "host_ms": {
+          "min": 615,
+          "median": 661,
+          "max": 693,
+          "runs": 5,
+          "samples": [
+            665,
+            661,
+            615,
+            638,
+            693
+          ]
+        },
+        "respawn_us": {
+          "min": 732,
+          "median": 790,
+          "max": 934,
+          "runs": 5,
+          "samples": [
+            848,
+            742,
+            934,
+            732,
+            790
+          ]
+        }
+      },
+      "fs_hang_just_restarted": {
+        "guest_us": {
+          "min": 1040763,
+          "median": 1096096,
+          "max": 1128466,
+          "runs": 3,
+          "samples": [
+            1128466,
+            1096096,
+            1040763
+          ]
+        },
+        "host_ms": {
+          "min": 1044,
+          "median": 1100,
+          "max": 1131,
+          "runs": 3,
+          "samples": [
+            1131,
+            1100,
+            1044
+          ]
+        },
+        "respawn_us": {
+          "min": 736,
+          "median": 755,
+          "max": 848,
+          "runs": 3,
+          "samples": [
+            848,
+            736,
+            755
+          ]
+        }
+      }
+    },
+    "backoff": {
+      "delays_ms": [
+        100,
+        200
+      ],
+      "svc": [
+        "svc",
+        "service   state  restarts  last end                  last restart took",
+        "console   up           10  killed                    1461 us",
+        "fs        up           21  page fault                233339 us",
+        "shell     up            0  -",
+        "inti>"
+      ]
+    },
+    "init_crash": {
+      "host_ms": 25,
+      "banner": "Inti 0.1.0 shell ready at t=79553672 us"
+    },
+    "fuzz": {
+      "requested": 1000000,
+      "seed": 82202955,
+      "calls": 1001450,
+      "tasks": 2238,
+      "guest_ms": 108792,
+      "host_ms": 108854,
+      "calls_per_second": 9205,
+      "checks": 5435,
+      "violations": 0,
+      "anomalies": 0,
+      "leaks": 0,
+      "exited": 557,
+      "stopped": 1255,
+      "exceptions": 426,
+      "per_call": [
+        "Calls the tasks reported before they ended (tried / accepted by the kernel):",
+        "  yield           14500 /   14500    io_in           14745 /    2143",
+        "  exit              448 /     448    io_out          14471 /    2087",
+        "  call            14629 /    3015    irq_bind        14550 /     622",
+        "  recv            14450 /     706    irq_ack         14720 /     462",
+        "  reply           14478 /     113    spawn           14639 /    2559",
+        "  ep_create       14508 /   11291    task_kill       14852 /     105",
+        "  cap_derive      14823 /    2601    sleep           14462 /   14462",
+        "  cap_drop        14071 /    4595    time            14493 /   14493",
+        "  map             14595 /    2466    log             14733 /       0",
+        "  unmap           14490 /    3985    sysinfo         14640 /    2205",
+        "  map_mem         14762 /    1709    no such call    44110 /       0"
+      ]
+    },
+    "bench_ns": {
+      "system call entry and return": 809,
+      "read the clock": 1365,
+      "IPC call and reply": 23348,
+      "start, run and reap a task": 945605,
+      "map and unmap one page": 10323,
+      "check every kernel invariant": 678750
+    },
+    "clock": {
+      "idle_ratio": 1.0025,
+      "fuzz_guest_over_host": 0.9994
+    },
+    "counters": {
+      "timer_interrupts": 20102,
+      "tasks": 4,
+      "endpoints": 4,
+      "system_calls": 1794821,
+      "task_switches": 269441,
+      "device_interrupts": 20302,
+      "faults_contained": 1499,
+      "tasks_started": 10765,
+      "kernel_anomalies": 0
+    }
+  }
+}

@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["abi", "boot", "kernel", "user"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Juwen Lie"]
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1
+overflow-checks = true
+debug = false

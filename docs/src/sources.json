@@ -1,0 +1,150 @@
+[
+  {
+    "title": "Swift, Bershad, Levy: Improving the Reliability of Commodity Operating Systems (SOSP 2003)",
+    "url": "https://dl.acm.org/doi/10.1145/945445.945466",
+    "copy": {
+      "url": "https://api.openalex.org/works/doi:10.1145/945445.945466",
+      "what": "the paper's abstract in its OpenAlex record"
+    },
+    "cited": "device drivers caused 85% of recently reported Windows XP failures",
+    "phrases": ["drivers account for 85% of recently reported failures"]
+  },
+  {
+    "title": "Chou and others: An Empirical Study of Operating Systems Errors (SOSP 2001)",
+    "url": "https://dl.acm.org/doi/10.1145/502034.502042",
+    "copy": {
+      "url": "https://api.openalex.org/works/doi:10.1145/502034.502042",
+      "what": "the paper's abstract in its OpenAlex record"
+    },
+    "cited": "drivers had error rates three to seven times higher than the rest of the Linux kernel",
+    "phrases": ["three to seven times higher than the rest of the kernel"]
+  },
+  {
+    "title": "Palix and others: Faults in Linux: Ten Years Later (ASPLOS 2011)",
+    "url": "https://dl.acm.org/doi/10.1145/1961296.1950401",
+    "copy": {
+      "url": "https://api.openalex.org/works/doi:10.1145/1961296.1950401",
+      "what": "the paper's abstract in its OpenAlex record"
+    },
+    "cited": "drivers still contain the most faults, though their fault rate is now below that of other directories",
+    "phrases": ["contains the most faults", "its fault rate is now below that of other directories"]
+  },
+  {
+    "title": "Microsoft Learn: User mode and kernel mode",
+    "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/gettingstarted/user-mode-and-kernel-mode",
+    "cited": "if a kernel-mode driver crashes, the entire operating system crashes",
+    "phrases": ["entire operating system"]
+  },
+  {
+    "title": "Microsoft: Helping our customers through the CrowdStrike outage (20 July 2024)",
+    "url": "https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/",
+    "cited": "8.5 million Windows devices affected, less than one percent of all Windows machines",
+    "phrases": ["8.5 million", "less than one percent"]
+  },
+  {
+    "title": "CrowdStrike: Channel File 291 Incident Root Cause Analysis (PDF)",
+    "url": "https://www.crowdstrike.com/wp-content/uploads/2024/08/Channel-File-291-Incident-Root-Cause-Analysis-08.06.2024.pdf",
+    "cited": "a new template type defined 21 input fields, the code supplied only 20 values, and reading the 21st was an out-of-bounds memory read",
+    "phrases": ["21 input parameter fields", "expected only 20 values"]
+  },
+  {
+    "title": "MINIX 3 documentation: Reliability",
+    "url": "https://wiki.minix3.org/doku.php?id=www:documentation:reliability",
+    "cited": "each driver is a separate user-mode process; a reincarnation server restarts a crashed driver; about 4,000 lines of executable kernel code",
+    "phrases": [
+      "each device driver is a separate user-mode process",
+      "reincarnation server will restart the crashed driver automatically",
+      "about 4000 lines of executable kernel code"
+    ]
+  },
+  {
+    "title": "Microsoft Security Response Center: A proactive approach to more secure code (16 July 2019)",
+    "url": "https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code",
+    "cited": "about 70% of the vulnerabilities Microsoft assigns a CVE each year are memory-safety issues; C and C++ code",
+    "phrases": ["70%", "memory safety"]
+  },
+  {
+    "title": "The Chromium Projects: Memory safety",
+    "url": "https://www.chromium.org/Home/chromium-security/memory-safety",
+    "cited": "around 70% of high-severity security bugs are memory-unsafety problems",
+    "phrases": ["70%", "memory unsafety"]
+  },
+  {
+    "title": "kernel.org: Rust (Linux kernel documentation)",
+    "url": "https://docs.kernel.org/rust/index.html",
+    "cited": "Rust support in the Linux kernel",
+    "phrases": ["Rust"]
+  },
+  {
+    "title": "kernel.org: Introduction to the development process",
+    "url": "https://docs.kernel.org/process/1.Intro.html",
+    "cited": "the Linux kernel has over 8 million lines of code (an old figure)",
+    "phrases": ["8 million lines"]
+  },
+  {
+    "title": "Klein and others: seL4: Formal Verification of an OS Kernel (SOSP 2009, PDF)",
+    "url": "https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf",
+    "cited": "8,700 lines of C and 600 lines of assembler",
+    "phrases": ["8,700 lines of C", "600 lines of assembler"]
+  },
+  {
+    "title": "seL4 FAQ",
+    "url": "https://sel4.systems/About/FAQ.html",
+    "cited": "capabilities; drivers in user mode; proofs of functional correctness, integrity and confidentiality on Arm, x86 and RISC-V",
+    "phrases": [
+      "What are capabilities",
+      "runs all device drivers in user mode",
+      "integrity and confidentiality",
+      "x86 there are functional-correctness proofs"
+    ]
+  },
+  {
+    "title": "Tanenbaum, Herder, Bos: Can We Make Operating Systems Reliable and Secure? (IEEE Computer, 2006)",
+    "url": "https://doi.org/10.1109/MC.2006.156",
+    "copy": {
+      "url": "https://api.openalex.org/works/doi:10.1109/MC.2006.156",
+      "what": "the article's abstract in its OpenAlex record"
+    },
+    "cited": "the multiserver design runs each driver and operating system component in a separate user process",
+    "phrases": ["runs each driver and operating system component in a separate user process"]
+  },
+  {
+    "title": "The Redox OS book: Microkernels",
+    "url": "https://doc.redox-os.org/book/microkernels.html",
+    "copy": {
+      "url": "https://raw.githubusercontent.com/redox-os/book/master/src/microkernels.md",
+      "what": "the chapter's source file in the redox-os/book repository on GitHub"
+    },
+    "cited": "a microkernel written in Rust, with drivers in user space and under 40,000 lines of kernel code",
+    "phrases": [
+      "drivers, which can and should run in user-space",
+      "less than 40,000 Rust lines of kernel code"
+    ]
+  },
+  {
+    "title": "Watson, Anderson, Laurie, Kennaway: Capsicum: practical capabilities for UNIX (USENIX Security 2010, PDF)",
+    "url": "https://www.usenix.org/legacy/event/sec10/tech/full_papers/Watson.pdf",
+    "cited": "a program that acts with the full power of the user has access to all of his or her resources; such implicit access is known as ambient authority",
+    "phrases": ["full power of the user", "ambient authority"]
+  },
+  {
+    "title": "Hardy: The Confused Deputy (ACM SIGOPS OSR, 1988)",
+    "url": "https://doi.org/10.1145/54289.871709",
+    "copy": {
+      "url": "https://css.csail.mit.edu/6.858/2015/readings/confused-deputy.html",
+      "what": "a copy of the paper among the readings of MIT's course 6.858"
+    },
+    "cited": "the confused deputy: a compiler that ran with authority stemming from two sources",
+    "phrases": ["the compiler runs with authority stemming from two sources"]
+  },
+  {
+    "title": "Saltzer, Schroeder: The Protection of Information in Computer Systems (Proceedings of the IEEE, 1975)",
+    "url": "https://doi.org/10.1109/PROC.1975.9939",
+    "copy": {
+      "url": "https://web.mit.edu/Saltzer/www/publications/protection/Basic.html",
+      "what": "the paper's first section on Saltzer's own page at MIT"
+    },
+    "cited": "least privilege: every program should operate using the least set of privileges necessary to complete the job",
+    "phrases": ["least set of privileges necessary to complete the job"]
+  }
+]

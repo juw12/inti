@@ -1,0 +1,19 @@
+The files in this folder are not part of Inti. They come unchanged from the npm
+package of the v86 emulator (https://github.com/copy/v86) and are here so that the
+browser demo works without a build step.
+
+  libv86.js, v86.wasm    v86, BSD 2-Clause licence, see LICENSE-v86.txt
+  seabios.bin            SeaBIOS as distributed with v86, GNU LGPL version 3
+  vgabios.bin            the VGA BIOS built from the SeaBIOS sources as distributed
+                         with v86, GNU LGPL version 3
+
+The licence texts for the two BIOS images are COPYING.LESSER-seabios.txt (the GNU
+Lesser General Public License, version 3) and COPYING-seabios.txt (the GNU General
+Public License, version 3, which the first one builds on). Both were copied from
+the SeaBIOS source tree.
+
+The source code of SeaBIOS is at https://www.seabios.org/ (git:
+https://git.seabios.org/seabios.git). The script v86 uses to build both images,
+which names the SeaBIOS release it builds from, is bios/fetch-and-build-seabios.sh
+in the v86 repository. The same folder of that repository carries the same licence
+text.

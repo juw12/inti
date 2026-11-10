@@ -1,0 +1,4 @@
+# Inti is always built for 32-bit x86 without SSE. Linker flags are added by build.py,
+# because the boot sector, the kernel and the user programs each use their own linker script.
+[build]
+target = "i586-unknown-linux-gnu"

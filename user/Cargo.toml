@@ -1,0 +1,12 @@
+[package]
+name = "user"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "rt"
+path = "src/lib.rs"
+
+[dependencies]
+abi = { path = "../abi" }

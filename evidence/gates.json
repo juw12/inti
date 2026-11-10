@@ -1,0 +1,97 @@
+{
+  "rubric": "inti-os-v1",
+  "mode": "full",
+  "date": "2026-11-10T17:26:55+07:00",
+  "image_sha256": "76f59b0ff3c1fab72ed3884dcd457f20e02a454600f24b4fc7695085e9895002",
+  "sizes": {
+    "boot_sector_bytes": 512,
+    "kernel_bytes": 55136,
+    "archive_bytes": 132448,
+    "payload_bytes": 187584,
+    "image_bytes": 2097152,
+    "files": {
+      "bench": 8192,
+      "console": 8192,
+      "fs": 4096,
+      "fuzz": 12288,
+      "hello": 4096,
+      "init": 12288,
+      "rogue": 8192,
+      "selftest": 45056,
+      "shell": 20480,
+      "tchild": 8192,
+      "readme.txt": 1007
+    }
+  },
+  "toolchain": {
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "python": "3.13.2"
+  },
+  "build_seconds": 37,
+  "tries": {
+    "qemu_test": [
+      0
+    ],
+    "browser_check": [
+      0
+    ]
+  },
+  "gates": [
+    {
+      "id": "G1",
+      "title": "One command builds the disk image from a clean tree",
+      "ok": true,
+      "detail": "clean build in 37 s wrote build/inti.img (2,097,152 bytes)"
+    },
+    {
+      "id": "G2",
+      "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
+      "ok": true,
+      "detail": "shell prompt 326 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
+    },
+    {
+      "id": "G3",
+      "title": "The self-test inside the system passes with at least 30 checks",
+      "ok": true,
+      "detail": "SELFTEST: PASS 70/70 after boot and 70/70 again after every injected fault and the fuzz run"
+    },
+    {
+      "id": "G4",
+      "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
+      "ok": true,
+      "detail": "console crash 5.1 ms, fs crash 2.4 ms, console hang 658.7 ms, fs hang 658.8 ms (median of 5 runs each, guest clock); the shell answered after every run"
+    },
+    {
+      "id": "G5",
+      "title": "Every attempt of the hostile program without capabilities is denied",
+      "ok": true,
+      "detail": "43/43 attempts denied (port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers"
+    },
+    {
+      "id": "G6",
+      "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
+      "ok": true,
+      "detail": "1,001,450 random system calls from 2,238 tasks, 5,435 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
+    },
+    {
+      "id": "G7",
+      "title": "No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code",
+      "ok": true,
+      "detail": "no alloc crate in the kernel; 73 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,370 lines of kernel code (limit 4,000)"
+    },
+    {
+      "id": "G8",
+      "title": "The same disk image boots to the shell prompt in a web browser",
+      "ok": true,
+      "detail": "shell prompt after 1.83 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless); 6 commands answered; byte-for-byte the image of the QEMU test"
+    },
+    {
+      "id": "G9",
+      "title": "Every number in the documents comes from a script or carries a source",
+      "ok": true,
+      "detail": "tools/check_claims.py passes: claims recomputed, documents re-rendered and compared"
+    }
+  ],
+  "passed": 9,
+  "total": 9
+}

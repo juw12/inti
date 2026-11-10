@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inti: an operating system you can break on purpose</title>
+<meta name="description" content="Inti is a small operating system written from scratch. It runs in this browser tab. Crash its drivers, run a hostile program, fuzz its kernel, and watch it carry on.">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<header>
+  <h1>Inti</h1>
+  <p class="lead">A small operating system, written from scratch, running in this tab. Its drivers
+  are ordinary programs, so you can crash one and watch the system restart it and carry on.</p>
+  <p class="links">
+    <a href="https://github.com/juw12/inti">Source code</a>
+    <a href="https://github.com/juw12/inti/blob/main/docs/design.md">How it works</a>
+    <a href="https://github.com/juw12/inti/blob/main/docs/scorecard.md">Where it wins and where it loses</a>
+  </p>
+</header>
+
+<main>
+  <section class="machine" aria-label="The running machine">
+    <div class="panel">
+      <h2>Screen</h2>
+      <div id="screen" class="screen" tabindex="0" aria-label="Screen of the emulated computer">
+        <div class="text"></div>
+        <canvas></canvas>
+      </div>
+      <p id="status" class="status" role="status">Starting the emulator…</p>
+    </div>
+    <div class="panel">
+      <h2>Serial log</h2>
+      <pre id="serial" class="serial" aria-live="polite" aria-label="Serial log of the emulated computer"></pre>
+      <p class="hint">The same text as the screen, plus what the kernel and the supervisor
+      (<code>init</code>) report. Their lines are highlighted.</p>
+    </div>
+  </section>
+
+  <section class="try" aria-label="Things to try">
+    <h2>Break something</h2>
+    <p>Each button types a command into the shell. You can also click the screen and type;
+    <code>help</code> lists every command.</p>
+    <div class="buttons">
+      <button data-command="crash console" disabled>Crash the screen driver
+        <span>The program that draws the screen dies. The supervisor starts a new one.</span></button>
+      <button data-command="hang fs" disabled>Hang the file server
+        <span>It stops answering. The supervisor notices, ends it and starts a new one.</span></button>
+      <button data-command="rogue" disabled>Run a hostile program
+        <span>It tries to read kernel memory, touch hardware and forge permissions.</span></button>
+      <button data-command="fuzz 20000" disabled>Fuzz the kernel
+        <span>Random system calls from throw-away programs, with the kernel checking itself.</span></button>
+      <button data-command="selftest" disabled>Run the self-test
+        <span>The kernel's promises, checked one by one from an ordinary program.</span></button>
+      <button data-command="crash init" disabled>Crash the supervisor itself
+        <span>The kernel restarts every program. The kernel itself keeps running.</span></button>
+      <button data-command="uptime" disabled>Show the counters
+        <span>Uptime, faults contained so far, and a check of every kernel invariant.</span></button>
+      <button data-command="svc" disabled>List the services
+        <span>Which drivers are running and how often each has been restarted.</span></button>
+    </div>
+  </section>
+
+  <section class="notes" aria-label="What you are looking at">
+    <h2>What you are looking at</h2>
+    <p>The screen driver, the keyboard and serial driver and the file server are ordinary
+    programs. Each one holds only the permissions it was handed when it started, and the kernel
+    is the only code that runs with full control of the machine. When a driver crashes or
+    stops answering, the supervisor replaces it, and programs that were waiting for it simply
+    get their answer from the new one.</p>
+    <p>This is a research toy, not a replacement for the system you use every day. It has no
+    network, no disk file system and runs on one processor. The
+    <a href="https://github.com/juw12/inti/blob/main/docs/scorecard.md">scorecard</a> says
+    plainly where mainstream systems are ahead.</p>
+    <p class="credit">The emulator is <a href="https://github.com/copy/v86">v86</a>
+    (BSD 2-Clause licence), which runs a virtual PC in WebAssembly. The disk image it boots is
+    the same file the tests boot in QEMU.</p>
+  </section>
+</main>
+
+<script src="v86/libv86.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>

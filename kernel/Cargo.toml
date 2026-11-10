@@ -1,0 +1,12 @@
+[package]
+name = "kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+abi = { path = "../abi" }
+
+[[bin]]
+name = "kernel"
+path = "src/main.rs"
