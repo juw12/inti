@@ -74,7 +74,7 @@ rustup target add i586-unknown-linux-gnu
 python build.py          # compile everything and write build/inti.img
 python build.py run      # boot the image in a QEMU window
 python build.py test     # run every test in QEMU
-python build.py gates    # clean build, tests, browser check, document check
+python build.py gates    # every check, from a clean build
 ```
 
 The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used {{gates.rustc}}, Python {{gates.python}} and {{test.emulator}}; its test run took {{test.duration_s}} s.
