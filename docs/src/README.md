@@ -59,11 +59,11 @@ On your own machine, with QEMU installed, `python build.py run` builds the image
 | `help` | lists every command |
 | `crash console` | the screen and keyboard driver dies of a page fault; the supervisor replaces it and the shell prints how long that took |
 | `hang fs` | the file server stops answering; the supervisor notices, ends it and starts a new one |
-| `rogue` | a hostile program tries to read kernel memory, touch hardware and forge capabilities |
+| `rogue` | a hostile program tries to read kernel memory, touch hardware, forge or revoke capabilities and exceed its quotas |
 | `fuzz {{fuzz.default_calls:raw}}` | random system calls from throw-away programs while the kernel checks its own rules |
 | `selftest` | {{selftest.checks}} promises of the kernel, checked one by one from an ordinary program |
 | `crash init` | the supervisor itself dies; the kernel starts every program again |
-| `svc`, `ps`, `caps <task>`, `mem`, `uptime` | what is running, who holds which capabilities, memory, counters |
+| `svc`, `ps`, `caps <task>`, `mem`, `uptime` | what is running, who holds which capabilities and what each was copied from, quotas, memory, counters |
 
 ## Build and test
 
@@ -83,7 +83,8 @@ The browser check also needs Playwright with Chromium (`pip install playwright`,
 
 - **Boot.** A boot sector of {{size.boot_sector_bytes}} bytes, written in Rust, loads the kernel through the BIOS. No GRUB, no multiboot.
 - **Kernel.** {{loc.kernel_total}} lines of Rust, {{size.kernel_kib}} KiB when built. It hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts, through {{count.syscalls}} system calls. It has no heap, no drivers and no file system.
-- **Capabilities.** A program can only name what it holds: {{count.cap_types}} kinds of capability (endpoints, I/O ports, interrupt lines, memory, tasks, the kernel log, kernel information). No system call takes a global name such as a process id or a path.
+- **Capabilities.** A program can only name what it holds: {{count.cap_types}} kinds of capability (endpoints, I/O ports, interrupt lines, memory, tasks, the kernel log, kernel information). No system call takes a global name such as a process id or a path. A capability can be copied with fewer rights but never more, passed on in a message when both sides hold the grant right, and revoked: whoever handed it out takes back every copy while the holders keep running.
+- **Quotas.** Memory, tasks and endpoints are lent by a parent to its children and returned when they end, so a program can exhaust its own share and nothing else.
 - **Drivers.** The console driver (screen, keyboard, serial port) and the file server are ordinary programs, each started with a handful of capabilities.
 - **Supervisor.** `init` holds every capability at boot, hands each server the few it needs, and restarts a server that crashes or stops answering. If `init` itself dies, the kernel starts user space again.
 - **Self-checking.** `selftest` checks the kernel's promises from user space, the invariant checker inside the kernel recounts every frame, capability and queue, and `fuzz` throws random system calls at the kernel while that checker runs.

@@ -52,6 +52,19 @@ driver or a hostile program is demonstrably a non-event.
 - Assumed: two comments were corrected to match the code (one in `kernel/src/arch.rs`, one on `E_TIMEOUT`); no behaviour changed.
 - Assumed: the two BIOS images in `docs/v86/` are under the GNU LGPL version 3. Checked against the v86 repository: its `bios/` folder carries that licence text and a script that builds both images from the SeaBIOS sources. Both licence texts were added next to the images.
 - Assumed: the scratch probe files in `build/` were moved to `..\scratch_probes\` before the clean build of the full gates run. Nothing was deleted.
+- Assumed: round 1 takes on the three fixes most judges asked for (revocation, delegation in messages, quotas for the task and endpoint tables); the rubric is unchanged.
+- Assumed: a copy of a capability is linked to the capability it was made from; `cap_revoke` takes back all transitive copies in every task and leaves the capability it was called on; `cap_drop` re-links the copies of the dropped capability one step up, so they stay revocable.
+- Assumed: a capability travels in a message only if the sender's endpoint capability and the receiver's both carry the grant right (`E_PERM` otherwise, nothing delivered); the grant flag of a blocked task is recomputed when a capability behind it is revoked.
+- Assumed: a call that the server has already received is carried through after the caller's capability is revoked; cancelling it would need a second revocation path into the server.
+- Assumed: a task that waits through a revoked capability keeps waiting if another capability of its own still reaches the endpoint with the needed right (and, for a sender, the same badge).
+- Assumed: tasks and endpoints are charged to quotas lent from parent to child, like memory; an endpoint is paid for by its creator, or by the creator's parent once the creator has ended; `init` lends the shell 26 tasks and 48 endpoints and keeps the rest as its reserve.
+- Assumed: the rogue keeps a task quota of 1 so that its attempts to start children are judged on what they ask for; the shell lends a test program its whole remaining quota less one task.
+- Assumed: the fuzzer lends each kid 5 tasks and 8 endpoints; a kid's capability to the fuzzer has no grant right, so no capability of a kid can reach the fuzzer.
+- Assumed: with quotas the kernel's "table full" state cannot be reached from user space any more; the two selftest checks that filled the tables were rewritten to exhaust the quota instead (same counting and recovery checks), not removed.
+- Assumed: `task_named` skips ended tasks that still wait to be noticed; the selftest's "fill the capability table" loop moved into a helper used by two checks (a refactor, no check weakened).
+- Assumed: two rogue attempts were added for the new mechanisms (hand a capability to the console driver; revoke capabilities it does not hold). The revoke attempt leaves out slot 0, the rogue's own console capability, because revoking there is allowed and takes back nothing.
+- Assumed: W^X was not attempted in this run. QEMU's TCG does not enforce code-segment limits, so the segment trick cannot be tested there, and PAE paging with NX is too large for the remaining budget; it is queued.
+- Assumed: the council's judges are named only in the local council output, not in this log or the public documents; they are called the three judges.
 
 ## Rubric
 
@@ -61,4 +74,4 @@ See `rubric.md` (id `inti-os-v1`, frozen before generating).
 
 | round | change | gates | judge score | pairwise win | kept? | note |
 |---|---|---|---|---|---|---|
-| 2026-11-10 17:45 | council score | 7.95 | split: - | Pega-Vision=7.8, Pega-Thinking=7.95, GLM-5.3-Flash=8.35 |
+| v0 | baseline: first complete version | 9/9 | 7.95 | - | yes | three judges: 7.8, 7.95, 8.35 |

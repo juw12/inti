@@ -44,7 +44,9 @@ The prompt appeared {{boot.guest_ms}} ms after the kernel started, by the system
 
 ## Tasks
 
-A task is an address space, one thread of execution, a table of capabilities and a memory quota. Scheduling is round-robin, and a timer interrupt every {{timer.period_ms}} ms pre-empts a task that does not yield. Tasks form a tree: a task that ends takes its children with it, and its parent receives a message from the kernel that says how it ended (its exit code, or the processor exception and the address). An exception in ring 3 only ever ends the task that caused it.
+A task is an address space, one thread of execution, a table of capabilities and three quotas: memory, tasks and endpoints. Scheduling is round-robin, and a timer interrupt every {{timer.period_ms}} ms pre-empts a task that does not yield. Tasks form a tree: a task that ends takes its children with it, and its parent receives a message from the kernel that says how it ended (its exit code, or the processor exception and the address). An exception in ring 3 only ever ends the task that caused it.
+
+Every quota is lent, never created. A parent gives a child part of its own memory, task and endpoint quota when it starts it, and gets all of it back when the child has ended and the parent has taken the notice. Starting a task costs one unit of task quota and creating an endpoint one unit of endpoint quota; a task that has none left is refused with `E_NOSLOT`. An endpoint is paid for by the task that created it until its last capability is gone, and by that task's parent if the creator ends first. The quotas of all living tasks add up to the sizes of the two kernel tables ({{limits.tasks}} tasks, {{limits.endpoints}} endpoints), so a program can use up its own share and nothing else. `init` lends the shell part of its quota and keeps the rest, which is what it restarts the servers with.
 
 The clock is channel 2 of the 8254 timer, running free. It has a resolution of {{clock.resolution_ns}} ns and wraps every {{clock.wrap_ms}} ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at {{clock.idle_ratio}} of real time while idle and {{clock.fuzz_ratio}} during the fuzz run.
 
@@ -65,8 +67,10 @@ A capability is an entry in a task's own table of {{limits.cap_slots}} slots. Sy
 The rules:
 
 - A task starts with the capabilities its parent chose to copy into it, at most {{limits.spawn_caps}}, and nothing else. `init` starts with all of them.
-- `cap_derive` copies a capability with the same rights and range, or less: fewer rights, a smaller range of ports, fewer interrupt lines, fewer pages, read-only instead of writable. Nothing widens a capability.
+- `cap_derive` copies a capability with the same rights and range, or less: fewer rights, a smaller range of ports, fewer interrupt lines, fewer pages, read-only instead of writable. Nothing widens a capability. Every copy remembers which capability it was made from.
 - A holder of the grant right can stamp a badge on a copy, once. The kernel puts the badge of the capability that was used into every message, so a server knows which client is calling without trusting what the client says about itself.
+- `cap_revoke` takes back every copy that was made of a capability, and every copy of those copies, in every task, while the holders keep running. What a holder had only through such a copy goes with it: a task waiting on the endpoint is woken with `E_NOCAP`, device memory is unmapped, an interrupt line is unbound. The capability that was revoked from stays. `cap_drop` is different: it gives up one capability and leaves its copies alone, linked one step further up, so they can still be revoked from there.
+- A capability can travel in a message, under the grant rule described under Messages. The copy that arrives is linked to the sender's, so delegation never puts a capability out of reach of revocation.
 - No system call takes a global name. There are no process ids, no paths and no physical addresses in the interface: what a task was not given, it cannot even mention.
 - The ports of the interrupt controllers, the timer and the speaker gate stay with the kernel. It refuses them even to a task whose capability covers them.
 
@@ -78,6 +82,7 @@ One mechanism carries everything. A client calls an endpoint and blocks until th
 - The server answers through a reply token that works once. A task cannot answer a call it did not receive.
 - Interrupts, and the ends of supervised tasks, arrive on endpoints as messages from the kernel. Their labels are reserved: a program that tries to send one is refused.
 - A caller whose server dies while handling its request is told so (`E_DEAD`), and the client library sends the request again to the new server. A request that was still waiting in the queue just waits for the new server.
+- A call or a reply can carry one capability. The kernel copies it into a free slot of the receiver only if the capability used for sending and the capability used for receiving both carry the grant right; otherwise the sender gets `E_PERM` and nothing is delivered. The copy has the same rights and is linked to the sender's capability, so the sender can take it back with `cap_revoke`. If the receiver's table is full, the sender gets `E_NOSLOT`. In the shipped system `init` gives clients send-only capabilities and servers receive-only ones, so nobody can push a capability into the console driver, the file server or `init`.
 
 ## System calls
 
@@ -149,11 +154,14 @@ What the shell's `svc` command showed at the end of the test run:
 11. Nothing waits on an endpoint that nobody can receive from, and an ended task waits only on its own parent's endpoint.
 12. A caller waits for a reply only from a task that can still give it.
 13. No task outlives its parent.
-14. A task that has ended holds no quota and no capabilities.
+14. A task that has ended holds no quota of any kind and no capabilities.
 15. There is one root task, and quota is neither created nor lost.
 16. An interrupt line is bound to a living task and an endpoint that can be received from.
 17. The kernel has never met a state it considered impossible.
 18. Outside the range for programs, a page directory holds only the shared kernel mapping, and device memory is never ordinary memory.
+19. Authority only narrows: every capability is an original, or a copy of a capability that still exists and is at least as strong.
+20. Nothing outlives the capability it came through: no device page is mapped without its Memory capability, a task waits on an endpoint only while one of its capabilities lets it, a waiting sender may hand over a capability only while its own still carries the grant right, and an interrupt binding needs the capabilities it was made with.
+21. The task and endpoint quotas balance: an ended task that waits to be noticed is charged to a living one, every endpoint in use is paid for by a living task, and slots in use plus unused quota equal the size of each table.
 
 After the whole test run, with every injected fault and the fuzz run behind it, the checker still reported that all rules hold:
 
@@ -167,9 +175,9 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 
 {{table.checks}}
 
-- **`selftest`** is an ordinary program that checks {{selftest.checks}} promises of the kernel from user space: argument validation, capabilities, messages, memory, tasks and faults, what happens when each table is full, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
+- **`selftest`** is an ordinary program that checks {{selftest.checks}} promises of the kernel from user space: arguments, capabilities, messages, revocation, delegation, memory, tasks and faults, quotas, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
 - **`rogue`** is the hostile program described in [weaknesses and sources](weaknesses.md). Its {{rogue.all_total}} attempts are {{rogue.software}} through the system call interface, each tried with every one of its capability slots where a slot is needed, and {{rogue.by_cpu}} directly on the hardware, one fresh task per attempt.
-- **`fuzz`** keeps {{fuzz.kids}} child tasks running, each making random and almost-right system calls for up to {{fuzz.kid_life_ms}} ms before it is replaced. Every {{fuzz.check_every_ms}} ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint or frame went missing. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
+- **`fuzz`** keeps {{fuzz.kids}} child tasks running, each making random and almost-right system calls for up to {{fuzz.kid_life_ms}} ms before it is replaced. Every {{fuzz.check_every_ms}} ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint, frame or quota went missing. `cap_revoke` is among the random calls, some of the messages name a capability to hand over, and each child works within a quota of tasks and endpoints lent by the fuzzer, part of which it lends to children of its own. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
 - **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one {{test.fault_runs}} times, checks that the shell still answers and that a file can still be read, and records the times.
 - **The browser.** `tools/web_check.py` boots the same disk image in {{web.emulator}} under {{web.browser}}, types {{web.commands}} commands ({{web.command_list:raw}}) and checks each result. All {{web.commands_ok}} passed; the prompt appeared after {{web.boot_seconds}} s.
 - **The gates.** `python build.py gates` does all of the above from a clean tree and then runs `tools/check_claims.py` over these documents.
@@ -203,18 +211,22 @@ Hardware and scope:
 Security:
 
 - No formal verification. The kernel is tested, fuzzed and self-checking; that is evidence, not proof.
-- No no-execute protection: code pages are read-only, but every readable page is executable.
+- No no-execute protection: code pages are read-only, but every readable page is executable. Marking data pages no-execute needs the PAE paging mode and its NX bit; the kernel uses the older two-level page tables, which have no such bit.
 - No IOMMU support: a task holding I/O ports for a device that can access memory directly could subvert the kernel. Only `init` holds the full port range.
-- Capabilities are handed over only when a task is started. They cannot be sent in messages, and there is no way to revoke one short of ending its holder.
+- Revocation is coarse. `cap_revoke` takes back all copies of a capability at once, not a chosen one, and dropping a capability does not revoke its copies.
+- Revocation does not reach back in time. A call that the server has already taken is carried through after the caller's capability is revoked, and its reply can still carry a capability. A task that waits through a revoked capability keeps waiting if another of its capabilities still reaches the same endpoint.
+- A server that holds the grant right has to drop the capabilities it does not want, or a client with the grant right could fill its table. In the shipped system no client of the servers holds the grant right.
+- The kernel writes a message into the buffer of a blocked task long after it checked that buffer. The buffer has to lie in the task's own memory, which a revocation never unmaps. No test program holds writable device memory, so this is argued from the code and not tested.
 - `init` is trusted with everything. The shell holds the Info capability, the test capabilities it passes on, and a capability to ask `init` for a shutdown or an injected fault.
-- The task table and the endpoint table are shared and not charged to quotas, so a hostile program can fill them until it is ended. Page tables are not freed when memory is unmapped, only when the task ends.
+- Page tables are not freed when memory is unmapped, only when the task ends. A parent cannot change a child's quotas after starting it, and processor time is not charged to anyone.
+- With the quotas in place, user space can no longer make the kernel's task table or endpoint table run full, so the kernel's own "table full" paths are not exercised by any test.
 
 Robustness:
 
 - A hang is detected only by the ping. The shell itself is not monitored for hangs.
 - While `init` waits for a ping to be answered it does not handle other events, so a second failure in that moment waits for the ping to time out.
 - A client whose request was in flight when the server died sends it again, so a console write can be duplicated. A half-typed line and anything typed ahead are lost when the console driver restarts.
-- The kernel is not pre-emptible, and the scheduler has no processor quotas: a task cannot starve the kernel, but it can take its full share of the processor.
+- The kernel is not pre-emptible, and the scheduler has no processor quotas: a task cannot starve the kernel, but it can take its full share of the processor. Revoking a capability and checking the invariants are scans of fixed-size tables that run to their end inside the kernel.
 - The kernel log and the console driver share one serial port, so in the raw log a line from the kernel can land in the middle of a line from the shell.
 
 Evidence:

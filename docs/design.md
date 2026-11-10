@@ -20,19 +20,19 @@ ring 0   kernel: memory, tasks, messages, capabilities, interrupts
 | Kernel source file | Lines of code |
 |---|---|
 | `kernel/src/arch.rs` | 325 |
-| `kernel/src/check.rs` | 145 |
+| `kernel/src/check.rs` | 213 |
 | `kernel/src/elf.rs` | 95 |
-| `kernel/src/ipc.rs` | 163 |
+| `kernel/src/ipc.rs` | 189 |
 | `kernel/src/main.rs` | 154 |
-| `kernel/src/mem.rs` | 341 |
-| `kernel/src/sys.rs` | 357 |
-| `kernel/src/task.rs` | 468 |
+| `kernel/src/mem.rs` | 370 |
+| `kernel/src/sys.rs` | 412 |
+| `kernel/src/task.rs` | 581 |
 | `abi/src/archive.rs` | 26 |
-| `abi/src/lib.rs` | 197 |
+| `abi/src/lib.rs` | 209 |
 | `abi/src/mem.rs` | 99 |
-| total | 2,370 |
+| total | 2,673 |
 
-The gate limit for the kernel is 4,000 lines, counted without blank lines and comments. The boot sector is another 127 lines and user space 3,931.
+The gate limit for the kernel is 4,000 lines, counted without blank lines and comments. The boot sector is another 127 lines and user space 4,327.
 
 ## Boot
 
@@ -42,29 +42,29 @@ The kernel (`kernel/src/main.rs`) sets up its descriptor tables, the interrupt c
 
 ```log
 Inti 0.1.0 kernel
-kernel: 340 KiB kernel and archive, 62 MiB for user space
+kernel: 376 KiB kernel and archive, 62 MiB for user space
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 10 capabilities, 15611 pages
-Inti 0.1.0 shell ready at t=14070 us
+init: started shell with 10 capabilities, 15602 pages
+Inti 0.1.0 shell ready at t=13611 us
 Type help for the list of commands.
 ```
 
-The prompt appeared 14.1 ms after the kernel started, by the system's own clock, and 326 ms after the test script started the emulator.
+The prompt appeared 13.6 ms after the kernel started, by the system's own clock, and 264 ms after the test script started the emulator.
 
 | Part of the disk image | Bytes |
 |---|---|
 | boot sector | 512 |
-| kernel | 55,136 |
+| kernel | 61,664 |
 | `bench` | 8,192 |
 | `console` | 8,192 |
-| `fs` | 4,096 |
+| `fs` | 8,192 |
 | `fuzz` | 12,288 |
 | `hello` | 4,096 |
 | `init` | 12,288 |
-| `rogue` | 8,192 |
-| `selftest` | 45,056 |
-| `shell` | 20,480 |
+| `rogue` | 12,288 |
+| `selftest` | 61,440 |
+| `shell` | 24,576 |
 | `tchild` | 8,192 |
 | `readme.txt` | 1,007 |
 | disk image, padded | 2,097,152 |
@@ -79,9 +79,11 @@ The prompt appeared 14.1 ms after the kernel started, by the system's own clock,
 
 ## Tasks
 
-A task is an address space, one thread of execution, a table of capabilities and a memory quota. Scheduling is round-robin, and a timer interrupt every 10 ms pre-empts a task that does not yield. Tasks form a tree: a task that ends takes its children with it, and its parent receives a message from the kernel that says how it ended (its exit code, or the processor exception and the address). An exception in ring 3 only ever ends the task that caused it.
+A task is an address space, one thread of execution, a table of capabilities and three quotas: memory, tasks and endpoints. Scheduling is round-robin, and a timer interrupt every 10 ms pre-empts a task that does not yield. Tasks form a tree: a task that ends takes its children with it, and its parent receives a message from the kernel that says how it ended (its exit code, or the processor exception and the address). An exception in ring 3 only ever ends the task that caused it.
 
-The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 1.0025 of real time while idle and 0.9994 during the fuzz run.
+Every quota is lent, never created. A parent gives a child part of its own memory, task and endpoint quota when it starts it, and gets all of it back when the child has ended and the parent has taken the notice. Starting a task costs one unit of task quota and creating an endpoint one unit of endpoint quota; a task that has none left is refused with `E_NOSLOT`. An endpoint is paid for by the task that created it until its last capability is gone, and by that task's parent if the creator ends first. The quotas of all living tasks add up to the sizes of the two kernel tables (32 tasks, 64 endpoints), so a program can use up its own share and nothing else. `init` lends the shell part of its quota and keeps the rest, which is what it restarts the servers with.
+
+The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 1.0024 of real time while idle and 0.999 during the fuzz run.
 
 ## Capabilities
 
@@ -100,8 +102,10 @@ A capability is an entry in a task's own table of 32 slots. System calls name sl
 The rules:
 
 - A task starts with the capabilities its parent chose to copy into it, at most 16, and nothing else. `init` starts with all of them.
-- `cap_derive` copies a capability with the same rights and range, or less: fewer rights, a smaller range of ports, fewer interrupt lines, fewer pages, read-only instead of writable. Nothing widens a capability.
+- `cap_derive` copies a capability with the same rights and range, or less: fewer rights, a smaller range of ports, fewer interrupt lines, fewer pages, read-only instead of writable. Nothing widens a capability. Every copy remembers which capability it was made from.
 - A holder of the grant right can stamp a badge on a copy, once. The kernel puts the badge of the capability that was used into every message, so a server knows which client is calling without trusting what the client says about itself.
+- `cap_revoke` takes back every copy that was made of a capability, and every copy of those copies, in every task, while the holders keep running. What a holder had only through such a copy goes with it: a task waiting on the endpoint is woken with `E_NOCAP`, device memory is unmapped, an interrupt line is unbound. The capability that was revoked from stays. `cap_drop` is different: it gives up one capability and leaves its copies alone, linked one step further up, so they can still be revoked from there.
+- A capability can travel in a message, under the grant rule described under Messages. The copy that arrives is linked to the sender's, so delegation never puts a capability out of reach of revocation.
 - No system call takes a global name. There are no process ids, no paths and no physical addresses in the interface: what a task was not given, it cannot even mention.
 - The ports of the interrupt controllers, the timer and the speaker gate stay with the kernel. It refuses them even to a task whose capability covers them.
 
@@ -113,10 +117,11 @@ One mechanism carries everything. A client calls an endpoint and blocks until th
 - The server answers through a reply token that works once. A task cannot answer a call it did not receive.
 - Interrupts, and the ends of supervised tasks, arrive on endpoints as messages from the kernel. Their labels are reserved: a program that tries to send one is refused.
 - A caller whose server dies while handling its request is told so (`E_DEAD`), and the client library sends the request again to the new server. A request that was still waiting in the queue just waits for the new server.
+- A call or a reply can carry one capability. The kernel copies it into a free slot of the receiver only if the capability used for sending and the capability used for receiving both carry the grant right; otherwise the sender gets `E_PERM` and nothing is delivered. The copy has the same rights and is linked to the sender's capability, so the sender can take it back with `cap_revoke`. If the receiver's table is full, the sender gets `E_NOSLOT`. In the shipped system `init` gives clients send-only capabilities and servers receive-only ones, so nobody can push a capability into the console driver, the file server or `init`.
 
 ## System calls
 
-This is the complete kernel interface: 21 calls through interrupt vector `0x80`.
+This is the complete kernel interface: 22 calls through interrupt vector `0x80`.
 
 | Number | Call | What it does |
 |---|---|---|
@@ -141,6 +146,7 @@ This is the complete kernel interface: 21 calls through interrupt vector `0x80`.
 | 18 | `time` | read the clock: microseconds since boot |
 | 19 | `log` | write a line to the kernel log through a Log capability |
 | 20 | `sysinfo` | read kernel counters and tables, or run the invariant checker (Info capability) |
+| 21 | `cap_revoke` | take back every copy that was made of a capability, in every task |
 
 | Code | Name | Meaning |
 |---|---|---|
@@ -149,7 +155,7 @@ This is the complete kernel interface: 21 calls through interrupt vector `0x80`.
 | -3 | `E_PERM` | capability lacks the right |
 | -4 | `E_FAULT` | bad user pointer |
 | -5 | `E_NOMEM` | memory quota exhausted |
-| -6 | `E_NOSLOT` | a fixed kernel table is full |
+| -6 | `E_NOSLOT` | a fixed kernel table is full, or the caller's quota of it is used up |
 | -7 | `E_DEAD` | peer or object is gone |
 | -8 | `E_TIMEOUT` | the time limit passed before the call could finish |
 | -9 | `E_BUSY` | already in use |
@@ -174,11 +180,11 @@ Each server gets a memory quota of 64 pages.
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 5.1 ms | 4.8 to 6.8 ms | 9 ms | 1.7 ms |
-| file server crashes (page fault) | 5 | 2.4 ms | 1.9 to 4.1 ms | 6 ms | 1.2 ms |
-| console driver hangs (stops answering) | 5 | 659 ms | 637 to 682 ms | 664 ms | 1.9 ms |
-| file server hangs (stops answering) | 5 | 659 ms | 612 to 690 ms | 661 ms | 0.8 ms |
-| file server hangs right after a restart | 3 | 1096 ms | 1041 to 1128 ms | 1100 ms | 0.8 ms |
+| console driver crashes (page fault) | 5 | 5.8 ms | 4.9 to 6.0 ms | 9 ms | 2.1 ms |
+| file server crashes (page fault) | 5 | 2.7 ms | 2.0 to 3.3 ms | 5 ms | 1.4 ms |
+| console driver hangs (stops answering) | 5 | 657 ms | 635 to 678 ms | 661 ms | 1.5 ms |
+| file server hangs (stops answering) | 5 | 647 ms | 617 to 668 ms | 650 ms | 0.9 ms |
+| file server hangs right after a restart | 3 | 1044 ms | 1031 to 1052 ms | 1047 ms | 0.8 ms |
 
 "Until the service answers again" is measured by the shell on the system's clock, from just before it injects the fault to the first answer from the new copy. "Host stopwatch" is the same interval timed by the test script from outside, including the serial line. "Supervisor restart" is the time `init` reports between noticing the end and having started the new copy.
 
@@ -188,36 +194,36 @@ A hang, as the serial port recorded it:
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 848 us (restart 6)
-RECOVERY: fs hang -> answering again after 662775 us
+init: fs restarted after 867 us (restart 6)
+RECOVERY: fs hang -> answering again after 658669 us
 ```
 
 A crash loop. The third and fourth quick ends in a row were delayed by 100 ms and 200 ms:
 
 ```log
 inti> crash fs
-init: fs crashed: page fault at address 0x10, eip 0x400009fa
+init: fs crashed: page fault at address 0x10, eip 0x40000a2a
 init: fs ended 3 times in a row; next restart in 100 ms
-init: fs restarted after 106686 us (restart 20)
-RECOVERY: fs crash -> answering again after 108127 us
+init: fs restarted after 114552 us (restart 20)
+RECOVERY: fs crash -> answering again after 116125 us
 inti> crash fs
-init: fs crashed: page fault at address 0x10, eip 0x400009fa
+init: fs crashed: page fault at address 0x10, eip 0x40000a2a
 init: fs ended 4 times in a row; next restart in 200 ms
-init: fs restarted after 233339 us (restart 21)
-RECOVERY: fs crash -> answering again after 234709 us
+init: fs restarted after 225610 us (restart 21)
+RECOVERY: fs crash -> answering again after 227191 us
 ```
 
-The supervisor crashing. The kernel had user space running again 25 ms later on the host's stopwatch:
+The supervisor crashing. The kernel had user space running again 23 ms later on the host's stopwatch:
 
 ```log
 inti> crash init
 Crashing the root task. The kernel will start user space again.
-kernel: the root task ended (cause 0xe); restarting user space at t=79537665 us
+kernel: the root task ended (cause 0xe); restarting user space at t=78792119 us
 init: started console with 6 capabilities, 64 pages
-[user space restarted]
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 10 capabilities, 15611 pages
-Inti 0.1.0 shell ready at t=79553672 us
+init: started shell with 10 capabilities, 15602 pages
+[user space restarted]
+Inti 0.1.0 shell ready at t=78805958 us
 Type help for the list of commands.
 ```
 
@@ -226,8 +232,8 @@ What the shell's `svc` command showed at the end of the test run:
 ```log
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up           10  killed                    1461 us
-fs        up           21  page fault                233339 us
+console   up           10  killed                    1518 us
+fs        up           21  page fault                225610 us
 shell     up            0  -
 ```
 
@@ -248,20 +254,23 @@ shell     up            0  -
 11. Nothing waits on an endpoint that nobody can receive from, and an ended task waits only on its own parent's endpoint.
 12. A caller waits for a reply only from a task that can still give it.
 13. No task outlives its parent.
-14. A task that has ended holds no quota and no capabilities.
+14. A task that has ended holds no quota of any kind and no capabilities.
 15. There is one root task, and quota is neither created nor lost.
 16. An interrupt line is bound to a living task and an endpoint that can be received from.
 17. The kernel has never met a state it considered impossible.
 18. Outside the range for programs, a page directory holds only the shared kernel mapping, and device memory is never ordinary memory.
+19. Authority only narrows: every capability is an original, or a copy of a capability that still exists and is at least as strong.
+20. Nothing outlives the capability it came through: no device page is mapped without its Memory capability, a task waits on an endpoint only while one of its capabilities lets it, a waiting sender may hand over a capability only while its own still carries the grant right, and an interrupt binding needs the capabilities it was made with.
+21. The task and endpoint quotas balance: an ended task that waits to be noticed is charged to a living one, every endpoint in use is paid for by a living task, and slots in use plus unused quota equal the size of each table.
 
 After the whole test run, with every injected fault and the fuzz run behind it, the checker still reported that all rules hold:
 
 ```log
 inti> uptime
-up 201.065 s, 20102 timer interrupts
-4 tasks, 4 endpoints, 1794821 system calls, 269441 task switches
-20302 device interrupts, 1499 faults contained
-10765 tasks started, 0 kernel anomalies
+up 151.904 s, 15184 timer interrupts
+4 tasks, 4 endpoints, 1764203 system calls, 240393 task switches
+15384 device interrupts, 830 faults contained
+6063 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 ```
 
@@ -271,35 +280,35 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 
 | Check | Result | Measured |
 |---|---|---|
-| boots from its own boot sector to the shell prompt within 20 s | pass | 326 ms after QEMU started |
-| selftest after boot | pass | SELFTEST: PASS 70/70 |
+| boots from its own boot sector to the shell prompt within 20 s | pass | 264 ms after QEMU started |
+| selftest after boot | pass | SELFTEST: PASS 82/82 |
 | the selftest's line written through the Log capability is in the kernel log | pass |  |
-| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 43/43 attempts denied |
+| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 47/47 attempts denied |
 | rogue all: the kernel invariants hold afterwards | pass |  |
-| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 42/42 attempts denied, 1 skipped |
+| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 46/46 attempts denied, 1 skipped |
 | the system is still up after the hostile program (ls answers) | pass |  |
-| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 5140 us, worst 6825 us |
-| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 2422 us, worst 4100 us |
-| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 658671 us, worst 681730 us |
-| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 658802 us, worst 689685 us |
-| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1096096 us, worst 1128466 us |
+| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 5815 us, worst 6039 us |
+| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 2691 us, worst 3309 us |
+| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 657048 us, worst 678026 us |
+| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 647061 us, worst 667815 us |
+| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1043679 us, worst 1052418 us |
 | a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |
-| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 25 ms later (host time) |
+| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 23 ms later (host time) |
 | fuzz: the report is complete | pass |  |
-| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1001450 random system calls from 2238 tasks in 108792 ms; FUZZ: 5435 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
+| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1001123 random system calls from 2034 tasks in 60757 ms; FUZZ: 3839 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
 | bench runs to the end | pass | 6 results |
-| selftest after all faults | pass | SELFTEST: PASS 70/70 |
+| selftest after all faults | pass | SELFTEST: PASS 82/82 |
 | keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |
-| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 1.0025 |
-| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 1794821 system calls, 1499 faults contained, 10765 tasks started |
+| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 1.0024 |
+| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 1764203 system calls, 830 faults contained, 6063 tasks started |
 | shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |
 | no kernel panic anywhere in the serial log | pass |  |
 
-- **`selftest`** is an ordinary program that checks 70 promises of the kernel from user space: argument validation, capabilities, messages, memory, tasks and faults, what happens when each table is full, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
-- **`rogue`** is the hostile program described in [weaknesses and sources](weaknesses.md). Its 43 attempts are 25 through the system call interface, each tried with every one of its capability slots where a slot is needed, and 18 directly on the hardware, one fresh task per attempt.
-- **`fuzz`** keeps 4 child tasks running, each making random and almost-right system calls for up to 400 ms before it is replaced. Every 25 ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint or frame went missing. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
+- **`selftest`** is an ordinary program that checks 82 promises of the kernel from user space: arguments, capabilities, messages, revocation, delegation, memory, tasks and faults, quotas, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
+- **`rogue`** is the hostile program described in [weaknesses and sources](weaknesses.md). Its 47 attempts are 29 through the system call interface, each tried with every one of its capability slots where a slot is needed, and 18 directly on the hardware, one fresh task per attempt.
+- **`fuzz`** keeps 4 child tasks running, each making random and almost-right system calls for up to 400 ms before it is replaced. Every 25 ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint, frame or quota went missing. `cap_revoke` is among the random calls, some of the messages name a capability to hand over, and each child works within a quota of tasks and endpoints lent by the fuzzer, part of which it lends to children of its own. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
 - **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one 5 times, checks that the shell still answers and that a file can still be read, and records the times.
-- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless), types 6 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `uptime`) and checks each result. All 6 passed; the prompt appeared after 1.83 s.
+- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless), types 6 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `uptime`) and checks each result. All 6 passed; the prompt appeared after 2.46 s.
 - **The gates.** `python build.py gates` does all of the above from a clean tree and then runs `tools/check_claims.py` over these documents.
 
 ```log
@@ -340,6 +349,16 @@ selftest: this line was written through the Log capability
   ok   a caller is told when the server dies with its request
   ok   a caller that is killed while it waits leaves nothing queued
   ok   a reply to a caller that was killed gives E_INVAL
+  ok   revoking a capability takes back its copies and theirs, and nothing else
+  ok   revoking reaches another task: its copy and what it mapped through it
+  ok   revoking wakes the tasks that waited through the copies
+  ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a capability goes along with a call when both ends hold the grant right
+  ok   without the grant right at both ends nothing is handed over
+  ok   the sender takes back what it sent
+  ok   a reply carries a capability back, still linked to where it came from
+  ok   a waiting task that loses the grant right takes no more capabilities
+  ok   a capability is not handed to a task whose table is full
   ok   map gives zeroed pages that can be written
   ok   a map that fails part-way changes nothing
   ok   map and unmap accept only whole pages inside user space
@@ -368,31 +387,33 @@ selftest: this line was written through the Log capability
   ok   damaged program images are refused and leave nothing behind
   ok   the same image, repaired, starts and runs
   ok   a full capability table gives E_NOSLOT and recovers
-  ok   a full endpoint table gives E_NOSLOT and recovers
-  ok   a full task table gives E_NOSLOT and recovers
+  ok   a child gets the share of the quotas that its parent lends, and no more
+  ok   an endpoint outlives the task that made it, and its parent pays for it
+  ok   endpoints are created only within a quota, and the quota comes back
+  ok   tasks are started only within a quota, and the quota comes back
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
   ok   files are read through the file server
   ok   the kernel's invariants hold at the end
   ok   the kernel met nothing unexpected
-  ok   no task, endpoint or page frame was lost
-SELFTEST: PASS 70/70
+  ok   no task, endpoint, page frame or quota was lost
+SELFTEST: PASS 82/82
 ```
 
 What the kernel's basic operations cost in this emulator. These figures describe QEMU as much as Inti and are here for completeness, not as a claim about speed:
 
 | Operation | Time |
 |---|---|
-| system call entry and return | 809 ns |
-| read the clock | 1,365 ns |
-| IPC call and reply | 23,348 ns |
-| start, run and reap a task | 945,605 ns |
-| map and unmap one page | 10,323 ns |
-| check every kernel invariant | 678,750 ns |
+| system call entry and return | 874 ns |
+| read the clock | 1,402 ns |
+| IPC call and reply | 22,825 ns |
+| start, run and reap a task | 568,840 ns |
+| map and unmap one page | 11,078 ns |
+| check every kernel invariant | 804,650 ns |
 
 ## What has to be trusted
 
-- **The kernel**: 2,370 lines with 37 `unsafe` blocks, each with a written justification that the gate script insists on. Across the whole repository there are 73.
+- **The kernel**: 2,673 lines with 37 `unsafe` blocks, each with a written justification that the gate script insists on. Across the whole repository there are 75.
 - **The boot sector**, which runs before any protection exists.
 - **`init`**, which starts with every capability and decides who gets what.
 - **The console driver**, but only for what it carries: it sees every keystroke and all output. It cannot touch another task's memory.
@@ -411,18 +432,22 @@ Hardware and scope:
 Security:
 
 - No formal verification. The kernel is tested, fuzzed and self-checking; that is evidence, not proof.
-- No no-execute protection: code pages are read-only, but every readable page is executable.
+- No no-execute protection: code pages are read-only, but every readable page is executable. Marking data pages no-execute needs the PAE paging mode and its NX bit; the kernel uses the older two-level page tables, which have no such bit.
 - No IOMMU support: a task holding I/O ports for a device that can access memory directly could subvert the kernel. Only `init` holds the full port range.
-- Capabilities are handed over only when a task is started. They cannot be sent in messages, and there is no way to revoke one short of ending its holder.
+- Revocation is coarse. `cap_revoke` takes back all copies of a capability at once, not a chosen one, and dropping a capability does not revoke its copies.
+- Revocation does not reach back in time. A call that the server has already taken is carried through after the caller's capability is revoked, and its reply can still carry a capability. A task that waits through a revoked capability keeps waiting if another of its capabilities still reaches the same endpoint.
+- A server that holds the grant right has to drop the capabilities it does not want, or a client with the grant right could fill its table. In the shipped system no client of the servers holds the grant right.
+- The kernel writes a message into the buffer of a blocked task long after it checked that buffer. The buffer has to lie in the task's own memory, which a revocation never unmaps. No test program holds writable device memory, so this is argued from the code and not tested.
 - `init` is trusted with everything. The shell holds the Info capability, the test capabilities it passes on, and a capability to ask `init` for a shutdown or an injected fault.
-- The task table and the endpoint table are shared and not charged to quotas, so a hostile program can fill them until it is ended. Page tables are not freed when memory is unmapped, only when the task ends.
+- Page tables are not freed when memory is unmapped, only when the task ends. A parent cannot change a child's quotas after starting it, and processor time is not charged to anyone.
+- With the quotas in place, user space can no longer make the kernel's task table or endpoint table run full, so the kernel's own "table full" paths are not exercised by any test.
 
 Robustness:
 
 - A hang is detected only by the ping. The shell itself is not monitored for hangs.
 - While `init` waits for a ping to be answered it does not handle other events, so a second failure in that moment waits for the ping to time out.
 - A client whose request was in flight when the server died sends it again, so a console write can be duplicated. A half-typed line and anything typed ahead are lost when the console driver restarts.
-- The kernel is not pre-emptible, and the scheduler has no processor quotas: a task cannot starve the kernel, but it can take its full share of the processor.
+- The kernel is not pre-emptible, and the scheduler has no processor quotas: a task cannot starve the kernel, but it can take its full share of the processor. Revoking a capability and checking the invariants are scans of fixed-size tables that run to their end inside the kernel.
 - The kernel log and the console driver share one serial port, so in the raw log a line from the kernel can land in the middle of a line from the shell.
 
 Evidence:
