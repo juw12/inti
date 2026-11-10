@@ -55,7 +55,8 @@ BENCH = {
     "map and unmap one page": "map",
     "check every kernel invariant": "check",
 }
-ROGUE_SAMPLE = (1, 2, 3, 4, 5, 9, 11, 15, 20, 26, 30, 31, 35, 41)  # attempts shown in the short excerpt
+# Attempts shown in the short excerpt.
+ROGUE_SAMPLE = (1, 2, 3, 4, 5, 9, 11, 15, 20, 24, 25, 26, 27, 30, 34, 35, 39, 45)
 
 Put = Callable[[str, object, str], None]
 

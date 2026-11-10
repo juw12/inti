@@ -26,6 +26,10 @@ EXCERPTS = (
     ("kernel/src/sys.rs", "io_port", "Every access to an I/O port goes through this function."),
     ("kernel/src/sys.rs", "sys_cap_derive", "Copying a capability: the only way one changes, and only downwards."),
     ("kernel/src/ipc.rs", "sys_call", "Sending a message and waiting for the reply."),
+    ("kernel/src/ipc.rs", "pass_cap", "Handing a capability over in a message: both ends need the grant right."),
+    ("kernel/src/sys.rs", "sys_cap_revoke", "Taking back every copy of a capability, in every task."),
+    ("kernel/src/task.rs", "release", "What losing a capability undoes: mappings, interrupt bindings, waits."),
+    ("kernel/src/check.rs", "check_caps", "Rule 19 of the invariant checker: authority only narrows."),
 )
 WHOLE_FILES = (
     ("user/src/bin/hello.rs", "A complete user program."),

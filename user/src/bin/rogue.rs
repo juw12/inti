@@ -1,7 +1,7 @@
 //! rogue: a hostile program.
 //!
 //! The shell starts it the way it starts any program: with one capability, the right to
-//! send text to the console. Mode 0 then tries 27 things through the system call interface
+//! send text to the console. Mode 0 then tries 29 things through the system call interface
 //! that such a program must not be able to do, and exits with `denied << 16 | attempts`.
 //! Modes 1 to 18 each try one thing directly on the hardware; the CPU must stop the task,
 //! and the shell reports how it ended.
@@ -10,7 +10,7 @@
 
 use core::arch::asm;
 
-use rt::abi::{nr, Msg, SpawnArgs, CAP_SLOTS, E_NOSYS, R_RECV, R_SEND};
+use rt::abi::{nr, Msg, SpawnArgs, CAP_SLOTS, E_NOCAP, E_NOSYS, R_RECV, R_SEND};
 use rt::io::{errname, set_output, Num, Pad, Sink};
 use rt::proto::{self, ROGUE_HW_MODES};
 use rt::{out, outln, sys};
@@ -24,7 +24,7 @@ const KERNEL: u32 = 0x10_0000;
 /// Free user address space for the mapping attempts.
 const SPARE: u32 = 0x6000_0000;
 /// How many attempts mode 0 makes.
-const SOFTWARE_ATTEMPTS: u32 = 27;
+const SOFTWARE_ATTEMPTS: u32 = 29;
 
 struct Tally {
     denied: u32,
@@ -233,6 +233,22 @@ fn software(quota: u32) -> ! {
     tally.attempt(
         "give a child more task quota than it has",
         refusal(sys::spawn(&garbage, &greedy)),
+    );
+    let mut gift = Msg::new(0);
+    gift.cap = CONSOLE;
+    tally.attempt(
+        "hand a capability to the console driver",
+        refusal(sys::call(CONSOLE, &mut gift, 0)),
+    );
+    // Slot 0 is left out: revoking there is allowed and takes back nothing, because this
+    // program never made a copy of its console capability. The last slot tried does not exist.
+    tally.attempt(
+        "revoke capabilities it does not hold",
+        if (1..=CAP_SLOTS as u32).all(|slot| sys::cap_revoke(slot) == Err(E_NOCAP)) {
+            Some(errname(E_NOCAP))
+        } else {
+            None
+        },
     );
     let unknown = [nr::COUNT, nr::COUNT + 1, 100, 0x7FFF_FFFF, 0xFFFF_FFFF];
     tally.attempt(

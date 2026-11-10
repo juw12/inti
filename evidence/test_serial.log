@@ -4,7 +4,7 @@ kernel: 376 KiB kernel and archive, 62 MiB for user space
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started shell with 10 capabilities, 15602 pages
-Inti 0.1.0 shell ready at t=14013 us
+Inti 0.1.0 shell ready at t=14714 us
 Type help for the list of commands.
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -120,27 +120,29 @@ Attempts that need a capability are made with each of the 32 slots.
 23. give a child a capability it does not hold denied: E_NOCAP
 24. create an endpoint with no endpoint quota  denied: E_NOSLOT
 25. give a child more task quota than it has   denied: E_NOSLOT
-26. call system calls that do not exist        denied: E_NOSYS
-27. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
-28. disable interrupts (cli)                   denied: general protection fault
-29. halt the processor (hlt)                   denied: general protection fault
-30. read the keyboard port directly (in)       denied: general protection fault
-31. reset the machine directly (out 0x64)      denied: general protection fault
-32. read kernel memory                         denied: page fault
-33. write kernel memory                        denied: page fault
-34. jump into kernel code                      denied: page fault
-35. load the kernel's data segment             denied: general protection fault
-36. raise the timer interrupt (int 0x20)       denied: general protection fault
-37. replace the page tables (mov cr3)          denied: general protection fault
-38. turn off paging and protection (mov cr0)   denied: general protection fault
-39. replace the interrupt table (lidt)         denied: general protection fault
-40. far jump to the kernel's code segment      denied: general protection fault
-41. overwrite its own code                     denied: page fault
-42. overflow its stack                         denied: page fault
-43. return to ring 0 with a forged iret frame  denied: general protection fault
-44. write a model-specific register (wrmsr)    denied: general protection fault
-45. enter the kernel through sysenter          denied: general protection fault
-ROGUE: 45/45 attempts denied
+26. hand a capability to the console driver    denied: E_PERM
+27. revoke capabilities it does not hold       denied: E_NOCAP
+28. call system calls that do not exist        denied: E_NOSYS
+29. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+30. disable interrupts (cli)                   denied: general protection fault
+31. halt the processor (hlt)                   denied: general protection fault
+32. read the keyboard port directly (in)       denied: general protection fault
+33. reset the machine directly (out 0x64)      denied: general protection fault
+34. read kernel memory                         denied: page fault
+35. write kernel memory                        denied: page fault
+36. jump into kernel code                      denied: page fault
+37. load the kernel's data segment             denied: general protection fault
+38. raise the timer interrupt (int 0x20)       denied: general protection fault
+39. replace the page tables (mov cr3)          denied: general protection fault
+40. turn off paging and protection (mov cr0)   denied: general protection fault
+41. replace the interrupt table (lidt)         denied: general protection fault
+42. far jump to the kernel's code segment      denied: general protection fault
+43. overwrite its own code                     denied: page fault
+44. overflow its stack                         denied: page fault
+45. return to ring 0 with a forged iret frame  denied: general protection fault
+46. write a model-specific register (wrmsr)    denied: general protection fault
+47. enter the kernel through sysenter          denied: general protection fault
+ROGUE: 47/47 attempts denied
 kernel invariants: all hold
 inti> rogue
 Starting a hostile program that holds one capability: console output.
@@ -170,27 +172,29 @@ Attempts that need a capability are made with each of the 32 slots.
 23. give a child a capability it does not hold denied: E_NOCAP
 24. create an endpoint with no endpoint quota  denied: E_NOSLOT
 25. give a child more task quota than it has   denied: E_NOSLOT
-26. call system calls that do not exist        denied: E_NOSYS
-27. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
-28. disable interrupts (cli)                   denied: general protection fault
-29. halt the processor (hlt)                   denied: general protection fault
-30. read the keyboard port directly (in)       denied: general protection fault
-31. reset the machine directly (out 0x64)      denied: general protection fault
-32. read kernel memory                         denied: page fault
-33. write kernel memory                        denied: page fault
-34. jump into kernel code                      denied: page fault
-35. load the kernel's data segment             denied: general protection fault
-36. raise the timer interrupt (int 0x20)       denied: general protection fault
-37. replace the page tables (mov cr3)          denied: general protection fault
-38. turn off paging and protection (mov cr0)   denied: general protection fault
-39. replace the interrupt table (lidt)         denied: general protection fault
-40. far jump to the kernel's code segment      denied: general protection fault
-41. overwrite its own code                     denied: page fault
-42. overflow its stack                         denied: page fault
-43. return to ring 0 with a forged iret frame  skipped
-44. write a model-specific register (wrmsr)    denied: general protection fault
-45. enter the kernel through sysenter          denied: general protection fault
-ROGUE: 44/44 attempts denied, 1 skipped
+26. hand a capability to the console driver    denied: E_PERM
+27. revoke capabilities it does not hold       denied: E_NOCAP
+28. call system calls that do not exist        denied: E_NOSYS
+29. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+30. disable interrupts (cli)                   denied: general protection fault
+31. halt the processor (hlt)                   denied: general protection fault
+32. read the keyboard port directly (in)       denied: general protection fault
+33. reset the machine directly (out 0x64)      denied: general protection fault
+34. read kernel memory                         denied: page fault
+35. write kernel memory                        denied: page fault
+36. jump into kernel code                      denied: page fault
+37. load the kernel's data segment             denied: general protection fault
+38. raise the timer interrupt (int 0x20)       denied: general protection fault
+39. replace the page tables (mov cr3)          denied: general protection fault
+40. turn off paging and protection (mov cr0)   denied: general protection fault
+41. replace the interrupt table (lidt)         denied: general protection fault
+42. far jump to the kernel's code segment      denied: general protection fault
+43. overwrite its own code                     denied: page fault
+44. overflow its stack                         denied: page fault
+45. return to ring 0 with a forged iret frame  skipped
+46. write a model-specific register (wrmsr)    denied: general protection fault
+47. enter the kernel through sysenter          denied: general protection fault
+ROGUE: 46/46 attempts denied, 1 skipped
 The skipped attempt stops the v86 browser emulator; "rogue all" runs it.
 kernel invariants: all hold
 inti> ls
@@ -207,13 +211,13 @@ inti> ls
   readme.txt      1007 bytes
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x40001116
+init: console restarted after 1894 us (restart 1)
 [console restarted]
-RECOVERY: console crash -> answering again after 4694 us
+RECOVERY: console crash -> answering again after 5328 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
-  fs              8192 bytesinit: console restarted after 6356 us (restart 1)
-
+  fs              8192 bytes
   fuzz           12288 bytes
   hello           4096 bytes
   init           12288 bytes
@@ -224,14 +228,14 @@ inti> ls
   readme.txt      1007 bytes
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up            1  page fault                6356 us
+console   up            1  page fault                1894 us
 fs        up            0  -
 shell     up            0  -
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x40001116
-init: console restarted after 1810 us (restart 2)
+init: console restarted after 2227 us (restart 2)
 [console restarted]
-RECOVERY: console crash -> answering again after 4919 us
+RECOVERY: console crash -> answering again after 5696 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -246,8 +250,8 @@ inti> ls
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 827 us (restart 1)
-RECOVERY: fs crash -> answering again after 2062 us
+init: fs restarted after 900 us (restart 1)
+RECOVERY: fs crash -> answering again after 2358 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -262,8 +266,8 @@ inti> ls
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 1237 us (restart 2)
-RECOVERY: fs crash -> answering again after 3276 us
+init: fs restarted after 1705 us (restart 2)
+RECOVERY: fs crash -> answering again after 3286 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -279,9 +283,9 @@ inti> ls
 inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
-init: console restarted after 1504 us (restart 3)
+init: console restarted after 1474 us (restart 3)
 [console restarted]
-RECOVERY: console hang -> answering again after 629974 us
+RECOVERY: console hang -> answering again after 698594 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -297,9 +301,9 @@ inti> ls
 inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
-init: console restarted after 1361 us (restart 4)
+init: console restarted after 1477 us (restart 4)
 [console restarted]
-RECOVERY: console hang -> answering again after 639242 us
+RECOVERY: console hang -> answering again after 633617 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -315,8 +319,8 @@ inti> ls
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 779 us (restart 3)
-RECOVERY: fs hang -> answering again after 655274 us
+init: fs restarted after 765 us (restart 3)
+RECOVERY: fs hang -> answering again after 697480 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -332,8 +336,8 @@ inti> ls
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 771 us (restart 4)
-RECOVERY: fs hang -> answering again after 658355 us
+init: fs restarted after 752 us (restart 4)
+RECOVERY: fs hang -> answering again after 648773 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -348,41 +352,8 @@ inti> ls
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 1086 us (restart 5)
-RECOVERY: fs crash -> answering again after 2448 us
-inti> ls
-  bench           8192 bytes
-  console         8192 bytes
-  fs              8192 bytes
-  fuzz           12288 bytes
-  hello           4096 bytes
-  init           12288 bytes
-  rogue          12288 bytes
-  selftest       61440 bytes
-  shell          24576 bytes
-  tchild          8192 bytes
-  readme.txt      1007 bytes
-inti> hang fs
-init: fs did not answer for 500 ms; ending it
-init: fs ended: killed
-init: fs restarted after 884 us (restart 6)
-RECOVERY: fs hang -> answering again after 1099598 us
-inti> ls
-  bench           8192 bytes
-  console         8192 bytes
-  fs              8192 bytes
-  fuzz           12288 bytes
-  hello           4096 bytes
-  init           12288 bytes
-  rogue          12288 bytes
-  selftest       61440 bytes
-  shell          24576 bytes
-  tchild          8192 bytes
-  readme.txt      1007 bytes
-inti> crash fs
-init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 1266 us (restart 7)
-RECOVERY: fs crash -> answering again after 2594 us
+init: fs restarted after 1920 us (restart 5)
+RECOVERY: fs crash -> answering again after 4259 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -398,8 +369,8 @@ inti> ls
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 762 us (restart 8)
-RECOVERY: fs hang -> answering again after 1083667 us
+init: fs restarted after 835 us (restart 6)
+RECOVERY: fs hang -> answering again after 1041679 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -414,26 +385,59 @@ inti> ls
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 1194 us (restart 9)
-RECOVERY: fs crash -> answering again after 2408 us
+init: fs restarted after 1103 us (restart 7)
+RECOVERY: fs crash -> answering again after 2361 us
+inti> ls
+  bench           8192 bytes
+  console         8192 bytes
+  fs              8192 bytes
+  fuzz           12288 bytes
+  hello           4096 bytes
+  init           12288 bytes
+  rogue          12288 bytes
+  selftest       61440 bytes
+  shell          24576 bytes
+  tchild          8192 bytes
+  readme.txt      1007 bytes
+inti> hang fs
+init: fs did not answer for 500 ms; ending it
+init: fs ended: killed
+init: fs restarted after 749 us (restart 8)
+RECOVERY: fs hang -> answering again after 1095500 us
+inti> ls
+  bench           8192 bytes
+  console         8192 bytes
+  fs              8192 bytes
+  fuzz           12288 bytes
+  hello           4096 bytes
+  init           12288 bytes
+  rogue          12288 bytes
+  selftest       61440 bytes
+  shell          24576 bytes
+  tchild          8192 bytes
+  readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 1098 us (restart 10)
-RECOVERY: fs crash -> answering again after 2368 us
+init: fs restarted after 1993 us (restart 9)
+RECOVERY: fs crash -> answering again after 4279 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
-init: fs restarted after 1286 us (restart 11)
-RECOVERY: fs crash -> answering again after 2640 us
+init: fs restarted after 1014 us (restart 10)
+RECOVERY: fs crash -> answering again after 2340 us
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x40000a2a
+init: fs restarted after 1682 us (restart 11)
+RECOVERY: fs crash -> answering again after 4010 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
 init: fs ended 3 times in a row; next restart in 100 ms
-init: fs restarted after 113515 us (restart 12)
-RECOVERY: fs crash -> answering again after 115027 us
+init: fs restarted after 116272 us (restart 12)
+RECOVERY: fs crash -> answering again after 117766 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x40000a2a
 init: fs ended 4 times in a row; next restart in 200 ms
-init: fs restarted after 215909 us (restart 13)
-RECOVERY: fs crash -> answering again after 217144 us
+init: fs restarted after 225317 us (restart 13)
+RECOVERY: fs crash -> answering again after 226665 us
 inti> ls
   bench           8192 bytes
   console         8192 bytes
@@ -448,17 +452,17 @@ inti> ls
   readme.txt      1007 bytes
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up            4  killed                    1361 us
-fs        up           13  page fault                215909 us
+console   up            4  killed                    1477 us
+fs        up           13  page fault                225317 us
 shell     up            0  -
 inti> crash init
 Crashing the root task. The kernel will start user space again.
-kernel: the root task ended (cause 0xe); restarting user space at t=39317173 us
+kernel: the root task ended (cause 0xe); restarting user space at t=39438352 us
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started shell with 10 capabilities, 15602 pages
 [user space restarted]
-Inti 0.1.0 shell ready at t=39327200 us
+Inti 0.1.0 shell ready at t=39446608 us
 Type help for the list of commands.
 inti> ls
   bench           8192 bytes
@@ -473,42 +477,42 @@ inti> ls
   tchild          8192 bytes
   readme.txt      1007 bytes
 inti> fuzz 20000
-Fuzzing the kernel with 20000 random system calls, seed 41980379.
-   10%  2157 calls, 6 tasks ended, 8 checks
-   20%  5113 calls, 11 tasks ended, 19 checks
-   30%  6381 calls, 13 tasks ended, 21 checks
-   40%  8225 calls, 17 tasks ended, 36 checks
-   50%  10244 calls, 19 tasks ended, 40 checks
-   60%  12710 calls, 23 tasks ended, 44 checks
-   70%  14379 calls, 29 tasks ended, 62 checks
-   80%  16150 calls, 33 tasks ended, 67 checks
-   90%  18298 calls, 39 tasks ended, 75 checks
-  100%  20645 calls, 42 tasks ended, 80 checks
-FUZZ: 21645 random system calls from 44 tasks in 1430 ms
-FUZZ: 83 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 16 exited, 21 were stopped, 7 hit a CPU exception
+Fuzzing the kernel with 20000 random system calls, seed 42096795.
+   10%  2584 calls, 6 tasks ended, 10 checks
+   20%  4315 calls, 9 tasks ended, 15 checks
+   30%  6494 calls, 15 tasks ended, 23 checks
+   40%  8488 calls, 18 tasks ended, 31 checks
+   50%  10836 calls, 22 tasks ended, 36 checks
+   60%  12086 calls, 27 tasks ended, 41 checks
+   70%  14023 calls, 31 tasks ended, 46 checks
+   80%  16438 calls, 38 tasks ended, 57 checks
+   90%  18066 calls, 41 tasks ended, 62 checks
+  100%  20690 calls, 46 tasks ended, 70 checks
+FUZZ: 23851 random system calls from 49 tasks in 857 ms
+FUZZ: 74 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 13 exited, 22 were stopped, 14 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield             290 /     290    io_in             247 /      29
-  exit               10 /      10    io_out            299 /      33
-  call              269 /      39    irq_bind          250 /      11
-  recv              269 /       8    irq_ack           275 /       7
-  reply             264 /       1    spawn             298 /      23
-  ep_create         281 /     105    task_kill         254 /       0
-  cap_derive        280 /      57    sleep             271 /     271
-  cap_drop          260 /      76    time              263 /     263
-  map               273 /      37    log               256 /       0
-  unmap             286 /      83    sysinfo           265 /      35
-  map_mem           235 /      32    cap_revoke        261 /     105
+  yield             525 /     525    io_in             488 /      62
+  exit               10 /      10    io_out            482 /      47
+  call              426 /      70    irq_bind          473 /      27
+  recv              471 /      11    irq_ack           461 /      20
+  reply             484 /       1    spawn             458 /      27
+  ep_create         482 /     180    task_kill         503 /       5
+  cap_derive        439 /      76    sleep             484 /     484
+  cap_drop          466 /     128    time              487 /     487
+  map               475 /      86    log               509 /       0
+  unmap             481 /     143    sysinfo           497 /      54
+  map_mem           481 /      64    cap_revoke        516 /     212
 FUZZ: PASS
 inti> bench
 Times are read from the guest's clock. Under an emulator they mostly
 describe the emulator; compare them with each other, not with real hardware.
-BENCH: system call entry and return: 831 ns
-BENCH: read the clock: 1393 ns
-BENCH: IPC call and reply: 22631 ns
-BENCH: start, run and reap a task: 488665 ns
-BENCH: map and unmap one page: 9995 ns
-BENCH: check every kernel invariant: 639400 ns
+BENCH: system call entry and return: 887 ns
+BENCH: read the clock: 1445 ns
+BENCH: IPC call and reply: 22987 ns
+BENCH: start, run and reap a task: 545295 ns
+BENCH: map and unmap one page: 10844 ns
+BENCH: check every kernel invariant: 797750 ns
 BENCH: done
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -597,28 +601,28 @@ selftest: this line was written through the Log capability
   ok   no task, endpoint, page frame or quota was lost
 SELFTEST: PASS 82/82
 inti> uptime
-up 47.778 s, 4775 timer interrupts
-4 tasks, 4 endpoints, 672805 system calls, 134151 task switches
-4891 device interrupts, 83 faults contained
-918 tasks started, 0 kernel anomalies
+up 47.469 s, 4744 timer interrupts
+4 tasks, 4 endpoints, 675609 system calls, 134190 task switches
+4858 device interrupts, 88 faults contained
+913 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> uptime
-up 47.869 s, 4784 timer interrupts
-4 tasks, 4 endpoints, 673339 system calls, 134166 task switches
-4903 device interrupts, 83 faults contained
-918 tasks started, 0 kernel anomalies
+up 47.562 s, 4754 timer interrupts
+4 tasks, 4 endpoints, 676149 system calls, 134207 task switches
+4872 device interrupts, 88 faults contained
+913 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> uptime
-up 52.888 s, 5286 timer interrupts
-4 tasks, 4 endpoints, 674288 system calls, 134404 task switches
-5407 device interrupts, 83 faults contained
-918 tasks started, 0 kernel anomalies
+up 52.592 s, 5257 timer interrupts
+4 tasks, 4 endpoints, 677095 system calls, 134441 task switches
+5377 device interrupts, 88 faults contained
+913 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> uptime
-up 52.903 s, 5288 timer interrupts
-4 tasks, 4 endpoints, 674820 system calls, 134417 task switches
-5412 device interrupts, 83 faults contained
-918 tasks started, 0 kernel anomalies
+up 52.603 s, 5258 timer interrupts
+4 tasks, 4 endpoints, 677634 system calls, 134454 task switches
+5382 device interrupts, 88 faults contained
+913 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> shutdown
 init: shutdown requested; switching the machine off
