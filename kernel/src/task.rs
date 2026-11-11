@@ -693,6 +693,20 @@ impl Kernel {
         task.state = State::Free;
     }
 
+    /// Every resource there is, as the root task finds it in its first slots. All authority
+    /// over hardware in the system descends from these (the checker's rule 26).
+    pub fn boot_caps(&self) -> [Cap; 6] {
+        let (base, len) = self.archive;
+        [
+            Cap::Log,
+            Cap::Info,
+            Cap::IoPort { first: 0, last: 0xFFFF },
+            Cap::Irq { mask: 0xFFFA }, // all lines except the timer and the cascade
+            Cap::Memory { page: 0xB8, pages: 8, write: true }, // VGA text memory
+            Cap::Memory { page: base / PAGE, pages: page_up(len) / PAGE, write: false },
+        ]
+    }
+
     /// Start `init` from the boot archive as task 0 and hand it every resource there is.
     fn start_root(&mut self) {
         let (base, len) = self.archive;
@@ -718,15 +732,7 @@ impl Kernel {
             Ok(entry) => entry,
             Err(code) => panic!("cannot load init: error {code}"),
         };
-        let root_caps = [
-            Cap::Log,
-            Cap::Info,
-            Cap::IoPort { first: 0, last: 0xFFFF },
-            Cap::Irq { mask: 0xFFFA }, // all lines except the timer and the cascade
-            Cap::Memory { page: 0xB8, pages: 8, write: true }, // VGA text memory
-            Cap::Memory { page: base / PAGE, pages: page_up(len) / PAGE, write: false },
-        ];
-        for (slot, cap) in root_caps.into_iter().enumerate() {
+        for (slot, cap) in self.boot_caps().into_iter().enumerate() {
             self.install(0, slot, cap, ORIGINAL);
         }
         self.tasks[0].frame = TrapFrame::user(entry, STACK_TOP, [0, self.root_starts, 0, 0]);

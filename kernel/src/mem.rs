@@ -468,31 +468,51 @@ impl Kernel {
         self.map_page(t, va, frame, flags).inspect_err(|_| self.free_for(t, frame))
     }
 
+    /// Give back page table `n` of task `t` if it maps nothing any more. A table is charged
+    /// to its task, so an empty one that stayed would be quota the task can no longer use:
+    /// a `map` that failed for lack of memory would itself have used some up.
+    fn drop_empty_table(&mut self, t: usize, n: usize) {
+        let pd = self.tasks[t].pd;
+        let Some(table) = self.mem.user_table(pd, n) else { return };
+        if (0..ENTRIES).any(|index| self.mem.read_entry(table, index) & P != 0) {
+            return;
+        }
+        let directory = frame_of(self.mem.read_entry(pd, USER_ROOTS.start + n / ENTRIES));
+        self.mem.write_entry(directory, n % ENTRIES, 0);
+        self.free_for(t, table);
+    }
+
     /// Unmap `pages` pages starting at `va` (validated by the caller); holes are skipped.
-    /// Frames the task owns go back to the allocator. Page tables are kept for reuse.
+    /// Frames the task owns go back to the allocator, and so does a page table that is
+    /// left with nothing to map.
     pub fn unmap_range(&mut self, t: usize, va: u32, pages: u32) {
         let pd = self.tasks[t].pd;
         let end = va as u64 + pages as u64 * PAGE as u64;
         let mut address = va;
         while (address as u64) < end {
-            let Some(table) = self.mem.user_table(pd, ((address - USER_BASE) >> 21) as usize) else {
-                address = (address | 0x1F_FFFF) + 1; // skip the whole 2 MiB
-                continue;
-            };
-            let index = (address >> 12) as usize % ENTRIES;
-            let pte = self.mem.read_entry(table, index);
-            if pte & P != 0 {
-                self.mem.write_entry(table, index, 0);
-                if pte & FOREIGN == 0 {
-                    self.free_for(t, frame_of(pte));
-                } else {
-                    self.tasks[t].foreign -= 1;
+            // One page table (2 MiB) at a time: `stop` is where it or the range ends.
+            let n = ((address - USER_BASE) >> 21) as usize;
+            let stop = end.min((address | 0x1F_FFFF) as u64 + 1) as u32;
+            if let Some(table) = self.mem.user_table(pd, n) {
+                for page in (address..stop).step_by(PAGE as usize) {
+                    let index = (page >> 12) as usize % ENTRIES;
+                    let pte = self.mem.read_entry(table, index);
+                    if pte & P == 0 {
+                        continue;
+                    }
+                    self.mem.write_entry(table, index, 0);
+                    if pte & FOREIGN == 0 {
+                        self.free_for(t, frame_of(pte));
+                    } else {
+                        self.tasks[t].foreign -= 1;
+                    }
                 }
+                self.drop_empty_table(t, n);
             }
-            address += PAGE;
+            address = stop;
         }
         if pd == self.space {
-            arch::write_cr3(pd); // drop stale translations
+            arch::write_cr3(pd); // drop stale translations and cached table addresses
         }
     }
 
@@ -505,17 +525,22 @@ impl Kernel {
         }
         for n in 0..USER_TABLES {
             let Some(table) = self.mem.user_table(pd, n) else { continue };
+            let mut unmapped = false;
             for index in 0..ENTRIES {
                 let pte = self.mem.read_entry(table, index);
                 let device = pte & (P | FOREIGN) == P | FOREIGN;
                 if device && !self.tasks[t].has_memory(frame_of(pte), pte & RW != 0) {
                     self.mem.write_entry(table, index, 0);
                     self.tasks[t].foreign -= 1;
+                    unmapped = true;
                 }
+            }
+            if unmapped {
+                self.drop_empty_table(t, n);
             }
         }
         if pd == self.space {
-            arch::write_cr3(pd); // drop stale translations
+            arch::write_cr3(pd); // drop stale translations and cached table addresses
         }
     }
 

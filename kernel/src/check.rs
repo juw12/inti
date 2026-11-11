@@ -35,10 +35,10 @@ impl Kernel {
         Ok(())
     }
 
-    /// Rules 1-7, 18, 20, 22 and 23: every frame is free or owned by exactly one task, each
-    /// task is charged for exactly what it owns, no address space can reach the kernel, device
-    /// memory is mapped only where a Memory capability of the task covers it, and no memory is
-    /// both writable and executable.
+    /// Rules 1-7, 18, 20, 22, 23 and 25: every frame is free or owned by exactly one task,
+    /// each task is charged for exactly what it owns, no address space can reach the kernel,
+    /// device memory is mapped only where a Memory capability of the task covers it, no memory
+    /// is both writable and executable, and no task pays for a page table that maps nothing.
     fn check_memory(&mut self) -> Result<(), u32> {
         self.scratch.fill(0);
         // Rule 23: the kernel's own map is what was built at boot, so kernel code is still
@@ -118,11 +118,13 @@ impl Kernel {
                 }
                 self.claim(table)?;
                 frames += 1;
+                let mut mapped = 0;
                 for index in 0..ENTRIES {
                     let pte = self.mem.read_entry(table, index);
                     if pte & P == 0 {
                         continue;
                     }
+                    mapped += 1;
                     if !page_ok(pte, self.mem.nx) {
                         return Err(22);
                     }
@@ -136,6 +138,11 @@ impl Kernel {
                     } else {
                         foreign += 1;
                     }
+                }
+                // Rule 25: a page table that maps nothing has been given back. A task is
+                // never left paying for a table that a failed or undone mapping emptied.
+                if mapped == 0 {
+                    return Err(25);
                 }
             }
         }
@@ -262,22 +269,46 @@ impl Kernel {
     }
 
     /// Rule 19: authority only narrows. Every capability is an original, or a copy of a
-    /// capability that still exists and is at least as strong.
+    /// capability that still exists and is at least as strong, and every chain of copies
+    /// ends at an original. Rule 26: no capability for memory, interrupt lines or I/O ports
+    /// reaches beyond what the kernel handed to the first task at boot.
     fn check_caps(&self) -> Result<(), u32> {
+        let boot = self.boot_caps();
         for (t, task) in self.tasks.iter().enumerate() {
             for (slot, &cap) in task.caps.iter().enumerate() {
+                // Rule 26: hardware authority has one source. This holds for originals too,
+                // because a copy becomes an original when its source is dropped.
+                let hardware = matches!(cap, Cap::Memory { .. } | Cap::Irq { .. } | Cap::IoPort { .. });
+                if hardware && !boot.iter().any(|&given| covers(given, cap)) {
+                    return Err(26);
+                }
                 let from = task.from[slot] as usize;
                 if from == ORIGINAL as usize {
                     continue;
                 }
                 let source = self.tasks.get(from / CAP_SLOTS).map(|task| task.caps[from % CAP_SLOTS]);
                 let narrowed = source.is_some_and(|source| covers(source, cap));
-                if cap == Cap::Null || from == t * CAP_SLOTS + slot || !narrowed {
+                if cap == Cap::Null || from == t * CAP_SLOTS + slot || !narrowed || !self.rooted(from) {
                     return Err(19);
                 }
             }
         }
         Ok(())
+    }
+
+    /// True if the chain of sources that starts at capability `link` ends at an original.
+    /// Two copies that name each other as their source would otherwise both look valid.
+    fn rooted(&self, mut link: usize) -> bool {
+        for _ in 0..MAX_TASKS * CAP_SLOTS {
+            let Some(task) = self.tasks.get(link / CAP_SLOTS) else {
+                return false;
+            };
+            link = task.from[link % CAP_SLOTS] as usize;
+            if link == ORIGINAL as usize {
+                return true;
+            }
+        }
+        false
     }
 }
 
