@@ -150,20 +150,25 @@ fn memory_map(top: u32) -> Vec<u8> {
 /// kernel only ever looks at the headers.
 fn image() -> [u8; IMAGE_SIZE as usize] {
     let mut elf = [0; IMAGE_SIZE as usize];
+    elf_headers(&mut elf, IMAGE_SIZE, IMAGE_SIZE);
+    elf
+}
+
+/// Write the headers of an ELF file with one segment into `elf`: the first `file` bytes of
+/// the file, loaded at the bottom of user space into `memory` bytes, to read and execute.
+pub fn elf_headers(elf: &mut [u8], file: u32, memory: u32) {
     elf[..7].copy_from_slice(&[0x7F, b'E', b'L', b'F', 1, 1, 1]);
     elf[16] = 2; // an executable ...
     elf[18] = 3; // ... for the 386
-    put32(&mut elf, 20, 1);
-    put32(&mut elf, 24, USER_BASE + 84); // where it starts to run
-    put32(&mut elf, 28, 52); // the segment table follows the 52-byte header
+    put32(elf, 20, 1);
+    put32(elf, 24, USER_BASE + 84); // where it starts to run
+    put32(elf, 28, 52); // the segment table follows the 52-byte header
     elf[40] = 52;
     elf[42] = 32;
     elf[44] = 1;
-    // The one segment: load the whole file at the bottom of user space, to read and execute.
-    for (i, word) in [1, 0, USER_BASE, USER_BASE, IMAGE_SIZE, IMAGE_SIZE, 5, PAGE].into_iter().enumerate() {
-        put32(&mut elf, 52 + 4 * i, word);
+    for (i, word) in [1, 0, USER_BASE, USER_BASE, file, memory, 5, PAGE].into_iter().enumerate() {
+        put32(elf, 52 + 4 * i, word);
     }
-    elf
 }
 
 /// The boot archive, holding one program: `init`.
@@ -269,6 +274,17 @@ impl World {
         self.trap(t, |frame| {
             frame.vector = 14;
             frame.error = 4;
+        });
+    }
+
+    /// Task `t` does something else the processor refuses: exception `vector`. The register
+    /// that holds the address of the last page fault still holds `stale`.
+    pub fn exception(&mut self, t: usize, vector: u32, stale: u32) {
+        self.begin();
+        arch::with(|machine| machine.cpu.cr2 = stale);
+        self.trap(t, |frame| {
+            frame.vector = vector;
+            frame.error = 0;
         });
     }
 
@@ -446,8 +462,8 @@ impl World {
         u32::from_le_bytes(token)
     }
 
-    /// Task `t` spawns a task from the `image_len` bytes at the start of its own program.
-    pub fn spawn_image(&mut self, t: usize, spec: &Spawn, image_len: u32) -> Option<i32> {
+    /// Task `t` spawns a task from the `image_len` bytes at `image` in its own memory.
+    pub fn spawn_from(&mut self, t: usize, spec: &Spawn, image: u32, image_len: u32) -> Option<i32> {
         let mut args = [0; SPAWN_ARGS_SIZE];
         args[..5].copy_from_slice(b"model");
         let words = [spec.quota, spec.stack, spec.fault, FAULT_BADGE, spec.tasks, spec.eps];
@@ -455,7 +471,12 @@ impl World {
             put32(&mut args, 12 + 4 * i, *word);
         }
         self.poke(t, SPAWN_ARGS, &args);
-        self.syscall(t, nr::SPAWN, [USER_BASE, image_len, SPAWN_ARGS, 0])
+        self.syscall(t, nr::SPAWN, [image, image_len, SPAWN_ARGS, 0])
+    }
+
+    /// Task `t` spawns a task from the `image_len` bytes at the start of its own program.
+    pub fn spawn_image(&mut self, t: usize, spec: &Spawn, image_len: u32) -> Option<i32> {
+        self.spawn_from(t, spec, USER_BASE, image_len)
     }
 
     /// Task `t` spawns a copy of itself. The result is the slot of the new task's handle.

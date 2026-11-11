@@ -3,7 +3,7 @@
 
 Inti does not try to beat mainstream operating systems at what they are good at. It picks three weaknesses that their own makers and the research literature document, and shows a design in which each one is absent. For each weakness this page gives the evidence, what Inti does, what was measured, and what Inti does **not** solve.
 
-The measurements are from the gate run of 2026-11-11 in QEMU 11.1.0 (TCG, no hardware virtualisation). `python build.py gates` repeats them. They are emulator figures.
+The measurements are from the gate run of 2026-11-12 in QEMU 11.1.0 (TCG, no hardware virtualisation). `python build.py gates` repeats them. They are emulator figures.
 
 ## Drivers that can take the whole system down
 
@@ -20,28 +20,28 @@ The measurements are from the gate run of 2026-11-11 in QEMU 11.1.0 (TCG, no har
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 7.5 ms | 4.9 to 9.1 ms | 12 ms | 3.1 ms |
-| file server crashes (page fault) | 5 | 2.4 ms | 2.0 to 4.1 ms | 6 ms | 1.4 ms |
-| console driver hangs (stops answering) | 5 | 746 ms | 705 to 749 ms | 751 ms | 1.6 ms |
-| file server hangs (stops answering) | 5 | 718 ms | 664 to 736 ms | 721 ms | 0.8 ms |
-| file server hangs right after a restart | 3 | 1160 ms | 1154 to 1206 ms | 1163 ms | 0.9 ms |
+| console driver crashes (page fault) | 5 | 6.6 ms | 6.3 to 8.2 ms | 11 ms | 2.3 ms |
+| file server crashes (page fault) | 5 | 3.1 ms | 2.5 to 3.2 ms | 6 ms | 1.4 ms |
+| console driver hangs (stops answering) | 5 | 758 ms | 737 to 798 ms | 762 ms | 1.7 ms |
+| file server hangs (stops answering) | 5 | 752 ms | 731 to 789 ms | 755 ms | 1.0 ms |
+| file server hangs right after a restart | 3 | 1205 ms | 1187 to 1265 ms | 1208 ms | 1.0 ms |
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 49.6 ms and the console driver after 805 ms. The log is in [How Inti works](design.md).
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 50.6 ms and the console driver after 626 ms. The log is in [How Inti works](design.md).
 
 ```log
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 807 us (restart 1)
-RECOVERY: fs crash -> answering again after 2052 us
+init: fs restarted after 955 us (restart 1)
+RECOVERY: fs crash -> answering again after 2481 us
 ```
 
 ```log
 inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
-init: console restarted after 1206 us (restart 6)
+init: console restarted after 667 us (restart 6)
 [console restarted]
-RECOVERY: console hang -> answering again after 746384 us
+RECOVERY: console hang -> answering again after 736788 us
 ```
 
 The same two faults in the browser demo, where the emulator is slower:
@@ -49,14 +49,14 @@ The same two faults in the browser demo, where the emulator is slower:
 ```weblog
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x40002096
-init: console restarted after 1101 us (restart 1)
+init: console restarted after 1200 us (restart 1)
 [console restarted]
-RECOVERY: console crash -> answering again after 6200 us
+RECOVERY: console crash -> answering again after 4100 us
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 1400 us (restart 1)
-RECOVERY: fs hang -> answering again after 766387 us
+init: fs restarted after 1000 us (restart 1)
+RECOVERY: fs hang -> answering again after 719286 us
 ```
 
 **What Inti does not solve.**
@@ -74,31 +74,31 @@ RECOVERY: fs hang -> answering again after 766387 us
 - Around 70% of Chromium's high-severity security bugs are memory-unsafety problems ([The Chromium Projects, "Memory safety"](https://www.chromium.org/Home/chromium-security/memory-safety)).
 - The Linux kernel has started to accept Rust code for this reason ([kernel.org, "Rust"](https://docs.kernel.org/rust/index.html)).
 
-**What Inti does.** The kernel is written in Rust and does not link the `alloc` crate: it has no heap, and all of its state is one value made of fixed-size tables. Hardware access needs `unsafe` (port I/O, page tables, the switch between tasks); there are 41 such blocks in the kernel and its interface crate, each with a comment that says why it is sound, and the gate script fails if one is missing. Arithmetic overflow checks stay on in the release build. The kernel never dereferences an address a program gave it. On top of that, a checker inside the kernel recounts everything the kernel owns against 24 rules whenever a program with the right capability asks.
+**What Inti does.** The kernel is written in Rust and does not link the `alloc` crate: it has no heap, and all of its state is one value made of fixed-size tables. Hardware access needs `unsafe` (port I/O, page tables, the switch between tasks); there are 41 such blocks in the kernel and its interface crate, each with a comment that says why it is sound, and the gate script fails if one is missing. Arithmetic overflow checks stay on in the release build. The kernel never dereferences an address a program gave it. On top of that, a checker inside the kernel recounts everything the kernel owns against 26 rules whenever a program with the right capability asks.
 
 **What was measured.** The fuzzer keeps 4 throw-away programs running, each making random and almost-right system calls, and asks the kernel to check its rules every 25 ms.
 
 ```log
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 114101615.
-   10%  100175 calls, 208 tasks ended, 404 checks
+Fuzzing the kernel with 1000000 random system calls, seed 114395615.
+   10%  100918 calls, 212 tasks ended, 414 checks
 ...
-  100%  1001198 calls, 2037 tasks ended, 3991 checks
-FUZZ: 1002227 random system calls from 2040 tasks in 70107 ms
-FUZZ: 3995 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 590 exited, 1034 were stopped, 416 hit a CPU exception
+  100%  1001720 calls, 2077 tasks ended, 4210 checks
+FUZZ: 1002983 random system calls from 2078 tasks in 76621 ms
+FUZZ: 4212 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 581 exited, 1083 were stopped, 414 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14159 /   14159    io_in           14226 /    2012
-  exit              459 /     459    io_out          14224 /    2075
-  call            14409 /    2157    irq_bind        14349 /     895
-  recv            14254 /     327    irq_ack         14111 /     636
-  reply           14384 /      56    spawn           14443 /     994
-  ep_create       14205 /    6087    task_kill       14295 /      53
-  cap_derive      14250 /    2532    sleep           14288 /   14288
-  cap_drop        13565 /    3502    time            14299 /   14299
-  map             14266 /    2518    log             14295 /       0
-  unmap           14004 /    3871    sysinfo         14081 /    2147
-  map_mem         14272 /    1572    cap_revoke      14392 /    5927
+  yield           14392 /   14392    io_in           14276 /    2153
+  exit              451 /     451    io_out          14368 /    2189
+  call            14598 /    2275    irq_bind        14353 /     843
+  recv            14525 /     318    irq_ack         14326 /     531
+  reply           14804 /      38    spawn           14598 /     967
+  ep_create       14531 /    6081    task_kill       14578 /      48
+  cap_derive      14478 /    2419    sleep           14436 /   14436
+  cap_drop        13921 /    3463    time            14657 /   14657
+  map             14537 /    2514    log             14506 /       0
+  unmap           14467 /    3976    sysinfo         14728 /    2274
+  map_mem         14396 /    1594    cap_revoke      14502 /    6005
 FUZZ: PASS
 ```
 
@@ -106,6 +106,7 @@ FUZZ: PASS
 
 - Rust's guarantees end where `unsafe` begins. The 41 blocks were written and reviewed by one author; they are not verified.
 - Memory safety does not rule out logic errors. The checker and the fuzzer found none in this run, which is evidence and not proof. seL4 has machine-checked proofs of functional correctness ([seL4 FAQ](https://sel4.systems/About/FAQ.html)); Inti has nothing of that kind.
+- The checks on the build machine have holes, and some are known by name. A tool plants small defects in the kernel one at a time and counts how many the model notices. In a sample of 60 for which no test was written, the model caught 45 and missed 15, and 9 of those it missed change what the kernel does. They are listed under "The mutation check" in [How Inti works](design.md) and are open work. None of the planted defects was run in QEMU.
 - The fuzzer is random, not guided by coverage, and its programs hold no capability for the kernel log, so that one call is fuzzed only up to its capability check.
 - W^X stops a program from running code it wrote into its own data, but only on a processor with the no-execute bit, and Inti has only run in emulators. It does nothing against the reuse of code that is already in the program, and there is no address-space randomisation.
 

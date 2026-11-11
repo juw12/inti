@@ -1,0 +1,238 @@
+Boot
+  note  173 frames are managed, the root task holds 14 of them, 159 are free
+  ok    every frame beyond the kernel is managed
+  ok    the root task holds the frames this model expects
+  ok    the root task owns the whole memory quota
+  ok    the state after boot is sound
+  note  a task with one page of program and one of stack holds 7 frames
+  ok    a small task holds the frames this model expects
+  ok    its frames come out of the free memory
+  ok    its program is a copy of its parent's, its stack is all zero
+  ok    the state after a spawn is sound
+The endpoint table
+  ok    the root task may create every endpoint there is
+  ok    the root task has given away all it had
+  ok    all 64 endpoints exist
+  ok    a 65th is refused to each of the three tasks with E_NOSLOT
+  ok    the state with a full endpoint table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing one of the two returns its 31 endpoints to the root task
+  ok    the root task can create an endpoint again
+  ok    the state afterwards is sound
+The task table
+  ok    the root task may create every other task there is
+  ok    all 32 tasks exist
+  ok    a 33rd is refused to the root task and to its child with E_NOSLOT
+  ok    the state with a full task table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing the child kills its 15 children and returns 16 places to the root task
+  ok    the root task can spawn again
+  ok    the state afterwards is sound
+  ok    when the root task dies, all 16 others die with it and a new root task starts
+  ok    the new root task finds as much free memory as the first
+  ok    the state after the restart is sound
+The last frame and the last slot
+  ok    a spawn that runs out of memory after 0 to 6 frames leaves nothing behind
+  ok    with exactly 7 frames it succeeds
+  ok    killing the task returns its frames
+  note  49 pages and their page table took the 50 free frames
+  ok    mapping page after page ends with E_NOMEM when the last frame is taken
+  ok    the state without a free frame is sound
+  ok    an endpoint can still be created, it needs no memory
+  note  (free frames, frames charged) before the failing MAP (2, 62), after it (2, 62)
+  ok    a MAP that fails at its second page gives back all it took for the first
+  ok    the state after the failed MAP is sound
+  ok    a spawn is refused with E_NOMEM
+  ok    25 copies of a capability fill the 32 slots, then copying and creating give E_NOSLOT
+  ok    the state without a free slot is sound
+  ok    one revocation removes all 25 copies
+  ok    the death of the root task returns every frame and endpoint
+  ok    the state after the restart is sound
+The clock, the restart delay and timeouts
+  note  after about 123,456 microseconds a task is told 130003, the machine says 130003
+  ok    the time a task is told is the machine's time
+  ok    a root task that dies right after boot is not restarted at once
+  ok    the state while the root task waits to restart is sound
+  ok    it runs again one second after boot, not before
+  ok    a root task that dies after running for a second restarts at once
+  ok    the state after both restarts is sound
+  ok    a task that sleeps 30 ms is asleep after 20 ms and awake after 40 ms
+  ok    a call that nobody receives within its 50 ms ends with E_TIMEOUT
+  ok    the state after the timeout is sound
+  ok    a call that is received but not answered within its 50 ms ends with E_TIMEOUT
+  ok    the answer that comes too late is refused with E_INVAL
+  ok    the state after the late answer is sound
+Messages and device memory
+  ok    receiving into device memory is refused with E_FAULT
+  ok    a call whose answer would land in device memory is refused with E_FAULT
+  ok    the state after both refusals is sound
+  ok    revoking the screen unmaps it from a driver that waits to receive; the driver waits on
+  ok    the state after revoking under a driver that waits to receive is sound
+  ok    the driver that waited to receive then gets its message
+  ok    the message to the driver that waited to receive arrived intact
+  ok    revoking the screen unmaps it from a driver that waits for an answer; the driver waits on
+  ok    the state after revoking under a driver that waits for an answer is sound
+  ok    the driver that waited for an answer then gets its message
+  ok    the message to the driver that waited for an answer arrived intact
+The edges of every range
+  ok    two pages from the last page of user space on are refused with E_INVAL: to map, to unmap, and for a device
+  ok    the last page itself can be mapped, and written to its last byte
+  ok    and unmapped again
+  ok    the state afterwards is sound
+  ok    three pages from the middle of the screen can be derived from its capability, to write
+  ok    and its last three pages, to read only
+  ok    a part that ends beyond the screen, starts at its end or has no pages is refused with E_PERM, and so is a part to write from a part to read
+  ok    the last two pages of the screen can be mapped, and the second is its last page
+  ok    two pages from its last page on are refused with E_INVAL, and nothing is mapped
+  ok    through the part to read a page can be mapped to read (it cannot be written), and not to write (E_PERM)
+  ok    the state with these mappings is sound
+  ok    the eight ports of the serial line can be derived from the capability for every port
+  ok    through it the first port can be read, the last, and the last four at once
+  ok    the port below, the port above, and two or four ports that begin inside and end above are refused with E_PERM
+  ok    two ports from the last port there is are refused with E_PERM
+  ok    a range that begins below, ends above, or ends before it begins cannot be derived from it (E_PERM)
+  ok    an access that is 0, 3 or 8 ports wide is refused with E_INVAL
+  ok    the ports the kernel keeps to itself are refused with E_PERM even to the capability for every port, also to an access that only ends in them
+  ok    the ports beside them, up to the very next one, are not
+  ok    the state afterwards is sound
+Messages: their order, their size, and buffers that lie across two pages
+  ok    three clients start, each with a send-only copy of one endpoint under a badge of its own
+  ok    clients that call in the order 3, 1, 2 are heard in that order, each under its badge
+  ok    each of the three messages and each answer arrived intact
+  ok    a call and a receive with such buffers succeed
+  ok    all 256 bytes of the data arrive
+  ok    the label arrives without the bit that marks a message from the kernel, under the badge of the caller's copy
+  ok    a length that claims more than a message can hold arrives as 256
+  ok    the answer arrives in the same way, in the buffer of the call
+  ok    the state afterwards is sound
+A program of more than one page
+  ok    a program of 5000 bytes that asks for 9000 bytes of memory starts
+  ok    every byte of the file is in the memory of the new task
+  ok    the memory beyond the file is zero, to the end of its last page
+  ok    the task holds two frames more than a task with one page of program
+  ok    the state afterwards is sound
+What the kernel reports about a task, and about its end
+  ok    the root task is told the name under which a task was started
+  ok    and its state, parent, generation, memory quota, frames, timer ticks, system calls and capabilities, and how many tasks and endpoints it may create
+  ok    a task with an empty slot is told nothing (E_NOCAP), nor is one that shows another capability (E_NOCAP); a number beyond the task table is refused (E_INVAL), and so is a place that is not mapped (E_FAULT)
+  ok    after a page fault that endpoint has a message from the kernel, under the badge chosen at the start
+  ok    the message names the exception, the address, where the task was, and the error code
+  ok    after another exception the message names no address, whatever the last page fault left behind
+  ok    the state afterwards is sound
+Turns
+  note  six timer ticks find these tasks running: [0, 1, 2, 0, 1, 2]; of the ticks, the three tasks are charged [2, 2, 2]
+  ok    each of three tasks that never wait has a turn within three timer ticks
+  ok    the turns come round again in the same order
+  ok    each task is charged the two ticks that ended its turns
+  ok    the state afterwards is sound
+Would the kernel's checker notice? One corruption at a time, planted in a sound state
+  ok    an endpoint counts one capability too many: rule 8
+  ok    an endpoint counts one receiver too many: rule 9
+  ok    a copy has a right that its source lacks: rule 19
+  ok    a copy has another badge than its source: rule 19
+  ok    a copy names an empty slot as its source: rule 19
+  ok    a copy names itself as its source: rule 19
+  ok    two copies name each other as their source: rule 19
+  ok    a capability names an endpoint beyond the table: rule 8
+  ok    the count of free frames is one too high: rule 6
+  ok    a frame that a task uses is marked free: rule 3
+  ok    a frame is taken that no task owns: rule 6
+  ok    one frame is mapped by two tasks: rule 2
+  ok    a page of program can be written: rule 22
+  ok    a page of stack can be executed: rule 22
+  ok    a page-table entry has a bit the kernel never sets: rule 22
+  ok    a page table is closed to its own task: rule 18
+  ok    a page table is kept although it maps nothing: rule 25
+  ok    the kernel half of a task's address space differs: rule 18
+  ok    an entry of the kernel's own page tables changed: rule 23
+  ok    device memory is mapped as if it were the task's own: rule 1
+  ok    device memory stays mapped without its capability: rule 20
+  ok    a task may create one task too many: rule 21
+  ok    a task may create one endpoint too many: rule 21
+  ok    a task's memory quota grew by itself: rule 15
+  ok    a task is charged one frame too few: rule 4
+  ok    an unused task has a memory quota: rule 14
+  ok    an unused task has an address space: rule 1
+  ok    a second task has no parent: rule 15
+  ok    a task's parent does not exist: rule 13
+  ok    an endpoint names a waiter that does not wait: rule 10
+  ok    a task waits on an endpoint that does not know of it: rule 10
+  ok    a sender's badge is on none of its capabilities: rule 20
+  ok    a client waits for the answer of a task that does not exist: rule 12
+  ok    an endpoint's owner does not exist: rule 21
+  ok    an interrupt stays bound without its capability: rule 20
+  ok    an interrupt is bound to a task that does not exist: rule 16
+  ok    an interrupt is bound to an endpoint that nobody can receive from: rule 16
+  ok    a waiting task's message buffer is not mapped: rule 24
+  ok    the kernel has counted an anomaly: rule 17
+  ok    a task holds a capability for the kernel's own memory: rule 26
+  ok    a task holds a capability for the timer interrupt: rule 26
+  blind a forged capability for every I/O port: not noticed, as expected
+  blind a forged capability to write to the log: not noticed, as expected
+  blind a forged handle for a task that is not the holder's child: not noticed, as expected
+  ok    without a corruption the checker reports nothing
+MODEL seeds: 41 of 41 planted corruptions reported by the kernel's checker
+MODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed
+MODEL tables: PASS 154/154
+MODEL scenario boot: the root task alone, offered nearly every kind of step (depth 4)
+  depth 1: 16 new states, 23 transitions
+  depth 2: 162 new states, 373 transitions
+  depth 3: 1833 new states, 4612 transitions
+  depth 4: 23393 new states, 60704 transitions
+MODEL explore boot: depth 4, 25405 states, 65712 transitions, 0 violations, complete no, 42 deliveries checked, 0 replies checked, 3418 restarts, 91 beyond budget, 20.7 s
+MODEL results boot: ok 45214, did not return 5467, events 4889, E_INVAL 0, E_NOCAP 0, E_PERM 4703, E_FAULT 402, E_NOMEM 0, E_NOSLOT 1220, E_DEAD 33, E_TIMEOUT 529, E_BUSY 3255, E_NOSYS 0, another error 0
+MODEL pairs boot: 6 of 49 ordered pairs of failure kinds, 63 failure steps after an earlier failure
+MODEL scenario ipc: a client, a server and their supervisor: calls, replies, capabilities sent along, deaths in between (depth 8)
+  depth 1: 16 new states, 45 transitions
+  depth 2: 82 new states, 485 transitions
+  depth 3: 170 new states, 1493 transitions
+  depth 4: 271 new states, 2072 transitions
+  depth 5: 667 new states, 3941 transitions
+  depth 6: 1686 new states, 11301 transitions
+  depth 7: 2729 new states, 19672 transitions
+  depth 8: 4664 new states, 29539 transitions
+MODEL explore ipc: depth 8, 10286 states, 68548 transitions, 0 violations, complete no, 5326 deliveries checked, 700 replies checked, 0 restarts, 29 beyond budget, 24.1 s
+MODEL results ipc: ok 17209, did not return 16323, events 8165, E_INVAL 4188, E_NOCAP 10470, E_PERM 2254, E_FAULT 1713, E_NOMEM 0, E_NOSLOT 2094, E_DEAD 313, E_TIMEOUT 3245, E_BUSY 480, E_NOSYS 2094, another error 0
+MODEL pairs ipc: 10 of 49 ordered pairs of failure kinds, 950 failure steps after an earlier failure
+MODEL scenario irq: a driver, its interrupt line and its supervisor (depth 12)
+  depth 1: 14 new states, 23 transitions
+  depth 2: 59 new states, 212 transitions
+  depth 3: 116 new states, 629 transitions
+  depth 4: 166 new states, 875 transitions
+  depth 5: 170 new states, 1159 transitions
+  depth 6: 128 new states, 835 transitions
+  depth 7: 64 new states, 390 transitions
+  depth 8: 24 new states, 160 transitions
+  depth 9: 0 new states, 32 transitions
+MODEL explore irq: depth 9, 742 states, 4315 transitions, 0 violations, complete yes, 721 deliveries checked, 0 replies checked, 0 restarts, 0 beyond budget, 1.2 s
+MODEL results irq: ok 1642, did not return 790, events 1174, E_INVAL 0, E_NOCAP 0, E_PERM 118, E_FAULT 0, E_NOMEM 0, E_NOSLOT 0, E_DEAD 18, E_TIMEOUT 305, E_BUSY 268, E_NOSYS 0, another error 0
+MODEL pairs irq: 2 of 49 ordered pairs of failure kinds, 21 failure steps after an earlier failure
+MODEL scenario memory: a task that maps, unmaps and runs out of memory, with device memory that can be revoked (depth 6)
+  depth 1: 8 new states, 25 transitions
+  depth 2: 24 new states, 180 transitions
+  depth 3: 89 new states, 680 transitions
+  depth 4: 414 new states, 2867 transitions
+  depth 5: 2344 new states, 14943 transitions
+  depth 6: 8338 new states, 60107 transitions
+MODEL explore memory: depth 6, 11218 states, 78802 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 0 restarts, 3600 beyond budget, 25.3 s
+MODEL results memory: ok 39676, did not return 0, events 4318, E_INVAL 4318, E_NOCAP 10795, E_PERM 5482, E_FAULT 2421, E_NOMEM 3114, E_NOSLOT 3349, E_DEAD 1, E_TIMEOUT 0, E_BUSY 3169, E_NOSYS 2159, another error 0
+MODEL pairs memory: 0 of 49 ordered pairs of failure kinds, 0 failure steps after an earlier failure
+MODEL scenario spawn: trees of tasks on a machine too small for them, and the root task dying (depth 8)
+  depth 1: 3 new states, 5 transitions
+  depth 2: 8 new states, 25 transitions
+  depth 3: 28 new states, 122 transitions
+  depth 4: 87 new states, 518 transitions
+  depth 5: 236 new states, 1651 transitions
+  depth 6: 560 new states, 4520 transitions
+  depth 7: 1348 new states, 11395 transitions
+  depth 8: 2369 new states, 23227 transitions
+MODEL explore spawn: depth 8, 4640 states, 41463 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 3968 restarts, 666 beyond budget, 14.5 s
+MODEL results spawn: ok 10594, did not return 0, events 12437, E_INVAL 0, E_NOCAP 0, E_PERM 0, E_FAULT 0, E_NOMEM 5843, E_NOSLOT 10232, E_DEAD 2357, E_TIMEOUT 0, E_BUSY 0, E_NOSYS 0, another error 0
+MODEL pairs spawn: 8 of 49 ordered pairs of failure kinds, 14374 failure steps after an earlier failure
+MODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds
+MODEL pairs not met: drop after exit; exit after fault; fault after fault; kill after fault; drop after fault; revoke after fault; timeout after fault; root death after fault; exit after drop; fault after drop; kill after drop; drop after drop; revoke after drop; timeout after drop; root death after drop; exit after revoke; fault after revoke; kill after revoke; drop after revoke; revoke after revoke; timeout after revoke; root death after revoke; exit after timeout; fault after timeout; kill after timeout; drop after timeout; revoke after timeout; timeout after timeout; root death after timeout; exit after root death; fault after root death; kill after root death; drop after root death; revoke after root death; timeout after root death; root death after root death
+MODEL: PASS

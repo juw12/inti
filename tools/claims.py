@@ -13,6 +13,7 @@ compares the result with what is on disk.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -41,6 +42,13 @@ GATES = "evidence/gates.json"
 LOG = "evidence/test_serial.log"
 NONX_LOG = "evidence/test_nonx_serial.log"
 SOURCES = "evidence/sources.json"
+MODEL = "evidence/model.json"
+MODEL_LOG = "evidence/model.log"
+MODEL_BEFORE = "evidence/model-before-fixes.log"
+MODEL_MAIN = "model/src/main.rs"
+MUTANTS = "evidence/mutants.json"
+MUTANTS_BEFORE = "evidence/mutants-before-tests.log"
+MUTANTS_HELD_OUT = "evidence/mutants-held-out.json"
 
 FAULTS = {
     "console_crash": "console driver crashes (page fault)",
@@ -296,12 +304,12 @@ def add_source(put: Put) -> None:
     put("supervisor.services", constant(init, "SERVICES"), init)
     put("supervisor.server_pages", constant(init, "SERVER_PAGES"), init)
 
-    arch = "kernel/src/arch.rs"
-    clock_hz = constant(arch, "CLOCK_HZ")
+    arch, frame = "kernel/src/arch.rs", "kernel/src/frame.rs"
+    clock_hz = constant(frame, "CLOCK_HZ")
     (timer_hz,) = pattern_numbers(arch, r"const PIT_RELOAD: u32 = \(CLOCK_HZ / (\d+)\)")
-    put("clock.hz", clock_hz, arch)
-    put("clock.resolution_ns", round(1e9 / clock_hz), arch)
-    put("clock.wrap_ms", round(65536 / clock_hz * 1000, 1), arch)
+    put("clock.hz", clock_hz, frame)
+    put("clock.resolution_ns", round(1e9 / clock_hz), frame)
+    put("clock.wrap_ms", round(65536 / clock_hz * 1000, 1), frame)
     put("timer.hz", timer_hz, arch)
     put("timer.period_ms", 1000 // timer_hz, arch)
 
@@ -459,6 +467,275 @@ def add_sources(put: Put, result: dict) -> None:
     ), SOURCES)
 
 
+def model_fingerprint() -> str:
+    """One hash over every source file the model is compiled from: the kernel, the interface and the model."""
+    digest = hashlib.sha256()
+    for path in sorted(gates.rust_files(("kernel/src", "abi/src", "model/src"))):
+        digest.update(path.relative_to(ROOT).as_posix().encode("utf-8") + b"\0")
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return digest.hexdigest()
+
+
+def evidence_lines(name: str) -> list[str]:
+    return (gates.EVIDENCE / name).read_text(encoding="utf-8").splitlines()
+
+
+def add_model(put: Put, model: dict) -> None:
+    """The kernel's source run on the build machine: python build.py model."""
+    if not model:
+        raise KeyError("evidence/model.json is missing; run python build.py model")
+    for key in ("date", "host", "target"):
+        put(f"model.{key}", model[key], MODEL)
+    put("model.duration_s", round(model["duration_s"]), MODEL)
+    put("model.tests", model["tables"]["total"], MODEL)
+    put("model.tests_passed", model["tables"]["passed"], MODEL)
+    put("model.seeds", model["seeds"]["planted"], MODEL)
+    put("model.seeds_found", model["seeds"]["found"], MODEL)
+    put("model.blind", model["blind"]["forged"], MODEL)
+    put("model.blind_unseen", model["blind"]["unseen"], MODEL)
+    for key in ("scenarios", "states", "transitions", "violations", "pairs", "pairs_possible"):
+        put(f"model.{key}", model["total"][key], MODEL)
+    put("model.pairs_not_met", len(model["pairs_not_met"]), MODEL)
+    put("model.pairs_not_met_list", "; ".join(model["pairs_not_met"]), MODEL)
+
+    scenarios = model["scenarios"]
+    complete = [scenario["name"] for scenario in scenarios if scenario["complete"] in (True, "yes")]
+    put("model.complete", len(complete), MODEL)
+    put("model.complete_list", ", ".join(f"`{name}`" for name in complete), MODEL)
+    for key in ("deliveries", "replies", "restarts"):
+        put(f"model.{key}", sum(scenario[key] for scenario in scenarios), MODEL)
+
+    def ended_with(wanted: Callable[[str], bool]) -> int:
+        return sum(count for scenario in scenarios for code, count in scenario["results"].items() if wanted(code))
+
+    put("model.refused", ended_with(lambda code: code.startswith("E_")), MODEL)
+    put("model.no_memory", ended_with(lambda code: code == "E_NOMEM"), MODEL)
+    put("model.no_slot", ended_with(lambda code: code == "E_NOSLOT"), MODEL)
+    put("table.model", table(
+        ["Scenario", "What it holds", "Depth", "States", "Steps", "Explored to the end", "Violations"],
+        [
+            [
+                f"`{scenario['name']}`", scenario["about"], scenario["depth"], scenario["states"],
+                scenario["transitions"], "yes" if scenario["name"] in complete else "no", scenario["violations"],
+            ]
+            for scenario in scenarios
+        ],
+    ), MODEL)
+
+    before = evidence_lines("model-before-fixes.log")
+    passed, total = (int(number) for number in re.search(r"MODEL tables: FAIL (\d+)/(\d+)", "\n".join(before)).groups())
+    found, planted = (int(number) for number in re.search(r"MODEL seeds: (\d+) of (\d+)", "\n".join(before)).groups())
+    put("model.before.tests_passed", passed, MODEL_BEFORE)
+    put("model.before.tests", total, MODEL_BEFORE)
+    put("model.before.seeds_found", found, MODEL_BEFORE)
+    put("model.before.seeds", planted, MODEL_BEFORE)
+    put("modellog.before", "\n".join(
+        line for line in before if re.match(r"\s*FAIL  |MODEL (tables|seeds):", line)
+    ), MODEL_BEFORE)
+    put("modellog.result", "\n".join(
+        line for line in evidence_lines("model.log")
+        if re.match(r"MODEL (tables|seeds|blind|explore total):|MODEL: ", line)
+    ), MODEL_LOG)
+
+    included = re.findall(r'#\[path = "\.\./\.\./(kernel/src/\w+\.rs)"\]', source_text(MODEL_MAIN))
+    left_out = [
+        path for path in gates.rust_files(("kernel/src",))
+        if path.relative_to(ROOT).as_posix() not in included
+    ]
+    put("model.kernel_files", len(included), MODEL_MAIN)
+    put("model.kernel_file_list", ", ".join(f"`{name.rsplit('/', 1)[1]}`" for name in included), MODEL_MAIN)
+    put("model.kernel_lines", sum(gates.count_code_lines(ROOT / name) for name in included), MODEL_MAIN)
+    put("model.left_out_files", len(left_out), MODEL_MAIN)
+    put("model.left_out_list", " and ".join(f"`{path.name}`" for path in left_out), MODEL_MAIN)
+    put("model.left_out_lines", sum(gates.count_code_lines(path) for path in left_out), MODEL_MAIN)
+    put("loc.model", gates.code_lines(("model/src",)), "model/src")
+
+
+# Why each mutant that no check caught is still alive, judged by reading the code. Keyed by file, line and
+# operator. Every note begins with one of the verdicts below, which is how the documents count them. A survivor
+# without a note stops the documents from being built, so that none is published unread.
+JUDGMENTS = {
+    "Makes no difference": "judged_no_difference",
+    "Outside what the model can see": "judged_outside_model",
+    "A hole in the checks": "judged_hole",
+}
+
+SURVIVORS: dict[str, str] = {
+    "kernel/src/mem.rs:49:&& becomes ||": (
+        "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
+        "and both halves hold for the constants as they are, so the changed kernel is the same program."
+    ),
+    "kernel/src/task.rs:545:!= becomes ==": (
+        "Makes no difference in any state the kernel can reach. An unbound line names no endpoint, so the changed "
+        "loop never runs, and what it then leaves out is done by every caller: a dying task's lines are unbound "
+        "before its capabilities are dropped, and after a drop or a revocation `release` unbinds what the task "
+        "can no longer receive on. The loop is a second line of defence, kept on purpose."
+    ),
+    # The held-out sample. No test was written against any of these.
+    "kernel/src/ipc.rs:75:assignment removed": (
+        "A hole in the checks. With the line gone, whether a receiver may be handed a capability is left over from "
+        "its own last call instead of coming from the capability it receives through. Every call and reply in the "
+        "directed tests sends no capability, and the exploration takes a refused transfer for a call that failed "
+        "and changed nothing. The self-test in QEMU does pass capabilities in messages; whether it catches this "
+        "mutant was not tried."
+    ),
+    "kernel/src/ipc.rs:154:assignment removed": (
+        "A hole in the checks. An interrupt that was reported then stays pending, so every later receive on that "
+        "endpoint reports it again. No check asks that an interrupt is reported only once: the directed tests "
+        "raise none, and the exploration, which does, has no rule about how often one arrives."
+    ),
+    "kernel/src/mem.rs:60:- becomes +": (
+        "A hole in the checks, at one boundary. Rounding up to whole pages then goes wrong only for a size that "
+        "is a whole number of pages or one byte short of it. The function is used only for the size of the boot "
+        "archive, and the archive the model boots from is neither."
+    ),
+    "kernel/src/mem.rs:154:assignment removed": (
+        "A hole in the checks, in a reported figure only. The number of pages the kernel itself occupies is then "
+        "never set. It appears in the statistics call and in the boot log; nothing decides by it, and no check "
+        "compares it."
+    ),
+    "kernel/src/mem.rs:196:== becomes !=": (
+        "Outside what the model can see. The kernel's own half of every address space would then map page zero "
+        "and nothing else. The model calls the kernel's functions directly and never runs the kernel through its "
+        "page tables, and no check reads that half. In QEMU the kernel could not go on once paging is switched "
+        "on; that is a judgment, since the mutants were not run there."
+    ),
+    "kernel/src/mem.rs:296:&& becomes ||": (
+        "Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel "
+        "itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops "
+        "the kernel."
+    ),
+    "kernel/src/mem.rs:514:condition inverted": (
+        "Outside what the model can see. After an unmapping the kernel reloads the address space so that the "
+        "processor forgets the old translations. The function is only ever called for the calling task, whose "
+        "address space is the loaded one, so the changed kernel simply never reloads, and the simulated machine "
+        "keeps no translations that could go stale. On a real processor a task could go on using a page it has "
+        "given back. Whether the tests in QEMU notice was not tried."
+    ),
+    "kernel/src/sys.rs:86:assignment removed": (
+        "A hole in the checks. A read from an I/O port then leaves the caller's register as it was instead of "
+        "returning the value read. No check looks at that value: the simulated port always reads as zero, and "
+        "the helper the tests use returns only the status of the call."
+    ),
+    "kernel/src/sys.rs:154:< becomes <=": (
+        "A hole in the checks. A port capability that begins at the first port of its source can then no longer "
+        "be derived. The directed tests derive one port capability, out of the middle of the capability for "
+        "every port, and none that begins where its source begins. The changed kernel refuses more, not less."
+    ),
+    "kernel/src/sys.rs:324:> becomes >=": (
+        "A hole in the checks. A spawn that asks for exactly the memory quota its caller has left is then "
+        "refused. No test asks for exactly that much. The changed kernel refuses more, not less."
+    ),
+    "kernel/src/task.rs:29:&& becomes ||": (
+        "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
+        "and all three of its parts hold for the constants as they are, so the changed kernel is the same program."
+    ),
+    "kernel/src/task.rs:201:< becomes <=": (
+        "A hole in the checks. The frame just past the range of a memory capability then counts as covered by "
+        "it. The function decides which pages of device memory are unmapped after a capability is dropped or "
+        "revoked, and the checker asks it the same question, so the checker is weakened in the same way. It "
+        "would show only when a task loses a capability for device memory while it still holds one for the "
+        "range just below, and no test does that."
+    ),
+    "kernel/src/task.rs:356:!= becomes ==": (
+        "A hole in the checks, in a counter only. The number of task switches is then counted wrongly. It is "
+        "reported by the statistics call; nothing decides by it, the summary of a state leaves counters out, and "
+        "no check reads it."
+    ),
+    "kernel/src/task.rs:423:assignment removed": (
+        "Makes no difference in any state the kernel can reach, as far as reading shows. The line resets the "
+        "deadline of a task that is not waiting. Every path that ends a wait already sets the deadline to never "
+        "and every path that begins one writes a new deadline, so the branch guards against a state that does "
+        "not arise."
+    ),
+    "kernel/src/task.rs:647:assignment removed": (
+        "Makes no difference that a check could see, as far as reading shows; this is the least certain of these "
+        "judgments. The function writes the task's state again before it returns. In between, the only code that "
+        "reads states is the waking of tasks queued on an endpoint whose last receiver is gone, and the most it "
+        "could do is wake the dying task itself, whose state is then overwritten."
+    ),
+}
+
+MUTANT_KEYS = (
+    "sites", "sample", "compiled", "not_compiled", "caught", "not_caught", "caught_by_failed_check",
+    "caught_by_panic", "caught_by_time_limit", "caught_by_tables", "caught_by_exploration", "caught_percent",
+)
+
+
+def survivor_key(mutant: dict) -> str:
+    return f"{mutant['file']}:{mutant['line']}:{mutant['operator']}"
+
+
+def add_mutant_run(put: Put, prefix: str, table_name: str, mutants: dict, source: str, command: str) -> None:
+    """The figures of one sample of mutants, and the table of those that no check caught."""
+    if not mutants:
+        raise KeyError(f"{source} is missing; run {command}")
+    summary = mutants["summary"]
+    for key in MUTANT_KEYS:
+        put(f"{prefix}.{key}", summary[key], source)
+
+    def code(text: str) -> str:
+        return "`" + text.strip().replace("|", "\\|") + "`"
+
+    survivors = [mutant for mutant in mutants["mutants"] if mutant["verdict"] == "not caught"]
+    if len(survivors) != summary["not_caught"]:
+        raise ValueError(f"{source}: the list of mutants does not match its summary")
+    judged = dict.fromkeys(JUDGMENTS.values(), 0)
+    rows = []
+    for mutant in survivors:
+        key = survivor_key(mutant)
+        if key not in SURVIVORS:
+            raise KeyError(f"{source}: no check caught {key} and SURVIVORS has no note on it; read the code, add one")
+        verdict = next((name for name in JUDGMENTS if SURVIVORS[key].startswith(name)), None)
+        if verdict is None:
+            raise ValueError(f"the note on {key} must begin with one of: {'; '.join(JUDGMENTS)}")
+        judged[JUDGMENTS[verdict]] += 1
+        rows.append([
+            f"`{mutant['file']}`, line {mutant['line']}",
+            mutant["operator"].replace("|", "\\|"),
+            code(mutant["before"]),
+            code(mutant["after"]),
+            SURVIVORS[key],
+        ])
+    put(table_name, table(["Where", "Change", "Before", "After", "Why no check caught it"], rows), source)
+    for name, count in judged.items():
+        put(f"{prefix}.{name}", count, f"{source}, as judged in tools/claims.py")
+
+
+def add_mutants(put: Put, mutants: dict, held_out: dict) -> None:
+    """The kernel broken on purpose, one place at a time: python build.py mutants, with and without --held-out."""
+    add_mutant_run(put, "mutants", "table.mutants_not_caught", mutants, MUTANTS, "python build.py mutants")
+    add_mutant_run(
+        put, "mutants.held_out", "table.mutants_held_out_not_caught", held_out, MUTANTS_HELD_OUT,
+        "python build.py mutants --held-out",
+    )
+
+    def identity(mutant: dict) -> tuple:
+        return mutant["file"], mutant["line"], mutant["operator"], mutant["after"]
+
+    if {identity(mutant) for mutant in mutants["mutants"]} & {identity(mutant) for mutant in held_out["mutants"]}:
+        raise ValueError(f"{MUTANTS_HELD_OUT} shares a mutant with {MUTANTS}; it is not held out")
+
+    # A note that belongs to no surviving mutant has outlived what it describes.
+    alive = {
+        survivor_key(mutant)
+        for run in (mutants, held_out)
+        for mutant in run["mutants"]
+        if mutant["verdict"] == "not caught"
+    }
+    stale = sorted(set(SURVIVORS) - alive)
+    if stale:
+        raise ValueError(f"SURVIVORS has notes on mutants that did not survive: {', '.join(stale)}")
+
+    # The first run, before any test was written against a mutant that got away.
+    before = re.search(
+        r"MUTANTS: (\d+) of (\d+) caught(?: \(\d+%\))?, (\d+) not caught",
+        "\n".join(evidence_lines("mutants-before-tests.log")),
+    )
+    for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
+        put(f"mutants.before.{key}", int(value), MUTANTS_BEFORE)
+
+
 def collect() -> dict[str, dict]:
     """Every claim, as key -> {"value": ..., "source": the file it was computed from}."""
     claims: dict[str, dict] = {}
@@ -483,6 +760,8 @@ def collect() -> dict[str, dict]:
         web,
         NONX_SERIAL_LOG.read_text(encoding="utf-8").splitlines(),
     )
+    add_model(put, gates.load("model.json"))
+    add_mutants(put, gates.load("mutants.json"), gates.load("mutants-held-out.json"))
     return claims
 
 

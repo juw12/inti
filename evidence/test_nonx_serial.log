@@ -4,10 +4,10 @@ kernel: 552 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 15555 pages
-Inti 0.1.0 shell ready at t=18065 us
+Inti 0.1.0 shell ready at t=18053 us
 Type help for the list of commands, or tour for a guided tour.
-inti> selftest
+inti> init: started shell with 11 capabilities, 15555 pages
+selftest
 Each line is one promise of the kernel, checked from user space.
   ok   the kernel's invariants hold at the start
   ok   the kernel has met nothing unexpected so far

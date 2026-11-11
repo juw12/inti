@@ -13,7 +13,7 @@ How to read it: figures and failure behaviour of other systems carry a link in t
 | Kernel language | Rust, with {{count.unsafe_kernel}} `unsafe` blocks | C, with Rust support being added ([kernel.org](https://docs.kernel.org/rust/index.html)) | C and C++ ([MSRC](https://www.microsoft.com/en-us/msrc/blog/2019/07/a-proactive-approach-to-more-secure-code)) | C and assembler ([Klein and others, SOSP 2009](https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf)) | C | Rust ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
 | Kernel size | {{loc.kernel_total}} lines | "over 8 million lines" by its own, old, documentation ([kernel.org](https://docs.kernel.org/process/1.Intro.html)) | not published | 8,700 lines of C and 600 of assembler when it was verified ([Klein and others, SOSP 2009](https://www.sel4.systems/Research/pdfs/sel4-formal-verification-os-kernel.pdf)) | about 4,000 lines of executable kernel code ([MINIX 3 documentation](https://wiki.minix3.org/doku.php?id=www:documentation:reliability)) | under 40,000 lines of Rust ([Redox book](https://doc.redox-os.org/book/microkernels.html)) |
 | How a program gets access | only through capabilities it was handed, at its start or in a message; whoever handed one out can revoke every copy | users and permissions; a program runs with the ambient authority of its user ([Watson and others](https://www.usenix.org/legacy/event/sec10/tech/full_papers/Watson.pdf)) | users and access control lists | capabilities ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | not compared | not compared |
-| Evidence that the kernel is correct | {{selftest.checks}} self-tests, {{fuzz.calls}} fuzzed system calls, a run-time checker with {{count.invariant_rules}} rules; **no proof** | not compared | not compared | machine-checked proofs of functional correctness, integrity and confidentiality ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | not compared | not compared |
+| Evidence that the kernel is correct | {{selftest.checks}} self-tests, {{fuzz.calls}} fuzzed system calls, a run-time checker with {{count.invariant_rules}} rules, {{model.states}} states explored on a host model, {{mutants.held_out.caught}} of {{mutants.held_out.compiled}} planted defects caught in a sample that no test was aimed at; **no proof** | not compared | not compared | machine-checked proofs of functional correctness, integrity and confidentiality ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) | not compared | not compared |
 
 Reading this table fairly:
 
@@ -31,7 +31,7 @@ Reading this table fairly:
 | Storage | a read-only archive loaded at boot; nothing is saved | real file systems |
 | Programs | {{size.programs}} small ones, and a shell without pipes or scripts | everything people use computers for |
 | Drivers | one, for the screen, the keyboard and the serial port | thousands |
-| Assurance | tests, a fuzzer and a run-time checker, by one author | decades of use; for seL4, proofs |
+| Assurance | tests, a fuzzer, a run-time checker and a bounded exploration on a host, by one author | decades of use; for seL4, proofs |
 | Age | built in one session on {{gates.date}} | years to decades |
 
 ## Where Inti is ahead, and how narrow that is
@@ -43,9 +43,9 @@ Reading this table fairly:
 ## Where Inti loses
 
 - **Hardware and software.** No real hardware, no network, no persistent storage, no applications, one processor.
-- **Assurance.** No formal verification, one author, one day. seL4's proofs are in a different class.
+- **Assurance.** No formal verification, one author, one day. The exploration of the kernel on a host covers small configurations to a small depth and proves nothing beyond them. seL4's proofs are in a different class.
 - **Security mechanisms.** W^X is enforced only on processors with the no-execute bit and has only been shown in emulators; there is no address-space randomisation and no IOMMU. Revocation takes back all copies of a capability or none, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
-- **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; the scheduler has no processor quotas, so a program can take its full share of the processor; page tables are freed only when a task ends.
+- **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; the scheduler has no processor quotas, so a program can take its full share of the processor.
 - **Performance.** Never measured outside an emulator, so nothing is claimed.
 
 The full list is in [How Inti works](design.md), under "Limitations".

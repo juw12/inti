@@ -3,7 +3,7 @@
     python tools/check_claims.py
 
 This is gate G9. It prints each problem as `file:line: what is wrong` and exits with 0 only
-if there is none. It checks five things:
+if there is none. It checks six things:
 
 1. evidence/claims.json is what tools/claims.py computes right now from the evidence files
    and the source code.
@@ -13,6 +13,9 @@ if there is none. It checks five things:
    in a paragraph, list item or table row that carries a source URL.
 4. A number in code formatting occurs as a literal in the source code or the build scripts.
 5. Every line of a log excerpt is a line of the raw log it was cut from.
+6. The figures of the model and of both samples of mutants were measured on the sources as
+   they are now. Each of those results carries a fingerprint of every Rust file in
+   kernel/src, abi/src and model/src; a result with another fingerprint is refused.
 """
 from __future__ import annotations
 
@@ -42,7 +45,7 @@ INLINE_CODE = re.compile(r"`[^`]*`")
 BLOCK_START = re.compile(r"^\s*(\||#|[-*+] |\d+\. )")
 LIST_NUMBER = re.compile(r"\d+\.")
 # Fence label -> the claims it may show.
-LOG_FENCES = {"log": "log.", "weblog": "weblog.", "nonxlog": "nonxlog."}
+LOG_FENCES = {"log": "log.", "weblog": "weblog.", "nonxlog": "nonxlog.", "modellog": "modellog."}
 
 Problem = tuple[str, int, str]
 Lines = list[tuple[int, str]]
@@ -204,6 +207,11 @@ def check_excerpts() -> tuple[list[Problem], int]:
         "log": {line.rstrip() for line in claims.SERIAL_LOG.read_text(encoding="utf-8").splitlines()},
         "weblog": {line.rstrip() for line in gates.load("web.json")["serial"].splitlines()},
         "nonxlog": {line.rstrip() for line in claims.NONX_SERIAL_LOG.read_text(encoding="utf-8").splitlines()},
+        "modellog": {
+            line.rstrip()
+            for name in ("model.log", "model-before-fixes.log")
+            for line in claims.evidence_lines(name)
+        },
     }
     problems: list[Problem] = []
     compared = 0
@@ -221,6 +229,23 @@ def check_excerpts() -> tuple[list[Problem], int]:
     return problems, compared
 
 
+def check_fresh() -> list[Problem]:
+    """Rule 6: the model and both samples of mutants were run on the kernel and the model as they are now."""
+    fingerprint = claims.model_fingerprint()
+    problems: list[Problem] = []
+    for source, name, command in (
+        (claims.MODEL, "model.json", "python build.py model"),
+        (claims.MUTANTS, "mutants.json", "python build.py mutants"),
+        (claims.MUTANTS_HELD_OUT, "mutants-held-out.json", "python build.py mutants --held-out"),
+    ):
+        if gates.load(name).get("source_sha256") != fingerprint:
+            problems.append((
+                source, 0,
+                f"not measured on the kernel and model source as they are now; run {command}",
+            ))
+    return problems
+
+
 def main() -> int:
     problems: list[Problem] = []
     computed: dict = {}
@@ -228,6 +253,7 @@ def main() -> int:
         computed = claims.collect()
         problems += check_claims_file(computed)
         problems += check_documents(computed)
+        problems += check_fresh()
     except (KeyError, OSError, ValueError) as error:
         problems.append(("evidence", 0, f"the claims cannot be computed or rendered: {error}"))
 

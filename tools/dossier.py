@@ -32,6 +32,8 @@ EXCERPTS = (
     ("kernel/src/check.rs", "check_caps", "Rule 19 of the invariant checker: authority only narrows."),
     ("kernel/src/elf.rs", "load_segment", "Loading a program: a segment that is writable and executable is refused."),
     ("kernel/src/check.rs", "page_ok", "Rule 22 of the invariant checker, applied to every mapped user page."),
+    ("kernel/src/mem.rs", "drop_empty_table", "New in round 3: a page table that maps nothing goes back at once."),
+    ("model/src/explore.rs", "judge", "The explorer's verdict on one step: an error changes nothing, a restart is a fresh boot."),
     ("user/src/bin/init.rs", "ping_all", "The supervisor's health check, which keeps handling other failures while it waits."),
 )
 WHOLE_FILES = (
@@ -102,6 +104,48 @@ def no_nx_table(test: dict) -> str:
     )
 
 
+def model_table(model: dict) -> str:
+    scenarios = model["scenarios"]
+    measures = (
+        ("depth", "Depth reached"),
+        ("states", "States"),
+        ("transitions", "Steps"),
+        ("violations", "Violations"),
+        ("deliveries", "Deliveries compared with what was sent"),
+        ("replies", "Replies compared with what was sent"),
+        ("restarts", "Restarts compared with a fresh boot"),
+        ("beyond_budget", "Steps left out because a budget was reached"),
+        ("pairs", "Ordered pairs of failure kinds met"),
+    )
+    rows = [[label, *[scenario[key] for scenario in scenarios]] for key, label in measures]
+    rows += [
+        [f"Steps that ended with: {code}", *[scenario["results"][code] for scenario in scenarios]]
+        for code in scenarios[0]["results"]
+    ]
+    return claims.table(["Measure", *[f"`{scenario['name']}`" for scenario in scenarios]], rows)
+
+
+def mutants_table(first: dict, held_out: dict) -> str:
+    """Both samples side by side: mutant N of each comes from stretch N of the same ordered list of places."""
+
+    def place(mutant: dict) -> str:
+        change = mutant["operator"].replace("|", "\\|")
+        return f"`{mutant['file'].removeprefix('kernel/src/')}:{mutant['line']}` {change}"
+
+    def outcome(mutant: dict) -> str:
+        if mutant["verdict"] != "caught":
+            return mutant["verdict"].upper()
+        return f"{mutant['how']}, {mutant['by']}"
+
+    return claims.table(
+        ["Stretch", "First sample", "Outcome", "Held-out sample", "Outcome"],
+        [
+            [one["number"], place(one), outcome(one), place(other), outcome(other)]
+            for one, other in zip(first["mutants"], held_out["mutants"], strict=True)
+        ],
+    )
+
+
 def main() -> int:
     test = gates.load("test.json")
     result = gates.load("gates.json")
@@ -145,6 +189,14 @@ def main() -> int:
             ["Command typed in the browser", "Result", "Seconds"],
             [[f"`{name}`", "pass" if entry["ok"] else "FAIL", entry["seconds"]] for name, entry in web["commands"].items()],
         )
+    )
+    parts.append("## The model run, scenario by scenario\n\n" + model_table(gates.load("model.json")))
+    parts.append(
+        "## Every sampled mutant\n\n"
+        "Both samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
+        "caught and by which run of the model: `tables` are the directed tests, `explore` is an exploration. "
+        "NOT CAUGHT marks a survivor, and each survivor is explained in the design document above.\n\n"
+        + mutants_table(gates.load("mutants.json"), gates.load("mutants-held-out.json"))
     )
     text = "\n\n".join(parts) + "\n"
     OUTPUT.write_text(text, encoding="utf-8", newline="\n")

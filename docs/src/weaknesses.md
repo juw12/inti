@@ -62,6 +62,7 @@ The same two faults in the browser demo, where the emulator is slower:
 
 - Rust's guarantees end where `unsafe` begins. The {{count.unsafe_kernel}} blocks were written and reviewed by one author; they are not verified.
 - Memory safety does not rule out logic errors. The checker and the fuzzer found none in this run, which is evidence and not proof. seL4 has machine-checked proofs of functional correctness ([seL4 FAQ](https://sel4.systems/About/FAQ.html)); Inti has nothing of that kind.
+- The checks on the build machine have holes, and some are known by name. A tool plants small defects in the kernel one at a time and counts how many the model notices. In a sample of {{mutants.held_out.compiled}} for which no test was written, the model caught {{mutants.held_out.caught}} and missed {{mutants.held_out.not_caught}}, and {{mutants.held_out.judged_hole}} of those it missed change what the kernel does. They are listed under "The mutation check" in [How Inti works](design.md) and are open work. None of the planted defects was run in QEMU.
 - The fuzzer is random, not guided by coverage, and its programs hold no capability for the kernel log, so that one call is fuzzed only up to its capability check.
 - W^X stops a program from running code it wrote into its own data, but only on a processor with the no-execute bit, and Inti has only run in emulators. It does nothing against the reuse of code that is already in the program, and there is no address-space randomisation.
 

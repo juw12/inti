@@ -2,17 +2,22 @@
 //!
 //! The explorer (`explore.rs`) visits every state within a few steps of some starting
 //! points. These tests go where it does not get: to the far end of every table (all 32
-//! tasks, all 64 endpoints, the last free frame, the last capability slot), through whole
-//! seconds of time, and into states that only a broken kernel could be in - to see whether
-//! the kernel's invariant checker, on which the explorer leans, would notice them.
+//! tasks, all 64 endpoints, the last free frame, the last capability slot), to the edges of
+//! every range and across page boundaries, through whole seconds of time, and into states
+//! that only a broken kernel could be in - to see whether the kernel's invariant checker,
+//! on which the explorer leans, would notice them.
 
 use crate::arch::{self, KERNEL_MAP};
 use crate::mem::{frame_of, FOREIGN, NX, RW, US};
 use crate::task::{link, Cap, State, NONE, ORIGINAL};
-use crate::world::{Spawn, World, BUFFER, CHILD_FRAMES, LARGE, ROOT_FRAMES, SMALL};
+use crate::world::{
+    elf_headers, Spawn, World, BUFFER, CHILD_FRAMES, FAULT_BADGE, IMAGE_SIZE, LARGE, ROOT_FRAMES, SMALL,
+};
+use crate::{get32, put32};
+use abi::nr;
 use abi::{
-    E_FAULT, E_INVAL, E_NOMEM, E_NOSLOT, E_TIMEOUT, FOREVER, MAP_WRITE, MAX_ENDPOINTS, MAX_TASKS, NO_CAP, PAGE, R_GRANT,
-    R_SEND, USER_BASE,
+    E_FAULT, E_INVAL, E_NOCAP, E_NOMEM, E_NOSLOT, E_PERM, E_TIMEOUT, FOREVER, INFO_TASK, L_FAULT, L_KERNEL, MAP_WRITE,
+    MAX_ENDPOINTS, MAX_TASKS, MSG_DATA, MSG_HEADER, NO_CAP, PAGE, R_GRANT, R_SEND, ST_READY, USER_BASE, USER_END,
 };
 
 /// Where the tasks of these tests map memory of their own, and the memory of a device.
@@ -43,7 +48,13 @@ impl Tally {
 
     /// Everything that must hold after any step of any task holds in this state.
     fn sound(&mut self, w: &mut World, name: &str) {
-        match w.verify() {
+        let verdict = w.verify();
+        self.verdict(verdict, name);
+    }
+
+    /// What `World::verify` found, now or after earlier steps.
+    fn verdict(&mut self, verdict: Result<(), String>, name: &str) {
+        match verdict {
             Ok(()) => self.check(name, true),
             Err(problem) => self.check(&format!("{name}: {problem}"), false),
         }
@@ -352,6 +363,341 @@ fn revoked_buffer(tally: &mut Tally) {
     }
 }
 
+// ---- Edges, whole messages, a larger program, reports, turns ------------------------------------
+
+fn word_at(w: &World, t: usize, va: u32) -> u32 {
+    let mut word = [0; 4];
+    w.peek(t, va, &mut word);
+    u32::from_le_bytes(word)
+}
+
+/// The slot that a system call returned, if it returned one.
+fn slot_of(result: Option<i32>) -> Option<u32> {
+    result.filter(|slot| *slot >= 0).map(|slot| slot as u32)
+}
+
+/// The capability that the root task holds in the slot that a system call returned.
+fn held(w: &World, result: Option<i32>) -> Cap {
+    slot_of(result).map_or(Cap::Null, |slot| w.k.tasks[0].caps[slot as usize])
+}
+
+/// The root task reads `width` ports from `port` on, or writes them.
+fn port_in(w: &mut World, slot: u32, port: u32, width: u32) -> Option<i32> {
+    w.syscall(0, nr::IO_IN, [slot, port, width, 0])
+}
+
+fn port_out(w: &mut World, slot: u32, port: u32, width: u32) -> Option<i32> {
+    w.syscall(0, nr::IO_OUT, [slot, port, width, 0])
+}
+
+fn edges(tally: &mut Tally) {
+    tally.section("The edges of every range");
+    let mut w = World::boot(SMALL, true);
+    let Cap::Memory { page: screen, pages: 8, write: true } = w.k.tasks[0].caps[4] else {
+        tally.check("the root task holds the eight pages of the screen, to write", false);
+        return;
+    };
+    let pd = w.k.tasks[0].pd;
+
+    // User space: a range may end at its top, and not one page beyond.
+    let last = USER_END - PAGE;
+    let across = [w.map(0, last, 2, true), w.unmap(0, last, 2), w.map_mem(0, 4, last, 0, 2)];
+    tally.check(
+        "two pages from the last page of user space on are refused with E_INVAL: to map, to unmap, and for a device",
+        across == [Some(E_INVAL); 3] && w.k.mem.lookup(pd, last).is_none(),
+    );
+    let mapped = w.map(0, last, 1, true) == Some(0) && w.poke(0, USER_END - 1, &[0x5A]);
+    tally.check(
+        "the last page itself can be mapped, and written to its last byte",
+        mapped && word_at(&w, 0, USER_END - 4) == 0x5A00_0000,
+    );
+    let unmapped = w.unmap(0, last, 1) == Some(0) && w.k.mem.lookup(pd, last).is_none();
+    tally.check("and unmapped again", unmapped);
+    tally.sound(&mut w, "the state afterwards is sound");
+
+    // Parts of a Memory capability.
+    let middle = w.derive(0, 4, 2, 3, 1);
+    let tail = w.derive(0, 4, 5, 3, 0);
+    tally.check(
+        "three pages from the middle of the screen can be derived from its capability, to write",
+        held(&w, middle) == Cap::Memory { page: screen + 2, pages: 3, write: true },
+    );
+    tally.check(
+        "and its last three pages, to read only",
+        held(&w, tail) == Cap::Memory { page: screen + 5, pages: 3, write: false },
+    );
+    let Some(tail) = slot_of(tail) else { return };
+    let refused = [w.derive(0, 4, 6, 3, 0), w.derive(0, 4, 8, 1, 0), w.derive(0, 4, 0, 0, 0), w.derive(0, tail, 0, 1, 1)];
+    tally.check(
+        "a part that ends beyond the screen, starts at its end or has no pages is refused with E_PERM, \
+         and so is a part to write from a part to read",
+        refused == [Some(E_PERM); 4],
+    );
+
+    // Mapping through a Memory capability.
+    let whole = w.map_mem(0, 4, DEVICE_VA, 6, 2 | MAP_WRITE);
+    let frame = w.k.mem.lookup(pd, DEVICE_VA + PAGE).map(frame_of);
+    tally.check(
+        "the last two pages of the screen can be mapped, and the second is its last page",
+        whole == Some(0) && frame == Some((screen + 7) * PAGE),
+    );
+    let beyond = w.map_mem(0, 4, DEVICE_VA + 2 * PAGE, 7, 2);
+    tally.check(
+        "two pages from its last page on are refused with E_INVAL, and nothing is mapped",
+        beyond == Some(E_INVAL) && w.k.mem.lookup(pd, DEVICE_VA + 2 * PAGE).is_none(),
+    );
+    let to_write = w.map_mem(0, tail, DEVICE_VA + 2 * PAGE, 0, 1 | MAP_WRITE);
+    let to_read = w.map_mem(0, tail, DEVICE_VA + 2 * PAGE, 0, 1);
+    let mapping = w.k.mem.lookup(pd, DEVICE_VA + 2 * PAGE);
+    tally.check(
+        "through the part to read a page can be mapped to read (it cannot be written), and not to write (E_PERM)",
+        to_write == Some(E_PERM) && to_read == Some(0) && mapping.is_some_and(|mapping| mapping & RW == 0),
+    );
+    tally.sound(&mut w, "the state with these mappings is sound");
+
+    // Ports: an access is `width` ports wide, and every one of them must be allowed.
+    let serial = w.derive(0, 2, 0x3F8, 0x3FF, 0);
+    tally.check(
+        "the eight ports of the serial line can be derived from the capability for every port",
+        held(&w, serial) == Cap::IoPort { first: 0x3F8, last: 0x3FF },
+    );
+    let Some(serial) = slot_of(serial) else { return };
+    let inside = [(0x3F8, 1), (0x3FF, 1), (0x3FC, 4)].map(|(port, width)| port_in(&mut w, serial, port, width));
+    tally.check("through it the first port can be read, the last, and the last four at once", inside == [Some(0); 3]);
+    let outside = [(0x3F7, 1), (0x400, 1), (0x3FF, 2), (0x3FD, 4)].map(|(port, width)| port_in(&mut w, serial, port, width));
+    tally.check(
+        "the port below, the port above, and two or four ports that begin inside and end above are refused with E_PERM",
+        outside == [Some(E_PERM); 4],
+    );
+    let wrapped = port_in(&mut w, 2, 0xFFFF, 2);
+    tally.check("two ports from the last port there is are refused with E_PERM", wrapped == Some(E_PERM));
+    let wider = [(0x3F0, 0x3FF), (0x3F8, 0x400), (0x3FF, 0x3F8)].map(|(first, last)| w.derive(0, serial, first, last, 0));
+    tally.check(
+        "a range that begins below, ends above, or ends before it begins cannot be derived from it (E_PERM)",
+        wider == [Some(E_PERM); 3],
+    );
+    let widths = [0, 3, 8].map(|width| port_in(&mut w, 2, 0x3F8, width));
+    tally.check("an access that is 0, 3 or 8 ports wide is refused with E_INVAL", widths == [Some(E_INVAL); 3]);
+
+    let kept = [(0x20, 1), (0x21, 1), (0x1F, 2), (0x40, 1), (0x43, 1), (0x3D, 4), (0x61, 1), (0xA0, 1), (0xA1, 1)];
+    let beside = [(0x1F, 1), (0x22, 2), (0x3C, 4), (0x44, 1), (0x60, 1), (0x62, 2), (0x9F, 1), (0xA2, 1)];
+    let refused = kept.map(|(port, width)| port_out(&mut w, 2, port, width));
+    let allowed = beside.map(|(port, width)| port_out(&mut w, 2, port, width));
+    tally.check(
+        "the ports the kernel keeps to itself are refused with E_PERM even to the capability for every port, \
+         also to an access that only ends in them",
+        refused == [Some(E_PERM); 9],
+    );
+    tally.check("the ports beside them, up to the very next one, are not", allowed == [Some(0); 8]);
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// A message of the largest size there is, whose header claims still more: that it comes
+/// from the kernel, and that it holds more data than a message can.
+fn oversize(label: u32, first: u8) -> [u8; MSG_HEADER + MSG_DATA] {
+    let mut message = [0; MSG_HEADER + MSG_DATA];
+    put32(&mut message, 0, L_KERNEL | label);
+    put32(&mut message, 12, u32::MAX);
+    put32(&mut message, 32, NO_CAP);
+    for (i, byte) in message[MSG_HEADER..].iter_mut().enumerate() {
+        *byte = first.wrapping_add(i as u8);
+    }
+    message
+}
+
+fn messages(tally: &mut Tally) {
+    tally.section("Messages: their order, their size, and buffers that lie across two pages");
+    let mut w = World::boot(SMALL, true);
+    let mut built = w.ep_create(0) == Some(6);
+    // All three copies first: each spawn takes a slot of the root task for the handle.
+    for (i, badge) in [0xA1, 0xA2, 0xA3].into_iter().enumerate() {
+        built &= w.derive(0, 6, R_SEND, badge, 0) == Some(7 + i as i32);
+    }
+    for client in 1..=3 {
+        built &= w.spawn_task(0, &Spawn::PLAIN.with_caps(&[6 + client as u32])) == Ok(client);
+    }
+    built &= w.map(0, HEAP, 2, true) == Some(0) && w.map(1, HEAP, 2, true) == Some(0);
+    tally.check("three clients start, each with a send-only copy of one endpoint under a badge of its own", built);
+    if !built {
+        return;
+    }
+
+    // Callers are served in the order in which they called, whatever their numbers.
+    let mut served = true;
+    for client in [3, 1, 2] {
+        served &= w.call(client, 0, NO_CAP, FOREVER).is_none();
+    }
+    let (mut heard, mut intact) = ([0; 3], Ok(()));
+    for badge in &mut heard {
+        served &= w.recv(0, 6, FOREVER) == Some(0);
+        intact = intact.and(w.verify());
+        *badge = word_at(&w, 0, BUFFER + 4);
+        let token = w.token(0);
+        served &= w.reply(0, token, NO_CAP) == Some(0);
+        intact = intact.and(w.verify());
+    }
+    tally.check(
+        "clients that call in the order 3, 1, 2 are heard in that order, each under its badge",
+        served && heard == [0xA3, 0xA1, 0xA2],
+    );
+    tally.verdict(intact, "each of the three messages and each answer arrived intact");
+
+    // A message of the full size that claims still more, in buffers that lie across two pages.
+    let (sent_at, received_at, answered_at) = (HEAP + PAGE - 100, HEAP + PAGE - 200, HEAP + PAGE - 30);
+    let sent = oversize(0x77, 3);
+    let called = w.poke(1, sent_at, &sent) && w.syscall(1, nr::CALL, [0, sent_at, FOREVER, 0]).is_none();
+    let received = w.syscall(0, nr::RECV, [6, received_at, FOREVER, 0]) == Some(0);
+    let mut arrived = [0; MSG_HEADER + MSG_DATA];
+    w.peek(0, received_at, &mut arrived);
+    tally.check("a call and a receive with such buffers succeed", called && received);
+    tally.check("all 256 bytes of the data arrive", arrived[MSG_HEADER..] == sent[MSG_HEADER..]);
+    tally.check(
+        "the label arrives without the bit that marks a message from the kernel, under the badge of the caller's copy",
+        get32(&arrived, 0) == 0x77 && get32(&arrived, 4) == 0xA1,
+    );
+    tally.check("a length that claims more than a message can hold arrives as 256", get32(&arrived, 12) == MSG_DATA as u32);
+    let answer = oversize(0x78, 9);
+    let token = get32(&arrived, 8);
+    let answered = w.poke(0, answered_at, &answer) && w.syscall(0, nr::REPLY, [token, answered_at, 0, 0]) == Some(0);
+    let mut back = [0; MSG_HEADER + MSG_DATA];
+    w.peek(1, sent_at, &mut back);
+    let whole = get32(&back, 0) == 0x78 && get32(&back, 12) == MSG_DATA as u32 && back[MSG_HEADER..] == answer[MSG_HEADER..];
+    tally.check("the answer arrives in the same way, in the buffer of the call", answered && whole && woke_with(&w, 1, 0));
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+fn larger_program(tally: &mut Tally) {
+    // More than one page of file, and memory beyond the end of the file.
+    const FILE: u32 = 5000;
+    const MEMORY: u32 = 9000;
+    tally.section("A program of more than one page");
+    let mut w = World::boot(SMALL, true);
+    let mut program = vec![0; FILE as usize];
+    elf_headers(&mut program, FILE, MEMORY);
+    for (i, byte) in program.iter_mut().enumerate().skip(IMAGE_SIZE as usize) {
+        *byte = (i % 251) as u8 | 1;
+    }
+    let placed = w.map(0, HEAP, 2, true) == Some(0) && w.poke(0, HEAP + 0x100, &program);
+    let started = w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, FILE);
+    let name = format!("a program of {FILE} bytes that asks for {MEMORY} bytes of memory starts");
+    let Some(slot) = slot_of(started).filter(|_| placed) else {
+        tally.check(&format!("{name}: {started:?}"), false);
+        return;
+    };
+    tally.check(&name, true);
+    let child = w.child(0, slot);
+    let mut loaded = vec![0xEE; 3 * PAGE as usize];
+    let read = w.peek(child, USER_BASE, &mut loaded);
+    let (file, rest) = loaded.split_at(FILE as usize);
+    tally.check("every byte of the file is in the memory of the new task", read && file == &program[..]);
+    tally.check("the memory beyond the file is zero, to the end of its last page", read && rest.iter().all(|byte| *byte == 0));
+    tally.check(
+        "the task holds two frames more than a task with one page of program",
+        w.k.tasks[child].charged == CHILD_FRAMES + 2,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+fn reports(tally: &mut Tally) {
+    // Where the root task has its reports written: in its stack page, clear of its messages.
+    const REPORT: u32 = BUFFER + 0x400;
+    tally.section("What the kernel reports about a task, and about its end");
+    let mut w = World::boot(SMALL, true);
+    let endpoint = w.ep_create(0);
+    let listening = Spawn { fault: 6, ..Spawn::PLAIN };
+    let spec = Spawn { tasks: 2, eps: 3, ..listening }.with_caps(&[0, 1]);
+    let (Ok(child), Ok(plain)) = (w.spawn_task(0, &spec), w.spawn_task(0, &Spawn::PLAIN)) else {
+        tally.check("two tasks start", false);
+        return;
+    };
+    w.time(child);
+    w.time(child);
+    let task = &w.k.tasks[child];
+    let expected = [ST_READY, 0, task.gen as u32, spec.quota, task.charged, task.cpu_ticks, 2, 2, 2, 3];
+    let asked = w.syscall(0, nr::SYSINFO, [1, INFO_TASK, child as u32, REPORT]);
+    let mut report = [0; 52];
+    w.peek(0, REPORT, &mut report);
+    let words: Vec<u32> = (0..10).map(|i| get32(&report, 12 + 4 * i)).collect();
+    if words != expected {
+        println!("  note  the kernel reports {words:?} where this model expects {expected:?}");
+    }
+    tally.check(
+        "the root task is told the name under which a task was started",
+        endpoint == Some(6) && asked == Some(0) && report[..12] == *b"model\0\0\0\0\0\0\0",
+    );
+    tally.check(
+        "and its state, parent, generation, memory quota, frames, timer ticks, system calls and capabilities, \
+         and how many tasks and endpoints it may create",
+        words == expected,
+    );
+    let refused = [
+        w.syscall(plain, nr::SYSINFO, [0, INFO_TASK, child as u32, REPORT]),
+        w.syscall(0, nr::SYSINFO, [0, INFO_TASK, child as u32, REPORT]),
+        w.syscall(0, nr::SYSINFO, [1, INFO_TASK, MAX_TASKS as u32, REPORT]),
+        w.syscall(0, nr::SYSINFO, [1, INFO_TASK, child as u32, HEAP]),
+    ];
+    tally.check(
+        "a task with an empty slot is told nothing (E_NOCAP), nor is one that shows another capability (E_NOCAP); \
+         a number beyond the task table is refused (E_INVAL), and so is a place that is not mapped (E_FAULT)",
+        refused == [Some(E_NOCAP), Some(E_NOCAP), Some(E_INVAL), Some(E_FAULT)],
+    );
+
+    // The end of a task that was started with an endpoint for the news of it.
+    let eip = w.k.tasks[child].frame.eip;
+    w.fault(child, 0xDEAD_B000);
+    let told = w.syscall(0, nr::RECV, [6, BUFFER, FOREVER, 0]) == Some(0);
+    let mut notice = [0; MSG_HEADER];
+    w.peek(0, BUFFER, &mut notice);
+    tally.check(
+        "after a page fault that endpoint has a message from the kernel, under the badge chosen at the start",
+        told && get32(&notice, 0) == L_FAULT && get32(&notice, 4) == FAULT_BADGE,
+    );
+    let words = [16, 20, 24, 28].map(|at| get32(&notice, at));
+    tally.check(
+        "the message names the exception, the address, where the task was, and the error code",
+        words == [14, 0xDEAD_B000, eip, 4],
+    );
+    let Ok(second) = w.spawn_task(0, &listening) else {
+        tally.check("another task starts", false);
+        return;
+    };
+    let eip = w.k.tasks[second].frame.eip;
+    w.exception(second, 13, 0xDEAD_B000);
+    let told = w.syscall(0, nr::RECV, [6, BUFFER, FOREVER, 0]) == Some(0);
+    w.peek(0, BUFFER, &mut notice);
+    let words = [16, 20, 24, 28].map(|at| get32(&notice, at));
+    tally.check(
+        "after another exception the message names no address, whatever the last page fault left behind",
+        told && get32(&notice, 0) == L_FAULT && words == [13, 0, eip, 0],
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+fn turns(tally: &mut Tally) {
+    tally.section("Turns");
+    let mut w = World::boot(SMALL, true);
+    let (Ok(a), Ok(b)) = (w.spawn_task(0, &Spawn::PLAIN), w.spawn_task(0, &Spawn::PLAIN)) else {
+        tally.check("two tasks start", false);
+        return;
+    };
+    let tasks = [0, a, b];
+    let before = tasks.map(|t| w.k.tasks[t].cpu_ticks);
+    let mut ran = [0; 6];
+    for turn in &mut ran {
+        *turn = w.k.cur;
+        w.pass(10_000);
+    }
+    let used: Vec<u32> = (0..3).map(|i| w.k.tasks[tasks[i]].cpu_ticks.wrapping_sub(before[i])).collect();
+    println!("  note  six timer ticks find these tasks running: {ran:?}; of the ticks, the three tasks are charged {used:?}");
+    tally.check(
+        "each of three tasks that never wait has a turn within three timer ticks",
+        tasks.iter().all(|t| ran[..3].contains(t)),
+    );
+    tally.check("the turns come round again in the same order", ran[..3] == ran[3..]);
+    tally.check("each task is charged the two ticks that ended its turns", used == [2, 2, 2]);
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
 // ---- Would the checker notice? -----------------------------------------------------------------
 
 // The stage for the corruptions below. Tasks and endpoints get the lowest free numbers.
@@ -404,106 +750,114 @@ fn forge(w: &mut World, cap: Cap) {
     w.k.tasks[CLIENT].from[5] = ORIGINAL;
 }
 
-type Seed = (&'static str, fn(&mut World));
+/// A corruption, the rule of the checker that describes it (0 if none does), and how to plant it.
+type Seed = (&'static str, u32, fn(&mut World));
 
-/// States no sequence of system calls should lead to. The checker must report each.
+/// States no sequence of system calls should lead to. The checker must report each, and under
+/// the rule that describes it: a corruption that is reported only for what it does to something
+/// else is not yet known to be seen.
 const SEEDS: &[Seed] = &[
-    ("an endpoint counts one capability too many", |w| w.k.eps[SHARED].refs += 1),
-    ("an endpoint counts one receiver too many", |w| w.k.eps[SHARED].recv_refs += 1),
-    ("a copy has a right that its source lacks", |w| {
+    ("an endpoint counts one capability too many", 8, |w| w.k.eps[SHARED].refs += 1),
+    ("an endpoint counts one receiver too many", 9, |w| w.k.eps[SHARED].recv_refs += 1),
+    ("a copy has a right that its source lacks", 19, |w| {
         w.k.tasks[CLIENT].caps[0] = Cap::Endpoint { ep: SHARED as u8, rights: (R_SEND | R_GRANT) as u8, badge: 0x10 }
     }),
-    ("a copy has another badge than its source", |w| {
-        w.k.tasks[CLIENT].caps[0] = Cap::Endpoint { ep: SHARED as u8, rights: R_SEND as u8, badge: 0x11 }
+    ("a copy has another badge than its source", 19, |w| {
+        w.k.tasks[CLIENT].caps[5] = Cap::Endpoint { ep: SHARED as u8, rights: R_SEND as u8, badge: 0x11 };
+        w.k.tasks[CLIENT].from[5] = link(0, 7);
+        w.k.eps[SHARED].refs += 1;
     }),
-    ("a copy names an empty slot as its source", |w| w.k.tasks[CLIENT].from[0] = link(NOBODY, 3)),
-    ("a copy names itself as its source", |w| w.k.tasks[CLIENT].from[0] = link(CLIENT, 0)),
-    ("two copies name each other as their source", |w| w.k.tasks[0].from[7] = link(CLIENT, 0)),
-    ("a capability names an endpoint beyond the table", |w| {
+    ("a copy names an empty slot as its source", 19, |w| w.k.tasks[CLIENT].from[0] = link(NOBODY, 3)),
+    ("a copy names itself as its source", 19, |w| w.k.tasks[CLIENT].from[0] = link(CLIENT, 0)),
+    ("two copies name each other as their source", 19, |w| w.k.tasks[0].from[7] = link(CLIENT, 0)),
+    ("a capability names an endpoint beyond the table", 8, |w| {
         w.k.tasks[0].caps[6] = Cap::Endpoint { ep: 200, rights: 7, badge: 0 }
     }),
-    ("the count of free frames is one too high", |w| w.k.mem.free += 1),
-    ("a frame that a task uses is marked free", |w| {
+    ("the count of free frames is one too high", 6, |w| w.k.mem.free += 1),
+    ("a frame that a task uses is marked free", 3, |w| {
         let frame = frame_of(entry(w, pte(w, 0, HEAP)));
         w.k.mem.free_frame(frame);
     }),
-    ("a frame is taken that no task owns", |w| {
+    ("a frame is taken that no task owns", 6, |w| {
         w.k.mem.alloc();
     }),
-    ("one frame is mapped by two tasks", |w| {
+    ("one frame is mapped by two tasks", 2, |w| {
         let (theirs, ours) = (entry(w, pte(w, 0, BUFFER)), pte(w, CLIENT, BUFFER - PAGE));
         set_entry(ours, theirs);
     }),
-    ("a page of program can be written", |w| {
+    ("a page of program can be written", 22, |w| {
         let at = pte(w, 0, USER_BASE);
         set_entry(at, entry(w, at) | RW);
     }),
-    ("a page of stack can be executed", |w| {
+    ("a page of stack can be executed", 22, |w| {
         let at = pte(w, 0, BUFFER);
         set_entry(at, entry(w, at) & !NX);
     }),
-    ("a page-table entry has a bit the kernel never sets", |w| {
+    ("a page-table entry has a bit the kernel never sets", 22, |w| {
         let at = pte(w, 0, BUFFER);
         set_entry(at, entry(w, at) | 0x800);
     }),
-    ("a page table is closed to its own task", |w| {
+    ("a page table is closed to its own task", 18, |w| {
         let at = pde(w, 0, BUFFER);
         set_entry(at, entry(w, at) & !US);
     }),
-    ("a page table is kept although it maps nothing", |w| {
+    ("a page table is kept although it maps nothing", 25, |w| {
         let at = pte(w, 0, HEAP);
         let frame = frame_of(entry(w, at));
         set_entry(at, 0);
         w.k.mem.free_frame(frame);
         w.k.tasks[0].charged -= 1;
     }),
-    ("the kernel half of a task's address space differs", |w| {
+    ("the kernel half of a task's address space differs", 18, |w| {
         let at = w.k.tasks[CLIENT].pd;
         set_entry(at, entry(w, at) ^ 0x200);
     }),
-    ("an entry of the kernel's own page tables changed", |_| {
+    ("an entry of the kernel's own page tables changed", 23, |_| {
         let at = KERNEL_MAP + 0x3008;
         arch::with(|machine| {
             let flipped = machine.byte(at) ^ RW as u8;
             machine.load(at, &[flipped]);
         });
     }),
-    ("device memory is mapped as if it were the task's own", |w| {
+    ("device memory is mapped as if it were the task's own", 1, |w| {
         let at = pte(w, 0, DEVICE_VA);
         set_entry(at, entry(w, at) & !FOREIGN);
     }),
-    ("device memory stays mapped without its capability", |w| w.k.tasks[0].caps[4] = Cap::Null),
-    ("a task may create one task too many", |w| w.k.tasks[0].task_quota += 1),
-    ("a task may create one endpoint too many", |w| w.k.tasks[0].ep_quota += 1),
-    ("a task's memory quota grew by itself", |w| w.k.tasks[CLIENT].quota += 1),
-    ("a task is charged one frame too few", |w| w.k.tasks[CLIENT].charged -= 1),
-    ("an unused task has a memory quota", |w| w.k.tasks[NOBODY].quota = 1),
-    ("an unused task has an address space", |w| w.k.tasks[NOBODY].pd = 0x1000),
-    ("a second task has no parent", |w| w.k.tasks[CLIENT].parent = NONE),
-    ("a task's parent does not exist", |w| w.k.tasks[CLIENT].parent = NOBODY as u8),
-    ("an endpoint names a waiter that does not wait", |w| w.k.eps[SHARED].waiter = 0),
-    ("a task waits on an endpoint that does not know of it", |w| w.k.eps[OWN].waiter = NONE),
-    ("a sender's badge is on none of its capabilities", |w| w.k.tasks[CLIENT].send_badge = 0x99),
-    ("a client waits for the answer of a task that does not exist", |w| {
+    ("device memory stays mapped without its capability", 20, |w| w.k.tasks[0].caps[4] = Cap::Null),
+    ("a task may create one task too many", 21, |w| w.k.tasks[0].task_quota += 1),
+    ("a task may create one endpoint too many", 21, |w| w.k.tasks[0].ep_quota += 1),
+    ("a task's memory quota grew by itself", 15, |w| w.k.tasks[CLIENT].quota += 1),
+    ("a task is charged one frame too few", 4, |w| w.k.tasks[CLIENT].charged -= 1),
+    ("an unused task has a memory quota", 14, |w| w.k.tasks[NOBODY].quota = 1),
+    ("an unused task has an address space", 1, |w| w.k.tasks[NOBODY].pd = 0x1000),
+    ("a second task has no parent", 15, |w| w.k.tasks[CLIENT].parent = NONE),
+    ("a task's parent does not exist", 13, |w| w.k.tasks[CLIENT].parent = NOBODY as u8),
+    ("an endpoint names a waiter that does not wait", 10, |w| w.k.eps[SHARED].waiter = 0),
+    ("a task waits on an endpoint that does not know of it", 10, |w| w.k.eps[OWN].waiter = NONE),
+    ("a sender's badge is on none of its capabilities", 20, |w| w.k.tasks[CLIENT].send_badge = 0x99),
+    ("a client waits for the answer of a task that does not exist", 12, |w| {
         w.k.tasks[CLIENT].state = State::Reply(NOBODY as u8)
     }),
-    ("an endpoint's owner does not exist", |w| w.k.eps[OWN].owner = NOBODY as u8),
-    ("an interrupt stays bound without its capability", |w| w.k.tasks[0].caps[3] = Cap::Null),
-    ("an interrupt is bound to a task that does not exist", |w| w.k.irqs[1].task = NOBODY as u8),
-    ("a waiting task's message buffer is not mapped", |w| w.k.tasks[SERVER].msg_ptr = 0x7000_0000),
-    ("the kernel has counted an anomaly", |w| w.k.stats.anomalies = 1),
-    ("a task holds a capability for the kernel's own memory", |w| {
+    ("an endpoint's owner does not exist", 21, |w| w.k.eps[OWN].owner = NOBODY as u8),
+    ("an interrupt stays bound without its capability", 20, |w| w.k.tasks[0].caps[3] = Cap::Null),
+    ("an interrupt is bound to a task that does not exist", 16, |w| w.k.irqs[1].task = NOBODY as u8),
+    ("an interrupt is bound to an endpoint that nobody can receive from", 16, |w| {
+        w.k.irqs[1].ep = (MAX_ENDPOINTS - 1) as u8
+    }),
+    ("a waiting task's message buffer is not mapped", 24, |w| w.k.tasks[SERVER].msg_ptr = 0x7000_0000),
+    ("the kernel has counted an anomaly", 17, |w| w.k.stats.anomalies = 1),
+    ("a task holds a capability for the kernel's own memory", 26, |w| {
         forge(w, Cap::Memory { page: 0x100, pages: 16, write: true })
     }),
-    ("a task holds a capability for the timer interrupt", |w| forge(w, Cap::Irq { mask: 1 })),
+    ("a task holds a capability for the timer interrupt", 26, |w| forge(w, Cap::Irq { mask: 1 })),
 ];
 
 /// Forged capabilities that look exactly like ones a task may come to hold honestly: the
 /// kernel keeps no record that could tell them apart.
 const UNSEEN: &[Seed] = &[
-    ("a forged capability for every I/O port", |w| forge(w, Cap::IoPort { first: 0, last: 0xFFFF })),
-    ("a forged capability to write to the log", |w| forge(w, Cap::Log)),
-    ("a forged handle for a task that is not the holder's child", |w| {
+    ("a forged capability for every I/O port", 0, |w| forge(w, Cap::IoPort { first: 0, last: 0xFFFF })),
+    ("a forged capability to write to the log", 0, |w| forge(w, Cap::Log)),
+    ("a forged handle for a task that is not the holder's child", 0, |w| {
         let gen = w.k.tasks[SERVER].gen;
         forge(w, Cap::Task { index: SERVER as u8, gen })
     }),
@@ -517,16 +871,21 @@ fn checker_sensitivity(tally: &mut Tally) {
     };
     w.save_base();
     let mut reported = 0;
-    for (name, plant) in SEEDS {
+    for (name, expected, plant) in SEEDS {
         crate::trail(format!("tables: planted corruption: {name}"));
         plant(&mut w);
         let rule = w.k.check();
         w.restore_base();
         reported += (rule != 0) as usize;
-        tally.check(&format!("{name}: {}", if rule != 0 { format!("rule {rule}") } else { "not noticed".to_string() }), rule != 0);
+        let seen = match rule {
+            0 => "not noticed".to_string(),
+            rule if rule == *expected => format!("rule {rule}"),
+            rule => format!("rule {rule}, where rule {expected} describes it"),
+        };
+        tally.check(&format!("{name}: {seen}"), rule == *expected);
     }
     let mut unseen = 0;
-    for (name, plant) in UNSEEN {
+    for (name, _, plant) in UNSEEN {
         crate::trail(format!("tables: planted corruption: {name}"));
         plant(&mut w);
         let rule = w.k.check();
@@ -547,6 +906,11 @@ pub fn run() -> bool {
     memory_and_slots(&mut tally);
     clock_and_timeouts(&mut tally);
     revoked_buffer(&mut tally);
+    edges(&mut tally);
+    messages(&mut tally);
+    larger_program(&mut tally);
+    reports(&mut tally);
+    turns(&mut tally);
     checker_sensitivity(&mut tally);
     let total = tally.passed + tally.failed;
     println!("MODEL tables: {} {}/{total}", if tally.failed == 0 { "PASS" } else { "FAIL" }, tally.passed);

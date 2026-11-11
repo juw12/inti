@@ -5,10 +5,16 @@
     python build.py run      build, then boot the image in a QEMU window
     python build.py test     build, then run the whole test script in QEMU
     python build.py gates    build, test, and check every hard gate of rubric.md
+    python build.py model    compile the kernel for this computer and run its model checks
+    python build.py mutants  plant defects in a copy of the kernel, count how many the model catches
+                             (--held-out: a second sample of places, which no test was written against)
     python build.py clean    remove build/ and target/
 
 Needs Rust with the i586-unknown-linux-gnu target and Python 3.9 or newer. Nothing else:
-no assembler, no C compiler, no make. `run`, `test` and `gates` also need QEMU.
+no assembler, no C compiler, no make. `run`, `test` and `gates` also need QEMU. `model` and
+`mutants` build an ordinary program, so they need a Rust toolchain that can link one for
+this computer (on Windows the GNU toolchain, or the MSVC one with Visual Studio's linker);
+INTI_HOST_TOOLCHAIN names the toolchain to use, for example stable-x86_64-pc-windows-gnu.
 """
 from __future__ import annotations
 
@@ -66,6 +72,34 @@ def cargo_build(package: str) -> Path:
     command = [cargo, "build", "--release", "-p", package, "--target-dir", str(target_dir)]
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     return target_dir / TARGET / "release"
+
+
+def model_command(root: Path) -> tuple[list[str], dict[str, str], Path, str]:
+    """How to compile the kernel model in `root` for this computer.
+
+    Returns the command, its environment, the program it produces and the target triple.
+    The workspace builds for the 386 by default (.cargo/config.toml), so the triple of this
+    computer is given explicitly, and none of the kernel's linker flags apply.
+    """
+    home = Path.home() / ".cargo" / "bin"
+    cargo = find_tool("cargo", [home / "cargo.exe", home / "cargo"])
+    rustc = find_tool("rustc", [home / "rustc.exe", home / "rustc"])
+    toolchain = os.environ.get("INTI_HOST_TOOLCHAIN")
+    if not toolchain and os.name == "nt" and shutil.which("rustup"):
+        listed = subprocess.run(["rustup", "toolchain", "list"], capture_output=True, text=True).stdout
+        gnu = [line.split()[0] for line in listed.splitlines() if "-pc-windows-gnu" in line]
+        toolchain = gnu[0] if gnu else None
+    plus = [f"+{toolchain}"] if toolchain else []
+    described = subprocess.run([rustc, *plus, "-vV"], capture_output=True, text=True, check=True).stdout
+    triple = next(line.split()[1] for line in described.splitlines() if line.startswith("host:"))
+    env = dict(os.environ)
+    env.pop("RUSTFLAGS", None)
+    env.pop("CARGO_ENCODED_RUSTFLAGS", None)
+    target_dir = root / "target" / "model"
+    command = [cargo, *plus, "build", "--release", "-p", "model", "--target", triple,
+               "--target-dir", str(target_dir)]
+    program = target_dir / triple / "release" / ("model.exe" if os.name == "nt" else "model")
+    return command, env, program, triple
 
 
 def sections(elf: bytes) -> list[tuple[int, int, int, int, int]]:
@@ -197,6 +231,12 @@ def main() -> int:
         shutil.rmtree(BUILD, ignore_errors=True)
         shutil.rmtree(ROOT / "target", ignore_errors=True)
         return 0
+    if command == "model":
+        compile_model, env, program, triple = model_command(ROOT)
+        subprocess.run(compile_model, cwd=ROOT, env=env, check=True)
+        return run_tool("model.py", [str(program), triple])
+    if command == "mutants":
+        return run_tool("mutants.py", sys.argv[2:])
     if command not in ("build", "run", "test", "gates"):
         sys.exit(__doc__)
     image = build()

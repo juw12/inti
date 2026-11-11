@@ -34,6 +34,8 @@ None of these ideas is new: MINIX 3 restarts user-mode drivers, seL4 is a capabi
 
 {{table.gates}}
 
+Two more checks run on the build machine, outside QEMU, and are not gates. `python build.py model` runs the kernel's own source against a simulated machine: {{model.tests_passed}} of {{model.tests}} directed tests pass, the kernel's checker reports {{model.seeds_found}} of {{model.seeds}} corruptions planted in its state, and a bounded exploration of {{model.states}} states and {{model.transitions}} steps meets {{model.violations}} violations. `python build.py mutants` then breaks the kernel on purpose, one small change at a time, in {{mutants.sample}} places taken at even spacing. The first run caught {{mutants.before.caught}} of {{mutants.before.compiled}} broken kernels. After directed tests were written for what had got away, the same places give {{mutants.caught}} of {{mutants.compiled}}, which says how well those tests were aimed. A second sample of {{mutants.held_out.sample}} places, which no test was written against, gives {{mutants.held_out.caught}} of {{mutants.held_out.compiled}}, and that is the figure to read. [How Inti works](docs/design.md#the-model) lists every broken kernel that got through, with the reason. The first run of the directed tests found one defect in the kernel and four gaps in its checker. They are fixed, and the failing run is kept in `evidence/model-before-fixes.log`. All of this is testing of small configurations to a small depth. It is not a proof.
+
 All timings are emulator timings. They show that a restart is quick compared with a reboot; they say nothing about real hardware, which Inti has never run on.
 
 A driver crash, exactly as the serial port recorded it:
@@ -77,9 +79,12 @@ python build.py          # compile everything and write build/inti.img
 python build.py run      # boot the image in a QEMU window
 python build.py test     # run every test in QEMU
 python build.py gates    # every check, from a clean build
+python build.py model    # the kernel's source on this machine: directed tests, bounded exploration
+python build.py mutants  # break the kernel on purpose and see which checks notice
+python build.py mutants --held-out  # the same in a second sample of places, which no test was aimed at
 ```
 
-The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used {{gates.rustc}}, Python {{gates.python}} and {{test.emulator}}; its test run took {{test.duration_s}} s.
+The model and the mutation check need a Rust toolchain for the build machine itself; on Windows `build.py` uses the GNU one. They are not part of `gates`. The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used {{gates.rustc}}, Python {{gates.python}} and {{test.emulator}}; its test run took {{test.duration_s}} s.
 
 ## How it works
 
@@ -95,7 +100,7 @@ The browser check also needs Playwright with Chromium (`pip install playwright`,
 
 ## Where it loses
 
-Inti leads only on the narrow things it was built to show, against systems that were built to do far more. It supports no hardware beyond an emulated PC, and it has no network, no persistent storage, no applications and one processor. Its kernel is tested and self-checking but not proven: seL4 is formally verified and Inti is not. MINIX 3 showed restartable user-mode drivers at real scale years ago, and Redox is a Rust microkernel system that runs real programs. The [scorecard](docs/scorecard.md) goes through this point by point.
+Inti leads only on the narrow things it was built to show, against systems that were built to do far more. It supports no hardware beyond an emulated PC, and it has no network, no persistent storage, no applications and one processor. Its kernel is tested, self-checking and explored on a host to a small depth, but not proven: seL4 is formally verified and Inti is not. MINIX 3 showed restartable user-mode drivers at real scale years ago, and Redox is a Rust microkernel system that runs real programs. The [scorecard](docs/scorecard.md) goes through this point by point.
 
 ## About the numbers
 
@@ -109,8 +114,9 @@ No number in these documents is typed by hand unless a source link stands next t
 | `kernel/` | the kernel ({{loc.kernel}} lines) |
 | `abi/` | the interface that the kernel and the programs share ({{loc.abi}} lines) |
 | `user/` | the runtime library, the supervisor, the drivers, the shell and the test programs ({{loc.user}} lines) |
+| `model/` | the kernel's source compiled for the build machine, with directed tests and a bounded explorer ({{loc.model}} lines) |
 | `build.py`, `tools/` | the build, test, gate and document scripts ({{loc.tools}} lines of Python) |
-| `evidence/` | the raw serial log and every measured number of the last gate run |
+| `evidence/` | the raw logs and every measured number of the last gate run, the last model run and the last mutation run |
 | `docs/` | the browser demo, these documents and their templates |
 | `rubric.md`, `refine_log.md` | the criteria this project was built against, and the log of the run that built it |
 
