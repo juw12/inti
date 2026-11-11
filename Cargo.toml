@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["abi", "boot", "kernel", "user"]
+members = ["abi", "boot", "kernel", "user", "model"]
+# `model` is a host program (see model/src/main.rs); `python build.py model` builds it.
+default-members = ["abi", "boot", "kernel", "user"]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,3 +17,6 @@ lto = true
 codegen-units = 1
 overflow-checks = true
 debug = false
+
+[profile.release.package.model]
+opt-level = 3

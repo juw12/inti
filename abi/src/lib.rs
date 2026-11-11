@@ -5,6 +5,9 @@
 #![no_std]
 
 pub mod archive;
+// Assembly for the 386. A build for another processor - the model in `model/`, which runs
+// the kernel's code on the machine it is built on - uses that machine's own routines.
+#[cfg(target_arch = "x86")]
 pub mod mem;
 
 // ---------------------------------------------------------------- address space

@@ -1,0 +1,129 @@
+Boot
+  note  173 frames are managed, the root task holds 14 of them, 159 are free
+  ok    every frame beyond the kernel is managed
+  ok    the root task holds the frames this model expects
+  ok    the root task owns the whole memory quota
+  ok    the state after boot is sound
+  note  a task with one page of program and one of stack holds 7 frames
+  ok    a small task holds the frames this model expects
+  ok    its frames come out of the free memory
+  ok    its program is a copy of its parent's, its stack is all zero
+  ok    the state after a spawn is sound
+The endpoint table
+  ok    the root task may create every endpoint there is
+  ok    the root task has given away all it had
+  ok    all 64 endpoints exist
+  ok    a 65th is refused to each of the three tasks with E_NOSLOT
+  ok    the state with a full endpoint table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing one of the two returns its 31 endpoints to the root task
+  ok    the root task can create an endpoint again
+  ok    the state afterwards is sound
+The task table
+  ok    the root task may create every other task there is
+  ok    all 32 tasks exist
+  ok    a 33rd is refused to the root task and to its child with E_NOSLOT
+  ok    the state with a full task table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing the child kills its 15 children and returns 16 places to the root task
+  ok    the root task can spawn again
+  ok    the state afterwards is sound
+  ok    when the root task dies, all 16 others die with it and a new root task starts
+  ok    the new root task finds as much free memory as the first
+  ok    the state after the restart is sound
+The last frame and the last slot
+  ok    a spawn that runs out of memory after 0 to 6 frames leaves nothing behind
+  ok    with exactly 7 frames it succeeds
+  ok    killing the task returns its frames
+  note  49 pages and their page table took the 50 free frames
+  ok    mapping page after page ends with E_NOMEM when the last frame is taken
+  ok    the state without a free frame is sound
+  ok    an endpoint can still be created, it needs no memory
+  note  (free frames, frames charged) before the failing MAP (2, 62), after it (1, 63)
+  FAIL  a MAP that fails at its second page gives back all it took for the first
+  ok    the state after the failed MAP is sound
+  ok    a spawn is refused with E_NOMEM
+  ok    25 copies of a capability fill the 32 slots, then copying and creating give E_NOSLOT
+  ok    the state without a free slot is sound
+  ok    one revocation removes all 25 copies
+  ok    the death of the root task returns every frame and endpoint
+  ok    the state after the restart is sound
+The clock, the restart delay and timeouts
+  note  after about 123,456 microseconds a task is told 130003, the machine says 130003
+  ok    the time a task is told is the machine's time
+  ok    a root task that dies right after boot is not restarted at once
+  ok    the state while the root task waits to restart is sound
+  ok    it runs again one second after boot, not before
+  ok    a root task that dies after running for a second restarts at once
+  ok    the state after both restarts is sound
+  ok    a task that sleeps 30 ms is asleep after 20 ms and awake after 40 ms
+  ok    a call that nobody receives within its 50 ms ends with E_TIMEOUT
+  ok    the state after the timeout is sound
+  ok    a call that is received but not answered within its 50 ms ends with E_TIMEOUT
+  ok    the answer that comes too late is refused with E_INVAL
+  ok    the state after the late answer is sound
+Messages and device memory
+  ok    receiving into device memory is refused with E_FAULT
+  ok    a call whose answer would land in device memory is refused with E_FAULT
+  ok    the state after both refusals is sound
+  ok    revoking the screen unmaps it from a driver that waits to receive; the driver waits on
+  ok    the state after revoking under a driver that waits to receive is sound
+  ok    the driver that waited to receive then gets its message
+  ok    the message to the driver that waited to receive arrived intact
+  ok    revoking the screen unmaps it from a driver that waits for an answer; the driver waits on
+  ok    the state after revoking under a driver that waits for an answer is sound
+  ok    the driver that waited for an answer then gets its message
+  ok    the message to the driver that waited for an answer arrived intact
+Would the kernel's checker notice? One corruption at a time, planted in a sound state
+  ok    an endpoint counts one capability too many: rule 8
+  ok    an endpoint counts one receiver too many: rule 9
+  ok    a copy has a right that its source lacks: rule 19
+  ok    a copy has another badge than its source: rule 20
+  ok    a copy names an empty slot as its source: rule 19
+  ok    a copy names itself as its source: rule 19
+  FAIL  two copies name each other as their source: not noticed
+  ok    a capability names an endpoint beyond the table: rule 8
+  ok    the count of free frames is one too high: rule 6
+  ok    a frame that a task uses is marked free: rule 3
+  ok    a frame is taken that no task owns: rule 6
+  ok    one frame is mapped by two tasks: rule 2
+  ok    a page of program can be written: rule 22
+  ok    a page of stack can be executed: rule 22
+  ok    a page-table entry has a bit the kernel never sets: rule 22
+  ok    a page table is closed to its own task: rule 18
+  FAIL  a page table is kept although it maps nothing: not noticed
+  ok    the kernel half of a task's address space differs: rule 18
+  ok    an entry of the kernel's own page tables changed: rule 23
+  ok    device memory is mapped as if it were the task's own: rule 1
+  ok    device memory stays mapped without its capability: rule 20
+  ok    a task may create one task too many: rule 21
+  ok    a task may create one endpoint too many: rule 21
+  ok    a task's memory quota grew by itself: rule 15
+  ok    a task is charged one frame too few: rule 4
+  ok    an unused task has a memory quota: rule 14
+  ok    an unused task has an address space: rule 1
+  ok    a second task has no parent: rule 15
+  ok    a task's parent does not exist: rule 13
+  ok    an endpoint names a waiter that does not wait: rule 10
+  ok    a task waits on an endpoint that does not know of it: rule 10
+  ok    a sender's badge is on none of its capabilities: rule 20
+  ok    a client waits for the answer of a task that does not exist: rule 12
+  ok    an endpoint's owner does not exist: rule 21
+  ok    an interrupt stays bound without its capability: rule 20
+  ok    an interrupt is bound to a task that does not exist: rule 16
+  ok    a waiting task's message buffer is not mapped: rule 24
+  ok    the kernel has counted an anomaly: rule 17
+  FAIL  a task holds a capability for the kernel's own memory: not noticed
+  FAIL  a task holds a capability for the timer interrupt: not noticed
+  blind a forged capability for every I/O port: not noticed, as expected
+  blind a forged capability to write to the log: not noticed, as expected
+  blind a forged handle for a task that is not the holder's child: not noticed, as expected
+  ok    without a corruption the checker reports nothing
+MODEL seeds: 36 of 40 planted corruptions reported by the kernel's checker
+MODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed
+MODEL tables: FAIL 103/108
+MODEL: FAIL
