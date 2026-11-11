@@ -17,6 +17,7 @@ driver or a hostile program is demonstrably a non-event.
 - [x] Q7 Browser demo (v86) + headless boot gate G8
 - [x] Q8 README, design doc, comparison scorecard with limitations, claims check G9
 - [x] Q9 Dossier, council baseline v0, improvement loop (max 5 rounds, keep-best, pairwise): one round run, stop: over_budget
+- [ ] Q11 Round 3 (third session, a new item with its own baseline, stacked on round 2): tests that execute the kernel's "table full" paths; a matrix of double failures; a bounded model check of the capability rules on the host; selective revocation if the session allows; judged against round 1 with four council runs per dossier
 - [x] Q10 Sync: GitHub repo + Pages demo, profile README, portfolio card, landing page, Obsidian notes, `P --log`, cairn end (repo published at `20f7d2b`, landing `63494c9`, profile `045e066`, card `0caa6a0` + `a3cd0be`, vault `3e9a483`; cairn ended as "partial")
 
 ## Assumptions
@@ -103,6 +104,10 @@ driver or a hostile program is demonstrably a non-event.
 - Assumed: only this log lands on `main`, as its own commit. The claims check was run on the tree with the new log before the push.
 - Assumed: the public pages keep the round 1 numbers, because `main` is unchanged. Only the Obsidian note and the update log are synced.
 - Assumed: plateau ends this item, and a single-project run has no other item, so the run ends after the sync.
+- Assumed (third session): the owner answered the round 2 report with "continue". The mandate says to decide, not to ask, so the question about the draft pull request was not his to answer and is withdrawn. Round 2 on its own stays unmerged, because its measured gain is under MIN_GAIN.
+- Assumed: the judges' remaining objections are a new item (Q11, "round 3") with its own baseline. It is built on the round 2 tree (branch `agent/r3-verify` from the round 2 commit), so it contains round 2.
+- Assumed: the baseline of Q11 is round 1 as published on `main`. Its dossier is unchanged, so its four council runs from the second session are reused (mean 8.1125). Round 3 is scored four times with the same settings; it is kept only if its four-run mean is at least 8.4125 and the blind pairwise against round 1 is won. This rule is written down before any round 3 score exists.
+- Assumed: if round 3 is kept it is merged into `main` (which brings round 2 with it) and the public pages are synced; if it is not kept it stays a draft pull request and only this log lands on `main`.
 
 ## Rubric
 

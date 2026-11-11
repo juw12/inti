@@ -2,6 +2,9 @@
 //!
 //! Everything that needs an instruction Rust cannot express lives in this file.
 
+use crate::frame::FRAME_SIZE;
+pub use crate::frame::{TrapFrame, CLOCK_HZ, IRQ_BASE, SYSCALL_VECTOR};
+use crate::mem::KERNEL_MAP_BYTES;
 use crate::Global;
 use core::arch::{asm, global_asm};
 
@@ -76,70 +79,7 @@ pub fn panic_banner() {
 
 // ---------------------------------------------------------------- CPU state
 
-/// The registers of an interrupted user task, in the order the entry code pushes them.
-/// It is the first field of every `Tcb`: the CPU saves user state straight into the task.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct TrapFrame {
-    pub edi: u32,
-    pub esi: u32,
-    pub ebp: u32,
-    pub esp_dummy: u32,
-    pub ebx: u32,
-    pub edx: u32,
-    pub ecx: u32,
-    pub eax: u32,
-    pub vector: u32,
-    pub error: u32,
-    pub eip: u32,
-    pub cs: u32,
-    pub eflags: u32,
-    pub esp: u32,
-    pub ss: u32,
-}
-
-impl TrapFrame {
-    pub const ZERO: TrapFrame = TrapFrame {
-        edi: 0,
-        esi: 0,
-        ebp: 0,
-        esp_dummy: 0,
-        ebx: 0,
-        edx: 0,
-        ecx: 0,
-        eax: 0,
-        vector: 0,
-        error: 0,
-        eip: 0,
-        cs: 0,
-        eflags: 0,
-        esp: 0,
-        ss: 0,
-    };
-
-    /// A fresh user context: ring 3, interrupts on, nothing else.
-    pub fn user(entry: u32, stack: u32, args: [u32; 4]) -> TrapFrame {
-        TrapFrame {
-            eax: args[0],
-            ebx: args[1],
-            ecx: args[2],
-            edx: args[3],
-            eip: entry,
-            cs: USER_CS,
-            eflags: 0x202,
-            esp: stack,
-            ss: USER_DS,
-            ..TrapFrame::ZERO
-        }
-    }
-}
-
-pub const FRAME_SIZE: u32 = core::mem::size_of::<TrapFrame>() as u32;
-const USER_CS: u32 = 0x1B;
-const USER_DS: u32 = 0x23;
 const VECTORS: usize = 49; // exceptions 0-31, IRQs 32-47, system call 0x80
-pub const SYSCALL_VECTOR: u32 = 0x80;
-pub const IRQ_BASE: u32 = 32;
 
 static GDT: Global<[u64; 6]> = Global::new([
     0,
@@ -237,15 +177,14 @@ pub fn init() {
     outb(0x42, 0);
 }
 
-/// The frequency of the crystal that drives all three timer channels.
-pub const CLOCK_HZ: u64 = 1_193_182;
 const PIT_RELOAD: u32 = (CLOCK_HZ / 100) as u32;
 
-/// Tell the CPU where to save user state on the next interrupt: the end of a task's frame.
-pub fn set_trap_stack(top: u32) {
+/// Tell the CPU where to save user state on the next interrupt: in `frame`, which it fills
+/// from the end downwards.
+pub fn set_trap_stack(frame: *const TrapFrame) {
     // SAFETY: a plain store into the static TSS; interrupts are off, nothing else holds a
     // reference to it, and the CPU only reads it on the next ring 3 -> ring 0 transition.
-    unsafe { (*TSS.get())[1] = top }
+    unsafe { (*TSS.get())[1] = frame as u32 + FRAME_SIZE }
 }
 
 pub fn irq_mask(irq: u32, masked: bool) {
@@ -365,6 +304,40 @@ pub fn enable_paging(root: u32, nx: bool) {
             options(nostack),
         )
     }
+}
+
+// ---- physical memory
+
+/// The one place where a physical address becomes a pointer. Inti identity-maps its RAM, so
+/// the two are the same number. `mem` reaches all memory that is not a Rust object through
+/// this function and holds the checks that make each access legitimate. The host-side
+/// checker in `model/` compiles the same kernel sources against a different `arch`, whose
+/// `phys` points into an ordinary array: that is how it runs them without a machine.
+pub fn phys(address: u32) -> *mut u8 {
+    address as *mut u8
+}
+
+#[repr(C, align(4096))]
+struct KernelMap([u8; KERNEL_MAP_BYTES]);
+
+/// Room for the kernel's own page tables. Only `mem` reads or writes it, through `phys`.
+static KERNEL_MAP: Global<KernelMap> = Global::new(KernelMap([0; KERNEL_MAP_BYTES]));
+
+/// The address of the page-aligned memory reserved for the kernel's own page tables.
+pub fn kernel_map() -> u32 {
+    KERNEL_MAP.get() as u32
+}
+
+extern "C" {
+    static __kernel_start: u8;
+    static __text_end: u8;
+    static __rodata_end: u8;
+}
+
+/// Where the linker script put the kernel image: its start, the end of its code and the end
+/// of its constants.
+pub fn kernel_image() -> (u32, u32, u32) {
+    (&raw const __kernel_start as u32, &raw const __text_end as u32, &raw const __rodata_end as u32)
 }
 
 /// Sleep until the next interrupt. The interrupt handler runs before this returns.

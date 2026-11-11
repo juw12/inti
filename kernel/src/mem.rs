@@ -12,7 +12,6 @@
 
 use crate::arch;
 use crate::task::Kernel;
-use crate::Global;
 use abi::{E_BUSY, E_FAULT, E_INVAL, E_NOMEM, PAGE, USER_BASE, USER_END};
 use core::ops::Range;
 
@@ -50,21 +49,12 @@ pub const USER_TABLES: usize = ((USER_END - USER_BASE) >> 21) as usize;
 const _: () = assert!(MAX_RAM <= 1 << 30 && USER_BASE >= 1 << 30);
 const _: () = assert!(USER_BASE % (1 << 30) == 0 && USER_END % (1 << 30) == 0);
 
-#[repr(C, align(4096))]
-struct Table([u64; ENTRIES]);
-
-const EMPTY_TABLE: Table = Table([0; ENTRIES]);
 /// The kernel's own map, shared by every address space: tables `0..KERNEL_TABLES`
 /// identity-map the RAM, then come the directory that points to them and the root table.
-static KERNEL_PAGING: Global<[Table; KERNEL_TABLES + 2]> = Global::new([EMPTY_TABLE; KERNEL_TABLES + 2]);
+/// `arch` reserves the memory for them: this many bytes.
+pub const KERNEL_MAP_BYTES: usize = (KERNEL_TABLES + 2) * PAGE as usize;
 const DIRECTORY: usize = KERNEL_TABLES;
 const ROOT: usize = KERNEL_TABLES + 1;
-
-extern "C" {
-    static __kernel_start: u8;
-    static __text_end: u8;
-    static __rodata_end: u8;
-}
 
 pub fn page_up(value: u32) -> u32 {
     (value + PAGE - 1) & !(PAGE - 1)
@@ -78,7 +68,13 @@ pub fn frame_of(entry: u64) -> u32 {
 /// The address of table `table` of the kernel's own map.
 fn kernel_table(table: usize) -> u32 {
     assert!(table < KERNEL_TABLES + 2);
-    KERNEL_PAGING.get() as u32 + table as u32 * PAGE
+    arch::kernel_map() + table as u32 * PAGE
+}
+
+/// Entry `index` of table `table` of the kernel's own map.
+fn kernel_slot(table: usize, index: usize) -> *mut u64 {
+    assert!(index < ENTRIES);
+    arch::phys(kernel_table(table) + index as u32 * 8).cast()
 }
 
 /// Check that `pages` pages starting at `va` are page-aligned and inside user space.
@@ -95,7 +91,7 @@ fn boot_word(address: u32) -> u32 {
     assert!((0x8000..0x8400).contains(&address));
     // SAFETY: the boot sector wrote the memory map to 0x8000..0x83C4. That memory is mapped,
     // belongs to no Rust object and is not written again after boot.
-    unsafe { (address as *const u32).read_unaligned() }
+    unsafe { arch::phys(address).cast::<u32>().read_unaligned() }
 }
 
 /// The frame allocator: one bit per frame, set while the frame is free.
@@ -154,14 +150,16 @@ impl Mem {
         let (pae, nx) = arch::cpu_features();
         assert!(pae, "this processor has no PAE paging, which Inti needs");
         self.nx = if nx { NX } else { 0 };
-        let kernel_start = &raw const __kernel_start as u32;
+        let (kernel_start, _, _) = arch::kernel_image();
         self.kernel_pages = (kernel_end - kernel_start) / PAGE;
-        // SAFETY: boot time, single CPU, interrupts off: nothing else refers to the static
-        // page tables yet, so the exclusive reference is unique.
-        let tables = unsafe { &mut *KERNEL_PAGING.get() };
-        for (table, entries) in tables.iter_mut().enumerate() {
-            for (index, entry) in entries.0.iter_mut().enumerate() {
-                *entry = self.kernel_entry(table, index);
+        for table in 0..KERNEL_TABLES + 2 {
+            for index in 0..ENTRIES {
+                let entry = self.kernel_entry(table, index);
+                // SAFETY: the slot lies inside the memory that `arch` reserves for the
+                // kernel's page tables (`kernel_slot` checks both indices) and is aligned
+                // for a u64. Boot time, single CPU, interrupts off: nothing else uses that
+                // memory yet.
+                unsafe { kernel_slot(table, index).write_volatile(entry) }
             }
         }
         self.kernel_pd = kernel_table(ROOT);
@@ -193,9 +191,7 @@ impl Mem {
     /// constants are read-only and cannot be executed; all other memory is writable and
     /// cannot be executed. No entry is user-accessible.
     fn kernel_pte(&self, address: u32) -> u64 {
-        let start = &raw const __kernel_start as u32;
-        let text_end = &raw const __text_end as u32;
-        let rodata_end = &raw const __rodata_end as u32;
+        let (start, text_end, rodata_end) = arch::kernel_image();
         let entry = address as u64 | P;
         if address == 0 {
             0 // page 0 stays unmapped so that a null pointer in the kernel faults
@@ -222,12 +218,11 @@ impl Mem {
     pub fn kernel_map_intact(&self) -> bool {
         (0..KERNEL_TABLES + 2).all(|table| {
             (0..ENTRIES).all(|index| {
-                let address = kernel_table(table) as usize + index * 8;
-                // SAFETY: the address lies inside the static `KERNEL_PAGING` (both indices
-                // are in range) and is aligned for a u64. After boot only the processor
-                // writes there (the accessed and dirty bits), hence a volatile read through
-                // a raw address and no reference.
-                let entry = unsafe { (address as *const u64).read_volatile() };
+                // SAFETY: the slot lies inside the memory that `arch` reserves for the
+                // kernel's page tables (`kernel_slot` checks both indices) and is aligned
+                // for a u64. After boot only the processor writes there (the accessed and
+                // dirty bits), hence a volatile read through a raw pointer and no reference.
+                let entry = unsafe { kernel_slot(table, index).read_volatile() };
                 entry & !(ACCESSED | DIRTY) == self.kernel_entry(table, index)
             })
         })
@@ -273,26 +268,27 @@ impl Mem {
     }
 
     // ---- the only five places where the kernel touches memory it does not own as a Rust
-    // ---- object; each checks that the access stays inside one legitimate page
+    // ---- object; each checks that the access stays inside one legitimate page and gets
+    // ---- its pointer from `arch::phys`
 
     pub fn read_entry(&self, table: u32, index: usize) -> u64 {
         assert!(self.managed(table) && index < ENTRIES);
         // SAFETY: `table` is a managed RAM page inside the identity map and `index` keeps the
         // read inside it. Managed frames are never part of a Rust object.
-        unsafe { ((table as usize + index * 8) as *const u64).read_volatile() }
+        unsafe { arch::phys(table + index as u32 * 8).cast::<u64>().read_volatile() }
     }
 
     fn write_entry(&mut self, table: u32, index: usize, value: u64) {
         assert!(self.managed(table) && index < ENTRIES);
         // SAFETY: as in `read_entry`; managed frames are mapped writable for the kernel and
         // contain no kernel code or data, so the write cannot corrupt the kernel itself.
-        unsafe { ((table as usize + index * 8) as *mut u64).write_volatile(value) }
+        unsafe { arch::phys(table + index as u32 * 8).cast::<u64>().write_volatile(value) }
     }
 
     fn zero(&mut self, frame: u32) {
         assert!(self.managed(frame));
         // SAFETY: the whole page belongs to the managed frame (see `write_entry`).
-        unsafe { core::ptr::write_bytes(frame as *mut u8, 0, PAGE as usize) }
+        unsafe { core::ptr::write_bytes(arch::phys(frame), 0, PAGE as usize) }
     }
 
     fn read_frame(&self, frame: u32, offset: u32, out: &mut [u8]) {
@@ -303,7 +299,7 @@ impl Mem {
         // Memory capability (screen, boot archive), never the kernel image, so the source
         // cannot overlap `out`, which is a kernel buffer.
         unsafe {
-            let source = (frame + offset) as *const u8;
+            let source = arch::phys(frame + offset).cast_const();
             core::ptr::copy_nonoverlapping(source, out.as_mut_ptr(), out.len());
         }
     }
@@ -313,7 +309,7 @@ impl Mem {
         // SAFETY: the destination lies inside one managed frame (see `write_entry`), which
         // cannot overlap the kernel buffer `data`.
         unsafe {
-            let target = (frame + offset) as *mut u8;
+            let target = arch::phys(frame + offset);
             core::ptr::copy_nonoverlapping(data.as_ptr(), target, data.len());
         }
     }

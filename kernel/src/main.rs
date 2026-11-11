@@ -4,7 +4,8 @@
 //! checks capabilities and forwards interrupts. Device drivers, the file server, the
 //! supervisor and the shell are ordinary user programs.
 //!
-//! Module map: `arch` (CPU specifics), `mem` (frames and page tables), `task` (tasks,
+//! Module map: `arch` (CPU specifics), `frame` (the saved register layout), `mem` (frames
+//! and page tables), `task` (tasks,
 //! capabilities, scheduling, death), `ipc` (messages and interrupts), `sys` (system calls),
 //! `elf` (program loading), `check` (invariant checker).
 #![no_std]
@@ -21,6 +22,7 @@ macro_rules! kprintln {
 mod arch;
 mod check;
 mod elf;
+mod frame;
 mod ipc;
 mod mem;
 mod sys;

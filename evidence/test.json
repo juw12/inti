@@ -1,13 +1,13 @@
 {
   "passed": true,
-  "date": "2026-11-11T02:19:13+07:00",
-  "duration_s": 206,
+  "date": "2026-11-11T09:39:28+07:00",
+  "duration_s": 212,
   "emulator": "QEMU 11.1.0 (TCG, no hardware virtualisation)",
   "qemu_version": "11.1.0",
   "cpu": "qemu32,+nx",
   "cpu_without_nx": "qemu32",
   "host": "Windows 10",
-  "image_sha256": "5f9fd4038e7b7ecf63ea49ee092ea0bea8c5de452299d84c41f874cdb93250fb",
+  "image_sha256": "77ee80d669ba0d33c22eddabcbfb43501d849eef8f03b7eebdb7db6373c1de9c",
   "options": {
     "fuzz": 1000000,
     "runs": 5
@@ -16,7 +16,7 @@
     {
       "name": "boots from its own boot sector to the shell prompt within 20 s",
       "ok": true,
-      "detail": "806 ms after QEMU started"
+      "detail": "595 ms after QEMU started"
     },
     {
       "name": "the kernel enforces W^X: its boot log says the no-execute bit is in use",
@@ -56,37 +56,37 @@
     {
       "name": "console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
       "ok": true,
-      "detail": "median 7503 us, worst 9108 us"
+      "detail": "median 8348 us, worst 9019 us"
     },
     {
       "name": "fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
       "ok": true,
-      "detail": "median 2394 us, worst 4146 us"
+      "detail": "median 2646 us, worst 4074 us"
     },
     {
       "name": "console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
       "ok": true,
-      "detail": "median 746384 us, worst 748576 us"
+      "detail": "median 759779 us, worst 772863 us"
     },
     {
       "name": "fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs",
       "ok": true,
-      "detail": "median 717994 us, worst 736215 us"
+      "detail": "median 776231 us, worst 786221 us"
     },
     {
       "name": "fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs",
       "ok": true,
-      "detail": "median 1159984 us, worst 1205844 us"
+      "detail": "median 1171557 us, worst 1191861 us"
     },
     {
       "name": "double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs",
       "ok": true,
-      "detail": "median fs 49552 us, console 805264 us"
+      "detail": "median fs 31544 us, console 616383 us"
     },
     {
       "name": "tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it",
       "ok": true,
-      "detail": "5 steps in 8335 ms"
+      "detail": "5 steps in 8329 ms"
     },
     {
       "name": "a server that dies again and again is restarted with a growing delay and still comes back",
@@ -96,7 +96,7 @@
     {
       "name": "crash init: the kernel starts user space again and the new shell answers",
       "ok": true,
-      "detail": "new prompt 22 ms later (host time)"
+      "detail": "new prompt 19 ms later (host time)"
     },
     {
       "name": "fuzz: the report is complete",
@@ -106,7 +106,7 @@
     {
       "name": "fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks",
       "ok": true,
-      "detail": "FUZZ: 1002227 random system calls from 2040 tasks in 70107 ms; FUZZ: 3995 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks"
+      "detail": "FUZZ: 1000314 random system calls from 2072 tasks in 69996 ms; FUZZ: 3963 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks"
     },
     {
       "name": "bench runs to the end",
@@ -126,12 +126,12 @@
     {
       "name": "the guest clock keeps time against the host clock over 5 idle seconds",
       "ok": true,
-      "detail": "guest/host = 1.0004"
+      "detail": "guest/host = 1.0001"
     },
     {
       "name": "at the end: 0 kernel anomalies and every kernel invariant holds",
       "ok": true,
-      "detail": "1798385 system calls, 868 faults contained, 5675 tasks started"
+      "detail": "1798408 system calls, 934 faults contained, 5771 tasks started"
     },
     {
       "name": "shutdown switches the machine off (QEMU exits with code 0)",
@@ -176,8 +176,8 @@
   ],
   "measured": {
     "boot": {
-      "host_ms": 806,
-      "guest_us": 16263,
+      "host_ms": 595,
+      "guest_us": 21358,
       "version": "0.1.0"
     },
     "selftest": {
@@ -247,235 +247,235 @@
     "recovery": {
       "console_crash": {
         "guest_us": {
-          "min": 4925,
-          "median": 7503,
-          "max": 9108,
+          "min": 5692,
+          "median": 8348,
+          "max": 9019,
           "runs": 5,
           "samples": [
-            7503,
-            5818,
-            4925,
-            8251,
-            9108
+            5692,
+            8661,
+            9019,
+            5964,
+            8348
           ]
         },
         "host_ms": {
-          "min": 9,
-          "median": 12,
-          "max": 15,
+          "min": 10,
+          "median": 13,
+          "max": 14,
           "runs": 5,
           "samples": [
-            12,
             10,
-            9,
+            14,
             13,
-            15
+            10,
+            14
           ]
         },
         "respawn_us": {
-          "min": 2052,
-          "median": 3110,
-          "max": 10958,
+          "min": 1869,
+          "median": 2305,
+          "max": 2885,
           "runs": 5,
           "samples": [
-            2956,
-            2052,
-            7514,
-            10958,
-            3110
+            1953,
+            2837,
+            2885,
+            1869,
+            2305
           ]
         }
       },
       "fs_crash": {
         "guest_us": {
-          "min": 2005,
-          "median": 2394,
-          "max": 4146,
+          "min": 2332,
+          "median": 2646,
+          "max": 4074,
           "runs": 5,
           "samples": [
-            2052,
-            2394,
-            4146,
-            3056,
-            2005
+            4074,
+            2332,
+            2635,
+            2646,
+            2673
           ]
         },
         "host_ms": {
           "min": 5,
           "median": 6,
-          "max": 8,
+          "max": 10,
           "runs": 5,
           "samples": [
+            10,
+            6,
             5,
             6,
-            8,
-            7,
-            5
+            6
           ]
         },
         "respawn_us": {
-          "min": 807,
-          "median": 1396,
-          "max": 9877,
+          "min": 760,
+          "median": 1251,
+          "max": 1802,
           "runs": 5,
           "samples": [
-            807,
-            989,
-            1944,
-            1396,
-            9877
+            1802,
+            760,
+            1286,
+            1251,
+            1245
           ]
         }
       },
       "console_hang": {
         "guest_us": {
-          "min": 705429,
-          "median": 746384,
-          "max": 748576,
+          "min": 636710,
+          "median": 759779,
+          "max": 772863,
           "runs": 5,
           "samples": [
-            746384,
-            748576,
-            745187,
-            705429,
-            747881
+            636710,
+            772863,
+            759779,
+            725612,
+            767920
           ]
         },
         "host_ms": {
-          "min": 710,
-          "median": 751,
-          "max": 753,
+          "min": 642,
+          "median": 765,
+          "max": 778,
           "runs": 5,
           "samples": [
-            751,
-            753,
-            751,
-            710,
-            753
+            642,
+            778,
+            765,
+            731,
+            772
           ]
         },
         "respawn_us": {
-          "min": 633,
-          "median": 1575,
-          "max": 1976,
+          "min": 492,
+          "median": 1337,
+          "max": 1435,
           "runs": 5,
           "samples": [
-            1206,
-            633,
-            1575,
-            1957,
-            1976
+            698,
+            492,
+            1385,
+            1435,
+            1337
           ]
         }
       },
       "fs_hang": {
         "guest_us": {
-          "min": 664097,
-          "median": 717994,
-          "max": 736215,
+          "min": 726001,
+          "median": 776231,
+          "max": 786221,
           "runs": 5,
           "samples": [
-            664097,
-            717994,
-            715482,
-            736215,
-            732413
+            726001,
+            736486,
+            782515,
+            786221,
+            776231
           ]
         },
         "host_ms": {
-          "min": 667,
-          "median": 721,
-          "max": 744,
+          "min": 730,
+          "median": 780,
+          "max": 790,
           "runs": 5,
           "samples": [
-            667,
-            721,
-            719,
-            744,
-            736
+            730,
+            739,
+            786,
+            790,
+            780
           ]
         },
         "respawn_us": {
-          "min": 369,
-          "median": 799,
-          "max": 877,
+          "min": 383,
+          "median": 751,
+          "max": 818,
           "runs": 5,
           "samples": [
-            381,
-            369,
-            877,
-            799,
-            800
+            497,
+            383,
+            751,
+            756,
+            818
           ]
         }
       },
       "fs_hang_just_restarted": {
         "guest_us": {
-          "min": 1153535,
-          "median": 1159984,
-          "max": 1205844,
+          "min": 1119274,
+          "median": 1171557,
+          "max": 1191861,
           "runs": 3,
           "samples": [
-            1159984,
-            1205844,
-            1153535
+            1171557,
+            1191861,
+            1119274
           ]
         },
         "host_ms": {
-          "min": 1156,
-          "median": 1163,
-          "max": 1210,
+          "min": 1123,
+          "median": 1174,
+          "max": 1196,
           "runs": 3,
           "samples": [
-            1163,
-            1210,
-            1156
+            1174,
+            1196,
+            1123
           ]
         },
         "respawn_us": {
-          "min": 812,
-          "median": 876,
-          "max": 1116,
+          "min": 784,
+          "median": 842,
+          "max": 982,
           "runs": 3,
           "samples": [
-            876,
-            1116,
-            812
+            982,
+            784,
+            842
           ]
         }
       }
     },
     "double": {
       "fs_us": {
-        "min": 29686,
-        "median": 49552,
-        "max": 51562,
+        "min": 20591,
+        "median": 31544,
+        "max": 70795,
         "runs": 5,
         "samples": [
-          50455,
-          29686,
-          41072,
-          49552,
-          51562
+          31544,
+          20911,
+          20591,
+          59689,
+          70795
         ]
       },
       "console_us": {
-        "min": 648026,
-        "median": 805264,
-        "max": 834225,
+        "min": 604610,
+        "median": 616383,
+        "max": 775431,
         "runs": 5,
         "samples": [
-          648026,
-          796060,
-          805264,
-          834225,
-          813812
+          614962,
+          775431,
+          616383,
+          604610,
+          645732
         ]
       }
     },
     "tour": {
       "steps": 5,
-      "host_ms": 8335
+      "host_ms": 8329
     },
     "backoff": {
       "delays_ms": [
@@ -485,67 +485,67 @@
       "svc": [
         "svc",
         "service   state  restarts  last end                  last restart took",
-        "console   up           17  killed                    430 us",
-        "fs        up           28  page fault                231190 us",
+        "console   up           17  killed                    432 us",
+        "fs        up           28  page fault                243413 us",
         "shell     up            0  -",
         "inti>"
       ]
     },
     "init_crash": {
-      "host_ms": 22,
-      "banner": "Inti 0.1.0 shell ready at t=111459411 us"
+      "host_ms": 19,
+      "banner": "Inti 0.1.0 shell ready at t=118172533 us"
     },
     "fuzz": {
       "requested": 1000000,
-      "seed": 114101615,
-      "calls": 1002227,
-      "tasks": 2040,
-      "guest_ms": 70107,
-      "host_ms": 70175,
-      "calls_per_second": 14296,
-      "checks": 3995,
+      "seed": 120813943,
+      "calls": 1000314,
+      "tasks": 2072,
+      "guest_ms": 69996,
+      "host_ms": 70065,
+      "calls_per_second": 14291,
+      "checks": 3963,
       "violations": 0,
       "anomalies": 0,
       "leaks": 0,
-      "exited": 590,
-      "stopped": 1034,
-      "exceptions": 416,
+      "exited": 584,
+      "stopped": 1051,
+      "exceptions": 437,
       "per_call": [
         "Calls the tasks reported before they ended (tried / accepted by the kernel):",
-        "  yield           14159 /   14159    io_in           14226 /    2012",
-        "  exit              459 /     459    io_out          14224 /    2075",
-        "  call            14409 /    2157    irq_bind        14349 /     895",
-        "  recv            14254 /     327    irq_ack         14111 /     636",
-        "  reply           14384 /      56    spawn           14443 /     994",
-        "  ep_create       14205 /    6087    task_kill       14295 /      53",
-        "  cap_derive      14250 /    2532    sleep           14288 /   14288",
-        "  cap_drop        13565 /    3502    time            14299 /   14299",
-        "  map             14266 /    2518    log             14295 /       0",
-        "  unmap           14004 /    3871    sysinfo         14081 /    2147",
-        "  map_mem         14272 /    1572    cap_revoke      14392 /    5927"
+        "  yield           13989 /   13989    io_in           14593 /    2105",
+        "  exit              467 /     467    io_out          14261 /    2074",
+        "  call            14217 /    2323    irq_bind        14134 /     831",
+        "  recv            14207 /     314    irq_ack         14089 /     561",
+        "  reply           14067 /      50    spawn           13991 /    1019",
+        "  ep_create       14273 /    6021    task_kill       14202 /      44",
+        "  cap_derive      13963 /    2431    sleep           14012 /   14012",
+        "  cap_drop        13780 /    3449    time            14131 /   14131",
+        "  map             14098 /    2487    log             14160 /       0",
+        "  unmap           13974 /    3794    sysinfo         14055 /    2121",
+        "  map_mem         14153 /    1582    cap_revoke      14383 /    6002"
       ]
     },
     "bench_ns": {
-      "system call entry and return": 1039,
-      "read the clock": 1647,
-      "IPC call and reply": 33169,
-      "start, run and reap a task": 709380,
-      "map and unmap one page": 14694,
-      "check every kernel invariant": 3112300
+      "system call entry and return": 857,
+      "read the clock": 1367,
+      "IPC call and reply": 28028,
+      "start, run and reap a task": 696155,
+      "map and unmap one page": 13580,
+      "check every kernel invariant": 3494450
     },
     "clock": {
-      "idle_ratio": 1.0004,
+      "idle_ratio": 1.0001,
       "fuzz_guest_over_host": 0.999
     },
     "counters": {
-      "timer_interrupts": 19533,
+      "timer_interrupts": 20123,
       "tasks": 4,
       "endpoints": 4,
-      "system_calls": 1798385,
-      "task_switches": 253127,
-      "device_interrupts": 19771,
-      "faults_contained": 868,
-      "tasks_started": 5675,
+      "system_calls": 1798408,
+      "task_switches": 253914,
+      "device_interrupts": 20357,
+      "faults_contained": 934,
+      "tasks_started": 5771,
       "kernel_anomalies": 0
     },
     "no_nx": {

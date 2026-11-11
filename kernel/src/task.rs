@@ -4,7 +4,7 @@
 //! 16 interrupt lines. Nothing is allocated at run time, so nothing can leak, and every loop
 //! over kernel state has a bound known at compile time.
 
-use crate::arch::{self, TrapFrame, CLOCK_HZ, FRAME_SIZE, IRQ_BASE, SYSCALL_VECTOR};
+use crate::arch::{self, TrapFrame, CLOCK_HZ, IRQ_BASE, SYSCALL_VECTOR};
 use crate::elf::Image;
 use crate::mem::{page_up, Mem};
 use abi::{
@@ -367,7 +367,7 @@ impl Kernel {
             arch::write_cr3(task.pd);
         }
         let frame = &raw const task.frame;
-        arch::set_trap_stack(frame as u32 + FRAME_SIZE);
+        arch::set_trap_stack(frame);
         Some(frame)
     }
 
@@ -700,7 +700,7 @@ impl Kernel {
         // behind the kernel image. That memory is never given to the frame allocator and
         // nothing writes to it after boot (user mappings of it are read-only), so a shared
         // slice over it is valid for as long as the kernel runs.
-        let archive = unsafe { core::slice::from_raw_parts(base as *const u8, len as usize) };
+        let archive = unsafe { core::slice::from_raw_parts(arch::phys(base), len as usize) };
         let image = abi::archive::find(archive, b"init").expect("the boot archive has no init");
         let mut name = [0; 12];
         name[..4].copy_from_slice(b"init");
