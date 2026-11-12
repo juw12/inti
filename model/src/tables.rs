@@ -16,8 +16,9 @@ use crate::world::{
 use crate::{get32, put32};
 use abi::nr;
 use abi::{
-    E_FAULT, E_INVAL, E_NOCAP, E_NOMEM, E_NOSLOT, E_PERM, E_TIMEOUT, FOREVER, INFO_TASK, L_FAULT, L_KERNEL, MAP_WRITE,
-    MAX_ENDPOINTS, MAX_TASKS, MSG_DATA, MSG_HEADER, NO_CAP, PAGE, R_GRANT, R_SEND, ST_READY, USER_BASE, USER_END,
+    CAP_ENDPOINT, CAP_MEMORY, CAP_SLOTS, CAUSE_KILLED, E_FAULT, E_INVAL, E_NOCAP, E_NOMEM, E_NOSLOT, E_PERM, E_TIMEOUT,
+    FOREVER, INFO_CAP, INFO_TASK, L_FAULT, L_IRQ, L_KERNEL, MAP_WRITE, MAX_ENDPOINTS, MAX_TASKS, MSG_DATA, MSG_HEADER,
+    NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND, ST_READY, USER_BASE, USER_END,
 };
 
 /// Where the tasks of these tests map memory of their own, and the memory of a device.
@@ -959,6 +960,26 @@ fn refused_programs(tally: &mut Tally) {
             placed && started == Some(E_INVAL) && w.tasks() == before,
         );
     }
+    // The one segment of the program, misplaced: where it goes, its bytes in the file, its bytes in memory.
+    let misplaced: [(&str, u32, u32, u32); 3] = [
+        ("whose segment has more bytes in the file than in memory", USER_BASE, IMAGE_SIZE, IMAGE_SIZE - 1),
+        ("whose segment lies below the memory of tasks", USER_BASE - PAGE, IMAGE_SIZE, IMAGE_SIZE),
+        ("whose segment ends beyond the place for programs", USER_BASE, IMAGE_SIZE, 0xF000_0000),
+    ];
+    for (what, address, file, memory) in misplaced {
+        let mut program = good.clone();
+        elf_headers(&mut program, file, memory);
+        put32(&mut program, 24, address + 84);
+        put32(&mut program, 52 + 8, address);
+        put32(&mut program, 52 + 12, address);
+        let (before, free) = (w.tasks(), w.k.mem.free);
+        let placed = mapped && w.poke(0, HEAP + 0x100, &program);
+        let started = w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, IMAGE_SIZE);
+        tally.check(
+            &format!("a program {what} is refused, and neither a task nor a frame is left behind"),
+            placed && started == Some(E_INVAL) && w.tasks() == before && w.k.mem.free == free,
+        );
+    }
     let before = w.tasks();
     let placed = mapped && w.poke(0, HEAP + 0x100, &good);
     let started = w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, IMAGE_SIZE);
@@ -1149,6 +1170,301 @@ fn segments_off_the_first_page(tally: &mut Tally) {
     tally.sound(&mut w, "the state afterwards is sound");
 }
 
+// ---- Places that a changed kernel got through unnoticed in round 5 ----------------------------
+
+/// The kernel writes into a task's memory only where the task itself may write.
+fn read_only_stays_read_only(tally: &mut Tally) {
+    const REPORT: u32 = BUFFER + 0x400;
+    tally.section("Places a task may only read, named as the place for the kernel to write to");
+    let mut w = World::boot(SMALL, true);
+    let made = w.ep_create(0) == Some(6);
+    let Ok(child) = w.spawn_task(0, &Spawn::PLAIN) else {
+        tally.check("a task starts", false);
+        return;
+    };
+    let mapped = w.map(0, HEAP, 1, false) == Some(0);
+    let mut before = [0; 64];
+    let read = w.peek(0, USER_BASE, &mut before);
+    let allowed = w.syscall(0, nr::SYSINFO, [1, INFO_TASK, child as u32, REPORT]) == Some(0);
+    tally.check("the root task has an endpoint, a child, a page it may only read, and is told about the child", made && mapped && read && allowed);
+    tally.check(
+        "a message is not received into the program's own pages, which the task may only read (E_FAULT)",
+        w.recv_at(0, 6, USER_BASE, 0) == Some(E_FAULT),
+    );
+    tally.check(
+        "nor into a page that the task mapped for reading only (E_FAULT)",
+        w.recv_at(0, 6, HEAP, 0) == Some(E_FAULT),
+    );
+    let into_code = w.syscall(0, nr::SYSINFO, [1, INFO_TASK, child as u32, USER_BASE]);
+    let into_page = w.syscall(0, nr::SYSINFO, [1, INFO_TASK, child as u32, HEAP]);
+    let mut after = [0; 64];
+    w.peek(0, USER_BASE, &mut after);
+    tally.check(
+        "a report is not written there either (E_FAULT), and not a byte of either page changes",
+        into_code == Some(E_FAULT) && into_page == Some(E_FAULT) && before == after && w.page_is_zero(0, HEAP),
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// Whether interrupt `line` is masked at the interrupt controller.
+fn masked(line: u32) -> bool {
+    arch::with(|machine| machine.cpu.masked) & (1 << line) != 0
+}
+
+/// Interrupts of devices: delivered once, to the endpoint they are bound to, and to no other.
+fn device_interrupts(tally: &mut Tally) {
+    tally.section("Interrupts of devices");
+    let mut w = World::boot(SMALL, true);
+    let made = [w.ep_create(0), w.ep_create(0), w.ep_create(0)] == [Some(6), Some(7), Some(8)];
+    let (Cap::Endpoint { ep: first, .. }, Cap::Endpoint { ep: second, .. }) = (w.k.tasks[0].caps[6], w.k.tasks[0].caps[7])
+    else {
+        tally.check("the root task holds three endpoints", false);
+        return;
+    };
+    let bound = w.irq_bind(0, 3, 1, 6) == Some(0) && w.irq_bind(0, 3, 3, 7) == Some(0);
+    tally.check(
+        "the root task binds interrupt 1 to one endpoint and interrupt 3 to another; both lines are open",
+        made && bound && !masked(1) && !masked(3),
+    );
+    w.interrupt(1);
+    let closed = masked(1) && !masked(3);
+    let received = w.recv(0, 6, 0);
+    tally.check(
+        "interrupt 1 closes its line and is a message from the kernel on its endpoint, naming line 1",
+        closed && received == Some(0) && word_at(&w, 0, BUFFER) == L_IRQ && word_at(&w, 0, BUFFER + 16) == 1 << 1,
+    );
+    tally.check(
+        "it is delivered once: nothing more waits on that endpoint (E_TIMEOUT), and nothing on the other (E_TIMEOUT)",
+        w.recv(0, 6, 0) == Some(E_TIMEOUT) && w.recv(0, 7, 0) == Some(E_TIMEOUT),
+    );
+    let opened = w.irq_ack(0, 3, 1) == Some(0) && !masked(1);
+    let waits = w.recv(0, 6, FOREVER).is_none() && w.k.tasks[0].state == State::Recv(first);
+    w.interrupt(1);
+    tally.check(
+        "once acknowledged the line is open again, and the next interrupt wakes the task that waits for it",
+        opened && waits && woke_with(&w, 0, 0) && word_at(&w, 0, BUFFER) == L_IRQ && word_at(&w, 0, BUFFER + 16) == 1 << 1,
+    );
+    let opened = w.irq_ack(0, 3, 1) == Some(0);
+    let dropped = w.drop_cap(0, 8) == Some(0);
+    let binds = |w: &World| [w.k.irqs[1].ep, w.k.irqs[3].ep];
+    tally.check(
+        "giving up an endpoint that no interrupt is bound to leaves both interrupts bound and their lines open",
+        opened && dropped && binds(&w) == [first, second] && w.k.irqs[1].task == 0 && w.k.irqs[3].task == 0
+            && !masked(1) && !masked(3),
+    );
+    let dropped = w.drop_cap(0, 7) == Some(0);
+    tally.check(
+        "giving up the endpoint of interrupt 3 unbinds that interrupt and closes its line, and leaves interrupt 1 alone",
+        dropped && w.k.irqs[3].task == NONE && masked(3) && w.k.irqs[1].task == 0 && w.k.irqs[1].ep == first && !masked(1),
+    );
+    w.interrupt(1);
+    tally.check(
+        "interrupt 1 still arrives on its endpoint",
+        w.recv(0, 6, 0) == Some(0) && word_at(&w, 0, BUFFER) == L_IRQ && word_at(&w, 0, BUFFER + 16) == 1 << 1,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// A reply carries a capability only if the call was received with the grant right.
+fn reply_to_a_call_received_without_grant(tally: &mut Tally) {
+    tally.section("A reply with a capability, to a call that was received with or without the grant right");
+    for granting in [false, true] {
+        let mut w = World::boot(SMALL, true);
+        let made = w.ep_create(0) == Some(6);
+        let sending = slot_of(w.derive(0, 6, R_SEND | R_GRANT, 0, 0));
+        let rights = if granting { R_RECV | R_GRANT } else { R_RECV };
+        let listening = slot_of(w.derive(0, 6, rights, 0, 0));
+        let offered = slot_of(w.derive(0, 6, R_SEND, 0, 0));
+        let (true, Some(sending), Some(listening), Some(offered)) = (made, sending, listening, offered) else {
+            tally.check("three capabilities are derived", false);
+            return;
+        };
+        let Ok(client) = w.spawn_task(0, &Spawn::PLAIN.with_caps(&[sending])) else {
+            tally.check("a client starts", false);
+            return;
+        };
+        let called = w.call(client, 0, NO_CAP, FOREVER).is_none();
+        let received = w.recv(0, listening, 0) == Some(0) && matches!(w.k.tasks[client].state, State::Reply(0));
+        let token = w.token(0);
+        let before = w.caps();
+        let answered = w.reply(0, token, offered);
+        if granting {
+            tally.check(
+                "a server that listened with the grant right hands a capability over with its reply",
+                called && received && answered == Some(0) && w.caps() == before + 1 && woke_with(&w, client, 0),
+            );
+        } else {
+            tally.check(
+                "a server that listened without it is refused (E_PERM), though the client's capability has the right; \
+                 no capability moves and the client still waits",
+                called && received && answered == Some(E_PERM) && w.caps() == before
+                    && matches!(w.k.tasks[client].state, State::Reply(0)),
+            );
+            tally.check(
+                "the same reply without a capability goes through",
+                w.reply(0, token, NO_CAP) == Some(0) && w.caps() == before && woke_with(&w, client, 0),
+            );
+        }
+        tally.sound(&mut w, "the state afterwards is sound");
+    }
+}
+
+/// A receiver that waits, and loses the grant right meanwhile.
+fn grant_taken_from_a_waiting_receiver(tally: &mut Tally) {
+    tally.section("A waiting receiver that loses the right to take a capability");
+    for revoked in [false, true] {
+        let mut w = World::boot(SMALL, true);
+        let made = w.ep_create(0);
+        let Cap::Endpoint { ep, .. } = held(&w, made) else {
+            tally.check("the root task holds an endpoint", false);
+            return;
+        };
+        let granting = slot_of(w.derive(0, 6, R_RECV | R_GRANT, 0, 0));
+        let plain = slot_of(w.derive(0, 6, R_RECV, 0, 0));
+        let offered = slot_of(w.derive(0, 6, R_SEND, 0, 0));
+        let (Some(granting), Some(plain), Some(offered)) = (granting, plain, offered) else {
+            tally.check("three capabilities are derived", false);
+            return;
+        };
+        let Ok(server) = w.spawn_task(0, &Spawn::PLAIN.with_caps(&[granting, plain])) else {
+            tally.check("a server starts", false);
+            return;
+        };
+        let waits = w.recv(server, 0, FOREVER).is_none() && w.k.tasks[server].state == State::Recv(ep);
+        let taken = !revoked || w.revoke(0, granting) == Some(0);
+        let still = w.k.tasks[server].state == State::Recv(ep);
+        let lost = w.k.tasks[server].caps[0] == Cap::Null;
+        tally.sound(&mut w, "the state with the receiver waiting is sound");
+        let before = w.caps();
+        let called = w.call(0, 6, offered, FOREVER);
+        if revoked {
+            tally.check(
+                "a receiver whose granting capability is revoked while it waits goes on waiting, \
+                 for it still holds a plain one",
+                waits && taken && still && lost,
+            );
+            tally.check(
+                "a call that brings a capability is then refused (E_PERM); no capability moves, and the receiver waits on",
+                called == Some(E_PERM) && w.caps() == before && w.k.tasks[server].state == State::Recv(ep),
+            );
+        } else {
+            tally.check(
+                "a receiver that keeps its granting capability takes the offered one with the message",
+                waits && taken && still && !lost && called.is_none() && w.caps() == before + 1
+                    && woke_with(&w, server, 0) && w.k.tasks[0].state == State::Reply(server as u8),
+            );
+        }
+        tally.sound(&mut w, "the state afterwards is sound");
+    }
+}
+
+/// A task that ends itself gets no result: nothing is written into what it left behind.
+fn a_task_that_ends_itself(tally: &mut Tally) {
+    tally.section("A task that ends itself through a handle to itself");
+    let mut w = World::boot(SMALL, true);
+    let made = w.ep_create(0) == Some(6);
+    let sending = slot_of(w.derive(0, 6, R_SEND | R_GRANT, 0, 0));
+    let (true, Some(sending)) = (made, sending) else {
+        tally.check("the root task holds an endpoint and a copy to send on", false);
+        return;
+    };
+    let Some(handle) = slot_of(w.spawn(0, &Spawn { fault: 6, ..Spawn::PLAIN }.with_caps(&[sending]))) else {
+        tally.check("a task starts", false);
+        return;
+    };
+    let child = w.child(0, handle);
+    let called = w.call(child, 0, NO_CAP, FOREVER).is_none();
+    let received = w.recv(0, 6, 0) == Some(0);
+    let token = w.token(0);
+    let answered = w.reply(0, token, handle) == Some(0) && woke_with(&w, child, 0);
+    let own = w.k.tasks[child].caps.iter().position(|cap| matches!(cap, Cap::Task { index, .. } if *index as usize == child));
+    let Some(own) = own else {
+        tally.check("the task is handed a handle to itself", false);
+        return;
+    };
+    tally.check("a task asks for a handle to itself and is given it in a reply", called && received && answered);
+    let gen = w.k.tasks[child].gen;
+    let result = w.kill(child, own as u32);
+    let task = &w.k.tasks[child];
+    tally.check(
+        "it ends itself with that handle: the call does not return, and no result is written into the registers it left",
+        result.is_none() && matches!(task.state, State::Zombie(_)) && task.gen == gen && task.frame.eax == nr::TASK_KILL,
+    );
+    let told = w.recv(0, 6, 0) == Some(0);
+    tally.check(
+        "the task that started it is told that it was killed",
+        told && word_at(&w, 0, BUFFER) == L_FAULT && word_at(&w, 0, BUFFER + 4) == FAULT_BADGE
+            && word_at(&w, 0, BUFFER + 16) == CAUSE_KILLED,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// How many bytes the kernel has written to its serial log.
+fn logged() -> u32 {
+    arch::with(|machine| machine.cpu.serial_bytes)
+}
+
+/// The log is written through the Log capability and through nothing else.
+fn the_log_needs_its_capability(tally: &mut Tally) {
+    const TEXT: u32 = BUFFER + 0x400;
+    tally.section("Who may write to the kernel's log");
+    let mut w = World::boot(SMALL, true);
+    let placed = w.poke(0, TEXT, b"model\n");
+    let before = logged();
+    let written = w.syscall(0, nr::LOG, [0, TEXT, 6, 0]);
+    tally.check(
+        "a task that shows its Log capability has its text written, with a carriage return before the line feed",
+        placed && written == Some(0) && logged() == before + 7,
+    );
+    let before = logged();
+    let refused = [w.syscall(0, nr::LOG, [1, TEXT, 6, 0]), w.syscall(0, nr::LOG, [20, TEXT, 6, 0])];
+    tally.check(
+        "a task that shows another capability is refused (E_NOCAP), and so is one that shows an empty slot (E_NOCAP); \
+         not a byte is written",
+        refused == [Some(E_NOCAP), Some(E_NOCAP)] && logged() == before,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// What the kernel reports about single capabilities.
+fn reported_capabilities(tally: &mut Tally) {
+    const REPORT: u32 = BUFFER + 0x400;
+    tally.section("What the kernel reports about a capability");
+    let mut w = World::boot(SMALL, true);
+    let report = |w: &mut World, task: usize, slot: u32| {
+        let result = w.syscall(0, nr::SYSINFO, [1, INFO_CAP, (task as u32) << 8 | slot, REPORT]);
+        (result, [0, 4, 8, 12, 16].map(|at| word_at(w, 0, REPORT + at)))
+    };
+    tally.check(
+        "the screen's memory is reported as memory: where it is, how many pages, that it may be written, \
+         and that it is no copy of another capability",
+        report(&mut w, 0, 4) == (Some(0), [CAP_MEMORY, 0xB8 * PAGE, 8, 1, NO_CAP]),
+    );
+    let made = w.ep_create(0);
+    let Cap::Endpoint { ep, .. } = held(&w, made) else {
+        tally.check("the root task holds an endpoint", false);
+        return;
+    };
+    let copied = w.derive(0, 6, R_SEND, 0x77, 0) == Some(7);
+    let Ok(child) = w.spawn_task(0, &Spawn::PLAIN.with_caps(&[7])) else {
+        tally.check("a task starts", false);
+        return;
+    };
+    tally.check(
+        "a copy of an endpoint capability is reported with its endpoint, rights and badge, and with the slot it was copied from",
+        copied && report(&mut w, 0, 7) == (Some(0), [CAP_ENDPOINT, ep as u32, R_SEND, 0x77, 6]),
+    );
+    tally.check(
+        "the copy that a new task was started with names the slot of the task that started it",
+        report(&mut w, child, 0) == (Some(0), [CAP_ENDPOINT, ep as u32, R_SEND, 0x77, 7]),
+    );
+    tally.check(
+        "a slot beyond the table is refused (E_INVAL), and so is a task beyond the table (E_INVAL)",
+        report(&mut w, 0, CAP_SLOTS as u32).0 == Some(E_INVAL) && report(&mut w, MAX_TASKS, 0).0 == Some(E_INVAL),
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
 // ---- Would the checker notice? -----------------------------------------------------------------
 
 // The stage for the corruptions below. Tasks and endpoints get the lowest free numbers.
@@ -1199,6 +1515,16 @@ fn set_entry(at: u32, value: u64) {
 fn forge(w: &mut World, cap: Cap) {
     w.k.tasks[CLIENT].caps[5] = cap;
     w.k.tasks[CLIENT].from[5] = ORIGINAL;
+}
+
+/// One more task on the stage, started by the root task with the shared endpoint named for the
+/// news of its end, and ended by itself: it holds nothing and waits there to be noticed. Without
+/// such a task there is nothing honest to corrupt (a task that still holds memory and is marked
+/// as ended is reported under rule 1 before anything else is looked at).
+fn ended(w: &mut World) -> Option<usize> {
+    let t = w.spawn_task(0, &Spawn { fault: 6, ..Spawn::PLAIN }).ok()?;
+    w.exit(t, 0);
+    (w.k.tasks[t].state == State::Zombie(SHARED as u8) && w.k.check() == 0).then_some(t)
 }
 
 /// A corruption, the rule of the checker that describes it (0 if none does), and how to plant it.
@@ -1289,6 +1615,17 @@ const SEEDS: &[Seed] = &[
     ("a client waits for the answer of a task that does not exist", 12, |w| {
         w.k.tasks[CLIENT].state = State::Reply(NOBODY as u8)
     }),
+    ("an ended task queues on an endpoint that was not named for the news of its end", 11, |w| {
+        if let Some(t) = ended(w) {
+            w.k.tasks[t].state = State::Zombie(OWN as u8);
+        }
+    }),
+    ("an ended task queues on its own endpoint for such news, from which nobody can receive", 11, |w| {
+        if let Some(t) = ended(w) {
+            w.k.tasks[t].state = State::Zombie((MAX_ENDPOINTS - 1) as u8);
+            w.k.tasks[t].fault_ep = (MAX_ENDPOINTS - 1) as u8;
+        }
+    }),
     ("an endpoint's owner does not exist", 21, |w| w.k.eps[OWN].owner = NOBODY as u8),
     ("an interrupt stays bound without its capability", 20, |w| w.k.tasks[0].caps[3] = Cap::Null),
     ("an interrupt is bound to a task that does not exist", 16, |w| w.k.irqs[1].task = NOBODY as u8),
@@ -1372,6 +1709,13 @@ pub fn run() -> bool {
     grant_taken_from_a_waiting_sender(&mut tally);
     device_memory_ends_where_it_ends(&mut tally);
     segments_off_the_first_page(&mut tally);
+    read_only_stays_read_only(&mut tally);
+    device_interrupts(&mut tally);
+    reply_to_a_call_received_without_grant(&mut tally);
+    grant_taken_from_a_waiting_receiver(&mut tally);
+    a_task_that_ends_itself(&mut tally);
+    the_log_needs_its_capability(&mut tally);
+    reported_capabilities(&mut tally);
     checker_sensitivity(&mut tally);
     let total = tally.passed + tally.failed;
     println!("MODEL tables: {} {}/{total}", if tally.failed == 0 { "PASS" } else { "FAIL" }, tally.passed);

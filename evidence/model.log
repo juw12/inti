@@ -175,6 +175,9 @@ Programs with the right first bytes and a wrong header
   ok    a program whose segment entries have the wrong size is refused, and no task is left behind
   ok    a program with no segments is refused, and no task is left behind
   ok    a program with seventeen segments is refused, and no task is left behind
+  ok    a program whose segment has more bytes in the file than in memory is refused, and neither a task nor a frame is left behind
+  ok    a program whose segment lies below the memory of tasks is refused, and neither a task nor a frame is left behind
+  ok    a program whose segment ends beyond the place for programs is refused, and neither a task nor a frame is left behind
   ok    the same program with none of those bytes changed starts
   ok    the state afterwards is sound
 What the kernel counts
@@ -199,6 +202,50 @@ Programs whose segment is not at the start of the first page
   ok    a program whose segment is on the second page is loaded there, and the first page stays unmapped
   ok    it is charged the same frames as any small program
   ok    a segment that starts inside a page is loaded at its address, and the bytes before it are zero
+  ok    the state afterwards is sound
+Places a task may only read, named as the place for the kernel to write to
+  ok    the root task has an endpoint, a child, a page it may only read, and is told about the child
+  ok    a message is not received into the program's own pages, which the task may only read (E_FAULT)
+  ok    nor into a page that the task mapped for reading only (E_FAULT)
+  ok    a report is not written there either (E_FAULT), and not a byte of either page changes
+  ok    the state afterwards is sound
+Interrupts of devices
+  ok    the root task binds interrupt 1 to one endpoint and interrupt 3 to another; both lines are open
+  ok    interrupt 1 closes its line and is a message from the kernel on its endpoint, naming line 1
+  ok    it is delivered once: nothing more waits on that endpoint (E_TIMEOUT), and nothing on the other (E_TIMEOUT)
+  ok    once acknowledged the line is open again, and the next interrupt wakes the task that waits for it
+  ok    giving up an endpoint that no interrupt is bound to leaves both interrupts bound and their lines open
+  ok    giving up the endpoint of interrupt 3 unbinds that interrupt and closes its line, and leaves interrupt 1 alone
+  ok    interrupt 1 still arrives on its endpoint
+  ok    the state afterwards is sound
+A reply with a capability, to a call that was received with or without the grant right
+  ok    a server that listened without it is refused (E_PERM), though the client's capability has the right; no capability moves and the client still waits
+  ok    the same reply without a capability goes through
+  ok    the state afterwards is sound
+  ok    a server that listened with the grant right hands a capability over with its reply
+  ok    the state afterwards is sound
+A waiting receiver that loses the right to take a capability
+  ok    the state with the receiver waiting is sound
+  ok    a receiver that keeps its granting capability takes the offered one with the message
+  ok    the state afterwards is sound
+  ok    the state with the receiver waiting is sound
+  ok    a receiver whose granting capability is revoked while it waits goes on waiting, for it still holds a plain one
+  ok    a call that brings a capability is then refused (E_PERM); no capability moves, and the receiver waits on
+  ok    the state afterwards is sound
+A task that ends itself through a handle to itself
+  ok    a task asks for a handle to itself and is given it in a reply
+  ok    it ends itself with that handle: the call does not return, and no result is written into the registers it left
+  ok    the task that started it is told that it was killed
+  ok    the state afterwards is sound
+Who may write to the kernel's log
+  ok    a task that shows its Log capability has its text written, with a carriage return before the line feed
+  ok    a task that shows another capability is refused (E_NOCAP), and so is one that shows an empty slot (E_NOCAP); not a byte is written
+  ok    the state afterwards is sound
+What the kernel reports about a capability
+  ok    the screen's memory is reported as memory: where it is, how many pages, that it may be written, and that it is no copy of another capability
+  ok    a copy of an endpoint capability is reported with its endpoint, rights and badge, and with the slot it was copied from
+  ok    the copy that a new task was started with names the slot of the task that started it
+  ok    a slot beyond the table is refused (E_INVAL), and so is a task beyond the table (E_INVAL)
   ok    the state afterwards is sound
 Would the kernel's checker notice? One corruption at a time, planted in a sound state
   ok    an endpoint counts one capability too many: rule 8
@@ -234,6 +281,8 @@ Would the kernel's checker notice? One corruption at a time, planted in a sound 
   ok    a task waits on an endpoint that does not know of it: rule 10
   ok    a sender's badge is on none of its capabilities: rule 20
   ok    a client waits for the answer of a task that does not exist: rule 12
+  ok    an ended task queues on an endpoint that was not named for the news of its end: rule 11
+  ok    an ended task queues on its own endpoint for such news, from which nobody can receive: rule 11
   ok    an endpoint's owner does not exist: rule 21
   ok    an interrupt stays bound without its capability: rule 20
   ok    an interrupt is bound to a task that does not exist: rule 16
@@ -249,15 +298,15 @@ Would the kernel's checker notice? One corruption at a time, planted in a sound 
   blind a forged capability to write to the log: not noticed, as expected
   blind a forged handle for a task that is not the holder's child: not noticed, as expected
   ok    without a corruption the checker reports nothing
-MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker
+MODEL seeds: 46 of 46 planted corruptions reported by the kernel's checker
 MODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed
-MODEL tables: PASS 217/217
+MODEL tables: PASS 259/259
 MODEL scenario boot: the root task alone, offered nearly every kind of step (depth 4)
   depth 1: 16 new states, 23 transitions
   depth 2: 162 new states, 373 transitions
   depth 3: 1833 new states, 4612 transitions
   depth 4: 23393 new states, 60704 transitions
-MODEL explore boot: depth 4, 25405 states, 65712 transitions, 0 violations, complete no, 42 deliveries checked, 0 replies checked, 3418 restarts, 91 beyond budget, 12.1 s
+MODEL explore boot: depth 4, 25405 states, 65712 transitions, 0 violations, complete no, 42 deliveries checked, 0 replies checked, 3418 restarts, 91 beyond budget, 17.1 s
 MODEL results boot: ok 45214, did not return 5467, events 4889, E_INVAL 0, E_NOCAP 0, E_PERM 4703, E_FAULT 402, E_NOMEM 0, E_NOSLOT 1220, E_DEAD 33, E_TIMEOUT 529, E_BUSY 3255, E_NOSYS 0, another error 0
 MODEL pairs boot: 6 of 49 ordered pairs of failure kinds, 63 failure steps after an earlier failure
 MODEL scenario ipc: a client, a server and their supervisor: calls, replies, capabilities sent along, deaths in between (depth 8)
@@ -269,7 +318,7 @@ MODEL scenario ipc: a client, a server and their supervisor: calls, replies, cap
   depth 6: 1686 new states, 11301 transitions
   depth 7: 2729 new states, 19672 transitions
   depth 8: 4664 new states, 29539 transitions
-MODEL explore ipc: depth 8, 10286 states, 68548 transitions, 0 violations, complete no, 5326 deliveries checked, 700 replies checked, 0 restarts, 29 beyond budget, 19.2 s
+MODEL explore ipc: depth 8, 10286 states, 68548 transitions, 0 violations, complete no, 5326 deliveries checked, 700 replies checked, 0 restarts, 29 beyond budget, 39.5 s
 MODEL results ipc: ok 17209, did not return 16323, events 8165, E_INVAL 4188, E_NOCAP 10470, E_PERM 2254, E_FAULT 1713, E_NOMEM 0, E_NOSLOT 2094, E_DEAD 313, E_TIMEOUT 3245, E_BUSY 480, E_NOSYS 2094, another error 0
 MODEL pairs ipc: 10 of 49 ordered pairs of failure kinds, 950 failure steps after an earlier failure
 MODEL scenario irq: a driver, its interrupt line and its supervisor (depth 12)
@@ -282,7 +331,7 @@ MODEL scenario irq: a driver, its interrupt line and its supervisor (depth 12)
   depth 7: 64 new states, 390 transitions
   depth 8: 24 new states, 160 transitions
   depth 9: 0 new states, 32 transitions
-MODEL explore irq: depth 9, 742 states, 4315 transitions, 0 violations, complete yes, 721 deliveries checked, 0 replies checked, 0 restarts, 0 beyond budget, 1.2 s
+MODEL explore irq: depth 9, 742 states, 4315 transitions, 0 violations, complete yes, 721 deliveries checked, 0 replies checked, 0 restarts, 0 beyond budget, 0.9 s
 MODEL results irq: ok 1642, did not return 790, events 1174, E_INVAL 0, E_NOCAP 0, E_PERM 118, E_FAULT 0, E_NOMEM 0, E_NOSLOT 0, E_DEAD 18, E_TIMEOUT 305, E_BUSY 268, E_NOSYS 0, another error 0
 MODEL pairs irq: 2 of 49 ordered pairs of failure kinds, 21 failure steps after an earlier failure
 MODEL scenario memory: a task that maps, unmaps and runs out of memory, with device memory that can be revoked (depth 6)
@@ -292,7 +341,7 @@ MODEL scenario memory: a task that maps, unmaps and runs out of memory, with dev
   depth 4: 414 new states, 2867 transitions
   depth 5: 2344 new states, 14943 transitions
   depth 6: 8338 new states, 60107 transitions
-MODEL explore memory: depth 6, 11218 states, 78802 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 0 restarts, 3600 beyond budget, 22.6 s
+MODEL explore memory: depth 6, 11218 states, 78802 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 0 restarts, 3600 beyond budget, 31.2 s
 MODEL results memory: ok 39676, did not return 0, events 4318, E_INVAL 4318, E_NOCAP 10795, E_PERM 5482, E_FAULT 2421, E_NOMEM 3114, E_NOSLOT 3349, E_DEAD 1, E_TIMEOUT 0, E_BUSY 3169, E_NOSYS 2159, another error 0
 MODEL pairs memory: 0 of 49 ordered pairs of failure kinds, 0 failure steps after an earlier failure
 MODEL scenario spawn: trees of tasks on a machine too small for them, and the root task dying (depth 8)
@@ -304,7 +353,7 @@ MODEL scenario spawn: trees of tasks on a machine too small for them, and the ro
   depth 6: 560 new states, 4520 transitions
   depth 7: 1348 new states, 11395 transitions
   depth 8: 2369 new states, 23227 transitions
-MODEL explore spawn: depth 8, 4640 states, 41463 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 3968 restarts, 666 beyond budget, 35.8 s
+MODEL explore spawn: depth 8, 4640 states, 41463 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 3968 restarts, 666 beyond budget, 15.3 s
 MODEL results spawn: ok 10594, did not return 0, events 12437, E_INVAL 0, E_NOCAP 0, E_PERM 0, E_FAULT 0, E_NOMEM 5843, E_NOSLOT 10232, E_DEAD 2357, E_TIMEOUT 0, E_BUSY 0, E_NOSYS 0, another error 0
 MODEL pairs spawn: 8 of 49 ordered pairs of failure kinds, 14374 failure steps after an earlier failure
 MODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds
