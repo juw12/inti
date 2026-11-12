@@ -1,13 +1,13 @@
 {
   "rubric": "inti-os-v1",
   "mode": "full",
-  "date": "2026-11-12T10:29:12+07:00",
-  "image_sha256": "86ff911391ef92e959472ad65b2d1c1dc3bfee041eef1b37182df3214ac8ef09",
+  "date": "2026-11-12T14:17:04+07:00",
+  "image_sha256": "c50687aac3966153e39925daebc75707fb447bcb2ade4ad6380e0b7c18b6195c",
   "sizes": {
     "boot_sector_bytes": 512,
-    "kernel_bytes": 70272,
+    "kernel_bytes": 70400,
     "archive_bytes": 206176,
-    "payload_bytes": 276448,
+    "payload_bytes": 276576,
     "image_bytes": 2097152,
     "files": {
       "bench": 12288,
@@ -27,17 +27,13 @@
     "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
     "python": "3.13.2"
   },
-  "build_seconds": 15,
+  "build_seconds": 6,
   "tries": {
     "qemu_test": [
-      1,
-      1,
-      1
+      0
     ],
     "browser_check": [
-      1,
-      1,
-      1
+      0
     ]
   },
   "gates": [
@@ -45,57 +41,57 @@
       "id": "G1",
       "title": "One command builds the disk image from a clean tree",
       "ok": true,
-      "detail": "clean build in 15 s wrote build/inti.img (2,097,152 bytes)"
+      "detail": "clean build in 6 s wrote build/inti.img (2,097,152 bytes)"
     },
     {
       "id": "G2",
       "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
-      "ok": false,
-      "detail": "evidence/test.json was not measured on the current build/inti.img"
+      "ok": true,
+      "detail": "shell prompt 163 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
     },
     {
       "id": "G3",
       "title": "The self-test inside the system passes with at least 30 checks",
-      "ok": false,
-      "detail": "evidence/test.json was not measured on the current build/inti.img"
+      "ok": true,
+      "detail": "SELFTEST: PASS 94/94 after boot and 94/94 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx)"
     },
     {
       "id": "G4",
       "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
-      "ok": false,
-      "detail": "evidence/test.json was not measured on the current build/inti.img"
+      "ok": true,
+      "detail": "console crash 8.5 ms, fs crash 4.2 ms, console hang 765.5 ms, fs hang 744.9 ms, fs crash during a console hang: fs 31.8 ms and console 634.8 ms (median of 5 runs each, guest clock); the shell answered after every run"
     },
     {
       "id": "G5",
       "title": "Every attempt of the hostile program without capabilities is denied",
-      "ok": false,
-      "detail": "evidence/test.json was not measured on the current build/inti.img"
+      "ok": true,
+      "detail": "51/51 attempts denied (including port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers"
     },
     {
       "id": "G6",
       "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
-      "ok": false,
-      "detail": "evidence/test.json was not measured on the current build/inti.img"
+      "ok": true,
+      "detail": "1,000,541 random system calls from 2,020 tasks, 3,998 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
     },
     {
       "id": "G7",
       "title": "No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code",
       "ok": true,
-      "detail": "no alloc crate in the kernel; 84 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,929 lines of kernel code (limit 4,000)"
+      "detail": "no alloc crate in the kernel; 84 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000)"
     },
     {
       "id": "G8",
       "title": "The same disk image boots to the shell prompt in a web browser",
-      "ok": false,
-      "detail": "evidence/web.json does not show the current image booting: selftest"
+      "ok": true,
+      "detail": "shell prompt after 0.72 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless); 7 commands answered; byte-for-byte the image of the QEMU test"
     },
     {
       "id": "G9",
       "title": "Every number in the documents comes from a script or carries a source",
-      "ok": false,
-      "detail": "tools/check_claims.py reports problems"
+      "ok": true,
+      "detail": "tools/check_claims.py passes: claims recomputed, documents re-rendered and compared"
     }
   ],
-  "passed": 2,
+  "passed": 9,
   "total": 9
 }

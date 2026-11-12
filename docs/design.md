@@ -48,16 +48,16 @@ kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=18801 us
+Inti 0.1.0 shell ready at t=14642 us
 Type help for the list of commands, or tour for a guided tour.
 ```
 
-The prompt appeared 18.8 ms after the kernel started, by the system's own clock, and 182 ms after the test script started the emulator.
+The prompt appeared 14.6 ms after the kernel started, by the system's own clock, and 163 ms after the test script started the emulator.
 
 | Part of the disk image | Bytes |
 |---|---|
 | boot sector | 512 |
-| kernel | 70,272 |
+| kernel | 70,400 |
 | `bench` | 12,288 |
 | `console` | 12,288 |
 | `fs` | 8,192 |
@@ -87,21 +87,21 @@ Every quota is lent, never created. A parent gives a child part of its own memor
 
 A share of the processor is a percentage from one to 100. A task gets its parent's share or a smaller one when it is started (word 26 of the `spawn` request; zero means the parent's), and nothing raises it afterwards. At every switch the kernel reads the processor's cycle counter and charges the cycles to the task that ran and to every task above it in the tree, so a task's count covers everything it started: starting children, or starting them again and again, does not escape the count. Time is cut into windows of 100 timer interrupts, one second. A task is over its share when it, or a task above it, has used its percentage of the previous window's cycles in the current window, and the scheduler picks such a task only when no ready task is within its share. A share is therefore a promise to everybody else and not a ceiling: it never leaves the processor idle, and a group that is over its share still runs when nobody else wants to. `init` gives the shell and everything started from it 80%, so the servers and `init` itself come first once the shell's programs have had that much of a second.
 
-In QEMU the self-test starts three tasks that never yield, once with a share of 20% and once with no share of their own, and counts its own work beside them. It kept 65% of its speed beside the held group and 24% beside the free one; the kernel charged the groups 35% and 75% of a second. The run after all the injected faults gave 62% and 23%, with 34% and 75% charged. The held group is charged more than its 20% by design, not by error: the self-test runs under the shell, and once the shell's tree has used its 80% of a window every task in it is over a share, none is preferred, and the four tasks split what is left of the second evenly again.
+In QEMU the self-test starts three tasks that never yield, once with a share of 20% and once with no share of their own, and counts its own work beside them. It kept 59% of its speed beside the held group and 24% beside the free one; the kernel charged the groups 35% and 74% of a second. The run after all the injected faults gave 58% and 23%, with 35% and 75% charged. The held group is charged more than its 20% by design, not by error: the self-test runs under the shell, and once the shell's tree has used its 80% of a window every task in it is over a share, none is preferred, and the four tasks split what is left of the second evenly again.
 
 ```log
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 65% of its speed when they
+       beside three spinning tasks this program kept 59% of its speed when they
        shared 20% of the processor, and 24% when they had no share of their own;
-       the kernel charged the group 35% and 75% of a second
-       rounds alone in half a second: 67792, 65179 and 64774; in two
-       seconds beside the groups: 178249 and 66280
+       the kernel charged the group 35% and 74% of a second
+       rounds alone in half a second: 63098, 62695 and 59077; in two
+       seconds beside the groups: 151150 and 61002
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
 ```
 
 What a share does not do: a server's work for a client is charged to the server, not to the client (no donation across a call); no share is enforced in the first second after boot, because there is no previous window to measure against; time the kernel spends in a system call is charged to the caller; a task can overrun by up to one timer period (10 ms) per window before the kernel looks again; and the usage that `sysinfo` reports is that of the last full window, in thousandths, not of the current one.
 
-The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 0.9992 of real time while idle and 0.9202 during the fuzz run.
+The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 1.0001 of real time while idle and 0.9993 during the fuzz run.
 
 ## Capabilities
 
@@ -200,11 +200,11 @@ Each server gets a memory quota of 64 pages.
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 5.3 ms | 4.1 to 9.5 ms | 9 ms | 1.9 ms |
-| file server crashes (page fault) | 5 | 2.3 ms | 1.9 to 22.5 ms | 4 ms | 1.1 ms |
-| console driver hangs (stops answering) | 5 | 753 ms | 660 to 763 ms | 758 ms | 1.4 ms |
-| file server hangs (stops answering) | 5 | 754 ms | 674 to 785 ms | 777 ms | 0.7 ms |
-| file server hangs right after a restart | 3 | 1191 ms | 1171 to 1203 ms | 1193 ms | 1.2 ms |
+| console driver crashes (page fault) | 5 | 8.5 ms | 8.1 to 16.1 ms | 14 ms | 2.7 ms |
+| file server crashes (page fault) | 5 | 4.2 ms | 3.8 to 4.5 ms | 9 ms | 1.9 ms |
+| console driver hangs (stops answering) | 5 | 765 ms | 655 to 806 ms | 771 ms | 1.8 ms |
+| file server hangs (stops answering) | 5 | 745 ms | 715 to 814 ms | 749 ms | 0.8 ms |
+| file server hangs right after a restart | 3 | 1192 ms | 1172 to 1192 ms | 1196 ms | 1.2 ms |
 
 "Until the service answers again" is measured by the shell on the system's clock, from just before it injects the fault to the first answer from the new copy. "Host stopwatch" is the same interval timed by the test script from outside, including the serial line. "Supervisor restart" is the time `init` reports between noticing the end and having started the new copy.
 
@@ -214,22 +214,22 @@ A hang, as the serial port recorded it:
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 14016 us (restart 6)
-RECOVERY: fs hang -> answering again after 674009 us
+init: fs restarted after 831 us (restart 6)
+RECOVERY: fs hang -> answering again after 814379 us
 ```
 
-Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of 5 runs, and that the shell and a file listing answer afterwards. The file server answered again after 39.6 ms and the console driver after 633 ms (medians):
+Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of 5 runs, and that the shell and a file listing answer afterwards. The file server answered again after 31.8 ms and the console driver after 635 ms (medians):
 
 ```log
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 1699 us (restart 17)
+init: fs restarted after 2300 us (restart 17)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 1147 us (restart 11)
-DOUBLE FAILURE: fs answering again after 29327 us, console after 615294 us
+init: console restarted after 554 us (restart 11)
+DOUBLE FAILURE: fs answering again after 21360 us, console after 614874 us
 ```
 
 A crash loop. The third and fourth quick ends in a row were delayed by 100 ms and 200 ms:
@@ -238,26 +238,26 @@ A crash loop. The third and fourth quick ends in a row were delayed by 100 ms an
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 3 times in a row; next restart in 100 ms
-init: fs restarted after 112792 us (restart 27)
-RECOVERY: fs crash -> answering again after 115146 us
+init: fs restarted after 114589 us (restart 27)
+RECOVERY: fs crash -> answering again after 116806 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 4 times in a row; next restart in 200 ms
-init: fs restarted after 241374 us (restart 28)
-RECOVERY: fs crash -> answering again after 243113 us
+init: fs restarted after 222032 us (restart 28)
+RECOVERY: fs crash -> answering again after 224682 us
 ```
 
-The supervisor crashing. The kernel had user space running again 22 ms later on the host's stopwatch:
+The supervisor crashing. The kernel had user space running again 23 ms later on the host's stopwatch:
 
 ```log
 inti> crash init
 Crashing the root task. The kernel will start user space again.
-kernel: the root task ended (cause 0xe); restarting user space at t=149732120 us
+kernel: the root task ended (cause 0xe); restarting user space at t=116591009 us
 [user space restarted]
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=149746371 us
+Inti 0.1.0 shell ready at t=116605957 us
 Type help for the list of commands, or tour for a guided tour.
 ```
 
@@ -266,8 +266,8 @@ What the shell's `svc` command showed at the end of the test run:
 ```log
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up           17  killed                    365 us
-fs        up           28  page fault                241374 us
+console   up           17  killed                    583 us
+fs        up           28  page fault                222032 us
 shell     up            0  -
 ```
 
@@ -307,10 +307,10 @@ After the whole test run, with every injected fault and the fuzz run behind it, 
 
 ```log
 inti> uptime
-up 263.605 s, 24285 timer interrupts
-4 tasks, 4 endpoints, 2697319 system calls, 259390 task switches
-24507 device interrupts, 840 faults contained
-5965 tasks started, 0 kernel anomalies
+up 205.647 s, 20552 timer interrupts
+4 tasks, 4 endpoints, 2583812 system calls, 254268 task switches
+20790 device interrupts, 881 faults contained
+5681 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 ```
 
@@ -320,7 +320,7 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 
 | Check | Result | Measured |
 |---|---|---|
-| boots from its own boot sector to the shell prompt within 20 s | pass | 182 ms after QEMU started |
+| boots from its own boot sector to the shell prompt within 20 s | pass | 163 ms after QEMU started |
 | the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |
 | selftest after boot | pass | SELFTEST: PASS 94/94 |
 | the selftest's line written through the Log capability is in the kernel log | pass |  |
@@ -328,22 +328,22 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 | rogue all: the kernel invariants hold afterwards | pass |  |
 | rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 50/50 attempts denied, 1 skipped |
 | the system is still up after the hostile program (ls answers) | pass |  |
-| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 5295 us, worst 9533 us |
-| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 2257 us, worst 22477 us |
-| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 752828 us, worst 763377 us |
-| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 754144 us, worst 785493 us |
-| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1190709 us, worst 1202967 us |
-| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 39600 us, console 632946 us |
-| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8236 ms |
+| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 8541 us, worst 16083 us |
+| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 4210 us, worst 4450 us |
+| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 765470 us, worst 805961 us |
+| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 744876 us, worst 814379 us |
+| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1191617 us, worst 1191622 us |
+| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 31819 us, console 634756 us |
+| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8443 ms |
 | a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |
-| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 22 ms later (host time) |
+| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 23 ms later (host time) |
 | fuzz: the report is complete | pass |  |
-| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1002269 random system calls from 2123 tasks in 94441 ms; FUZZ: 4287 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
+| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1000541 random system calls from 2020 tasks in 70546 ms; FUZZ: 3998 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
 | bench runs to the end | pass | 6 results |
 | selftest after all faults | pass | SELFTEST: PASS 94/94 |
 | keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |
-| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 0.9992 |
-| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2697319 system calls, 840 faults contained, 5965 tasks started |
+| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 1.0001 |
+| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2583812 system calls, 881 faults contained, 5681 tasks started |
 | shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |
 | no kernel panic anywhere in the serial log | pass |  |
 | without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |
@@ -358,8 +358,8 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 - **`fuzz`** keeps 4 child tasks running, each making random and almost-right system calls for up to 400 ms before it is replaced. Every 25 ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint, frame or quota went missing. `cap_revoke` is among the random calls, some of the messages name a capability to hand over, and each child works within a quota of tasks and endpoints lent by the fuzzer, part of which it lends to children of its own. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
 - **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one 5 times, checks that the shell still answers and that a file can still be read, and records the times. `double`, the two failures at once shown above, is run 5 times as well.
 - **Without the no-execute bit.** The script boots the same image once more with the processor model `qemu32`. The kernel then says in its boot log that W^X is not enforced. The self-test passes its other 91 checks and reports the 3 execute checks as skipped, `rogue all` reports 48 of 51 attempts denied and names the 3 that were not, the kernel's rules still hold and nothing panics.
-- **The guided tour.** `tour` runs 5 steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took 8.2 s in QEMU and 8.78 s in the browser check, which fails if the tour takes a minute or longer.
-- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless), types 7 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `tour`, `uptime`) and checks each result. All 6 passed; the prompt appeared after 0.9 s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
+- **The guided tour.** `tour` runs 5 steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took 8.4 s in QEMU and 8.81 s in the browser check, which fails if the tour takes a minute or longer.
+- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless), types 7 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `tour`, `uptime`) and checks each result. All 7 passed; the prompt appeared after 0.72 s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
 - **Two checks changed in this version.** The check "only `init` holds a capability for the reset port `0x64`" became "no task, `init` included, holds a capability for the reset port `0x64`", because `init` now drops it; the new check also requires that its walk finds at least six port capabilities, so it cannot pass by finding none. The share measurement used to compare against one half-second baseline. In one run the host stalled during that baseline, it came out about eight times too small, and the check failed with speeds several times higher than running alone while the kernel's own charge figures were normal. The self-test now takes three baselines (before, between and after the two measurements), uses the largest and prints all the raw counts. The thresholds are the same as before. A larger reference makes "kept enough speed beside the held group" harder to pass and "lost speed beside the free group" easier, and it adds about a second to each run.
 - **The gates.** `python build.py gates` does all of the above from a clean tree and then runs `tools/check_claims.py` over these documents.
 - **The model.** `python build.py model` runs the kernel's own source on the build machine against a simulated processor, with directed tests and a bounded exploration of its states, and `python build.py mutants` measures whether those checks notice a kernel that was broken on purpose. Both are described under [the model](#the-model). Neither is a gate.
@@ -455,11 +455,11 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 65% of its speed when they
+       beside three spinning tasks this program kept 59% of its speed when they
        shared 20% of the processor, and 24% when they had no share of their own;
-       the kernel charged the group 35% and 75% of a second
-       rounds alone in half a second: 67792, 65179 and 64774; in two
-       seconds beside the groups: 178249 and 66280
+       the kernel charged the group 35% and 74% of a second
+       rounds alone in half a second: 63098, 62695 and 59077; in two
+       seconds beside the groups: 151150 and 61002
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
@@ -482,7 +482,7 @@ inti> selftest
   ok   a program cannot run code from its data
   ok   a program cannot run code from memory it mapped
 ...
-SELFTEST: FAIL 93/94
+SELFTEST: PASS 94/94
 inti> rogue
 ...
 49. run code from its stack                    denied: page fault
@@ -497,8 +497,6 @@ The boot without the no-execute bit, shortened to the telling lines:
 ```nonxlog
 ...
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
-...
-inti> selftest
 ...
   skip a program cannot run code from its stack
   skip a program cannot run code from its data
@@ -520,12 +518,12 @@ What the kernel's basic operations cost in this emulator. These figures describe
 
 | Operation | Time |
 |---|---|
-| system call entry and return | 783 ns |
-| read the clock | 1,321 ns |
-| IPC call and reply | 26,649 ns |
-| start, run and reap a task | 644,920 ns |
-| map and unmap one page | 30,990 ns |
-| check every kernel invariant | 3,201,500 ns |
+| system call entry and return | 811 ns |
+| read the clock | 1,291 ns |
+| IPC call and reply | 25,827 ns |
+| start, run and reap a task | 566,270 ns |
+| map and unmap one page | 31,764 ns |
+| check every kernel invariant | 3,917,450 ns |
 
 ## The model
 

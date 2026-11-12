@@ -20,19 +20,19 @@ The measurements are from the gate run of 2026-11-12 in QEMU 11.1.0 (TCG, no har
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 5.3 ms | 4.1 to 9.5 ms | 9 ms | 1.9 ms |
-| file server crashes (page fault) | 5 | 2.3 ms | 1.9 to 22.5 ms | 4 ms | 1.1 ms |
-| console driver hangs (stops answering) | 5 | 753 ms | 660 to 763 ms | 758 ms | 1.4 ms |
-| file server hangs (stops answering) | 5 | 754 ms | 674 to 785 ms | 777 ms | 0.7 ms |
-| file server hangs right after a restart | 3 | 1191 ms | 1171 to 1203 ms | 1193 ms | 1.2 ms |
+| console driver crashes (page fault) | 5 | 8.5 ms | 8.1 to 16.1 ms | 14 ms | 2.7 ms |
+| file server crashes (page fault) | 5 | 4.2 ms | 3.8 to 4.5 ms | 9 ms | 1.9 ms |
+| console driver hangs (stops answering) | 5 | 765 ms | 655 to 806 ms | 771 ms | 1.8 ms |
+| file server hangs (stops answering) | 5 | 745 ms | 715 to 814 ms | 749 ms | 0.8 ms |
+| file server hangs right after a restart | 3 | 1192 ms | 1172 to 1192 ms | 1196 ms | 1.2 ms |
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 39.6 ms and the console driver after 633 ms. The log is in [How Inti works](design.md).
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 31.8 ms and the console driver after 635 ms. The log is in [How Inti works](design.md).
 
 ```log
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 12270 us (restart 1)
-RECOVERY: fs crash -> answering again after 22477 us
+init: fs restarted after 1650 us (restart 1)
+RECOVERY: fs crash -> answering again after 3810 us
 ```
 
 ```log
@@ -40,23 +40,23 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 440 us (restart 6)
-RECOVERY: console hang -> answering again after 659823 us
+init: console restarted after 1124 us (restart 6)
+RECOVERY: console hang -> answering again after 655420 us
 ```
 
 The same two faults in the browser demo, where the emulator is slower:
 
 ```weblog
 inti> crash console
-init: console crashed: page fault at address 0x10, eip 0x40002096
-init: console restarted after 1800 us (restart 1)
+init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-RECOVERY: console crash -> answering again after 10700 us
+init: console restarted after 1500 us (restart 1)
+RECOVERY: console crash -> answering again after 8700 us
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 1701 us (restart 1)
-RECOVERY: fs hang -> answering again after 595108 us
+init: fs restarted after 2500 us (restart 1)
+RECOVERY: fs hang -> answering again after 663910 us
 ```
 
 **What Inti does not solve.**
@@ -80,25 +80,25 @@ RECOVERY: fs hang -> answering again after 595108 us
 
 ```log
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 152387503.
-   10%  100554 calls, 186 tasks ended, 385 checks
+Fuzzing the kernel with 1000000 random system calls, seed 119249987.
+   10%  100656 calls, 229 tasks ended, 441 checks
 ...
-  100%  1000657 calls, 2120 tasks ended, 4283 checks
-FUZZ: 1002269 random system calls from 2123 tasks in 94441 ms
-FUZZ: 4287 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 562 exited, 1190 were stopped, 371 hit a CPU exception
+  100%  1000521 calls, 2017 tasks ended, 3994 checks
+FUZZ: 1000541 random system calls from 2020 tasks in 70546 ms
+FUZZ: 3998 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 575 exited, 1037 were stopped, 408 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14263 /   14263    io_in           14403 /    2017
-  exit              444 /     444    io_out          14565 /    2116
-  call            14427 /    2228    irq_bind        14454 /     918
-  recv            14558 /     361    irq_ack         14456 /     655
-  reply           14344 /      56    spawn           14507 /    1041
-  ep_create       14444 /    6092    task_kill       14380 /      47
-  cap_derive      14464 /    2494    sleep           14132 /   14132
-  cap_drop        14008 /    3629    time            14354 /   14354
-  map             14326 /    2421    log             14500 /       0
-  unmap           14391 /    3873    sysinfo         14555 /    2034
-  map_mem         14204 /    1546    cap_revoke      14245 /    5954
+  yield           14761 /   14761    io_in           14963 /    2264
+  exit              456 /     456    io_out          14589 /    2122
+  call            14981 /    2225    irq_bind        15047 /     890
+  recv            14898 /     330    irq_ack         14917 /     607
+  reply           14844 /      49    spawn           14765 /     995
+  ep_create       14972 /    6138    task_kill       14981 /      51
+  cap_derive      14791 /    2561    sleep           14832 /   14832
+  cap_drop        14439 /    3637    time            14858 /   14858
+  map             14822 /    2567    log             14963 /       0
+  unmap           14691 /    4016    sysinfo         14790 /    2179
+  map_mem         14893 /    1600    cap_revoke      14768 /    6107
 FUZZ: PASS
 ```
 
