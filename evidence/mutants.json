@@ -1,8 +1,8 @@
 {
- "date": "2026-11-12T06:28:12+00:00",
+ "date": "2026-11-12T06:50:59+00:00",
  "command": "python build.py mutants --sample 60",
  "held_out": false,
- "source_sha256": "3d64c36b0ae9275caf8fc63d35907a34c774855d5feeafbd1cce32bf6c037792",
+ "source_sha256": "679dfce0f05467fd5ecb4ebb4c5a3b544349468f4840f99f57efa6db6df59728",
  "files": [
   "kernel/src/check.rs",
   "kernel/src/elf.rs",
@@ -32,14 +32,14 @@
   "sample": 60,
   "not_compiled": 0,
   "compiled": 60,
-  "caught": 46,
-  "not_caught": 14,
-  "caught_by_failed_check": 31,
+  "caught": 53,
+  "not_caught": 7,
+  "caught_by_failed_check": 38,
   "caught_by_panic": 14,
   "caught_by_time_limit": 1,
-  "caught_by_tables": 42,
+  "caught_by_tables": 49,
   "caught_by_exploration": 4,
-  "caught_percent": 77
+  "caught_percent": 88
  },
  "mutants": [
   {
@@ -170,9 +170,9 @@
    "operator": "&& becomes ||",
    "before": "let sane = ident && kind == 2 && machine == 3 && entry_size == 32 && (1..=16).contains(&count);",
    "after": "let sane = ident || kind == 2 && machine == 3 && entry_size == 32 && (1..=16).contains(&count);",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 13,
@@ -280,9 +280,9 @@
    "operator": "< becomes <=",
    "before": "if va % PAGE != 0 || pages == 0 || va < USER_BASE || end > USER_END as u64 {",
    "after": "if va % PAGE != 0 || pages == 0 || va <= USER_BASE || end > USER_END as u64 {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 23,
@@ -401,9 +401,9 @@
    "operator": "assignment removed",
    "before": "self.stats.syscalls = self.stats.syscalls.wrapping_add(1);",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 34,
@@ -423,9 +423,9 @@
    "operator": "&& becomes ||",
    "before": "let stamp = badge == 0 && rights as u32 & R_GRANT != 0;",
    "after": "let stamp = badge == 0 || rights as u32 & R_GRANT != 0;",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 36,
@@ -434,9 +434,9 @@
    "operator": "== becomes !=",
    "before": "if a == 0 || a & !(mask as u32) != 0 {",
    "after": "if a != 0 || a & !(mask as u32) != 0 {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 37,
@@ -588,9 +588,9 @@
    "operator": "call removed",
    "before": "self.charge();",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 51,
@@ -643,9 +643,9 @@
    "operator": "assignment removed",
    "before": "self.stats.faults = self.stats.faults.wrapping_add(1);",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 56,

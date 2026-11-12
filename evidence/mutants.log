@@ -9,7 +9,7 @@ mutant   8  kernel/src/check.rs:266  condition inverted: caught by `model tables
 mutant   9  kernel/src/check.rs:312  assignment removed: caught by `model tables` (failed check)
 mutant  10  kernel/src/check.rs:337  == becomes !=: caught by `model tables` (failed check)
 mutant  11  kernel/src/check.rs:340  == becomes !=: caught by `model tables` (failed check)
-mutant  12  kernel/src/elf.rs:58  && becomes ||: not caught
+mutant  12  kernel/src/elf.rs:58  && becomes ||: caught by `model tables` (failed check)
 mutant  13  kernel/src/elf.rs:93  + becomes -: caught by `model tables` (panic)
 mutant  14  kernel/src/elf.rs:112  call removed: caught by `model tables` (panic)
 mutant  15  kernel/src/ipc.rs:63  call removed: caught by `model tables` (failed check)
@@ -19,7 +19,7 @@ mutant  18  kernel/src/ipc.rs:170  condition inverted: caught by `model tables` 
 mutant  19  kernel/src/ipc.rs:195  call removed: caught by `model tables` (failed check)
 mutant  20  kernel/src/ipc.rs:227  condition inverted: caught by `model explore boot` (failed check)
 mutant  21  kernel/src/mem.rs:57  + becomes -: not caught
-mutant  22  kernel/src/mem.rs:83  < becomes <=: not caught
+mutant  22  kernel/src/mem.rs:83  < becomes <=: caught by `model tables` (failed check)
 mutant  23  kernel/src/mem.rs:152  assignment removed: caught by `model tables` (failed check)
 mutant  24  kernel/src/mem.rs:196  condition inverted: not caught
 mutant  25  kernel/src/mem.rs:253  assignment removed: not caught
@@ -30,10 +30,10 @@ mutant  29  kernel/src/mem.rs:443  != becomes ==: caught by `model tables` (pani
 mutant  30  kernel/src/mem.rs:490  + becomes -: caught by `model tables` (failed check)
 mutant  31  kernel/src/mem.rs:515  call removed: not caught
 mutant  32  kernel/src/mem.rs:551  condition inverted: caught by `model tables` (panic)
-mutant  33  kernel/src/sys.rs:40  assignment removed: not caught
+mutant  33  kernel/src/sys.rs:40  assignment removed: caught by `model tables` (failed check)
 mutant  34  kernel/src/sys.rs:97  condition inverted: caught by `model explore boot` (failed check)
-mutant  35  kernel/src/sys.rs:146  && becomes ||: not caught
-mutant  36  kernel/src/sys.rs:160  == becomes !=: not caught
+mutant  35  kernel/src/sys.rs:146  && becomes ||: caught by `model tables` (failed check)
+mutant  36  kernel/src/sys.rs:160  == becomes !=: caught by `model tables` (failed check)
 mutant  37  kernel/src/sys.rs:191  assignment removed: caught by `model tables` (time limit)
 mutant  38  kernel/src/sys.rs:233  && becomes ||: caught by `model tables` (failed check)
 mutant  39  kernel/src/sys.rs:261  < becomes <=: caught by `model tables` (failed check)
@@ -47,15 +47,15 @@ mutant  46  kernel/src/task.rs:336  assignment removed: caught by `model tables`
 mutant  47  kernel/src/task.rs:372  assignment removed: not caught
 mutant  48  kernel/src/task.rs:391  condition inverted: caught by `model tables` (panic)
 mutant  49  kernel/src/task.rs:443  assignment removed: caught by `model tables` (panic)
-mutant  50  kernel/src/task.rs:479  call removed: not caught
+mutant  50  kernel/src/task.rs:479  call removed: caught by `model tables` (failed check)
 mutant  51  kernel/src/task.rs:509  == becomes !=: caught by `model tables` (failed check)
 mutant  52  kernel/src/task.rs:555  == becomes !=: caught by `model tables` (failed check)
 mutant  53  kernel/src/task.rs:587  == becomes !=: caught by `model explore boot` (failed check)
 mutant  54  kernel/src/task.rs:619  == becomes !=: caught by `model tables` (failed check)
-mutant  55  kernel/src/task.rs:656  assignment removed: not caught
+mutant  55  kernel/src/task.rs:656  assignment removed: caught by `model tables` (failed check)
 mutant  56  kernel/src/task.rs:690  assignment removed: caught by `model tables` (failed check)
 mutant  57  kernel/src/task.rs:708  assignment removed: not caught
 mutant  58  kernel/src/task.rs:736  call removed: caught by `model explore irq` (failed check)
 mutant  59  kernel/src/task.rs:753  assignment removed: caught by `model tables` (panic)
 mutant  60  kernel/src/task.rs:819  call removed: caught by `model tables` (panic)
-MUTANTS: 46 of 60 caught, 14 not caught, 0 of 60 did not compile
+MUTANTS: 53 of 60 caught, 7 not caught, 0 of 60 did not compile
