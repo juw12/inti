@@ -22,6 +22,8 @@ pub const IRQ_LINES: usize = 16;
 const ROOT_STACK_PAGES: u32 = 8;
 /// User space is restarted at most once per this many microseconds.
 const ROOT_MIN_US: u64 = 1_000_000;
+/// Timer interrupts in one accounting window for the shares of processor time: one second.
+pub const CPU_WINDOW_TICKS: u64 = 100;
 /// `Tcb::from` of a capability that is not a copy of another one.
 pub const ORIGINAL: u16 = 0xFFFF;
 
@@ -140,6 +142,13 @@ pub struct Tcb {
     pub fault: [u32; 4],
     pub cpu_ticks: u32,
     pub syscalls: u32,
+    /// Its share of the processor in percent, 1 to 100, never above its parent's. The share
+    /// is for the task and everything it starts, together.
+    pub cpu_limit: u8,
+    /// Cycles used in the current window by the task and everything it started.
+    pub cpu_used: u64,
+    /// What that count came to in the last full window, in thousandths of the window.
+    pub cpu_last: u16,
 }
 
 impl Tcb {
@@ -169,6 +178,9 @@ impl Tcb {
         fault: [0; 4],
         cpu_ticks: 0,
         syscalls: 0,
+        cpu_limit: 100,
+        cpu_used: 0,
+        cpu_last: 0,
     };
 
     /// True for a task that runs or can run again (not free, not ended).
@@ -274,6 +286,13 @@ pub struct Kernel {
     /// Clock counts since boot, and the counter reading they were last brought up to.
     clock: u64,
     clock_last: u32,
+    /// Cycle counter readings: when the running task was last charged and when the
+    /// accounting window began.
+    run_since: u64,
+    window_start: u64,
+    /// Cycles in the previous window; `u64::MAX` until one window has passed, so that no
+    /// share is enforced before there is something to measure it against.
+    pub window_len: u64,
     /// Work area of the invariant checker: one bit per page frame.
     pub scratch: [u32; 1024],
 }
@@ -300,6 +319,9 @@ impl Kernel {
             archive: (0, 0),
             clock: 0,
             clock_last: 0,
+            run_since: 0,
+            window_start: 0,
+            window_len: u64::MAX,
             scratch: [0; 1024],
         }
     }
@@ -313,6 +335,8 @@ impl Kernel {
         self.space = self.mem.kernel_pd;
         self.root_quota = self.mem.total;
         self.clock_last = arch::clock_count();
+        self.run_since = arch::cycles();
+        self.window_start = self.run_since;
         kprintln!(
             "kernel: {} KiB kernel and archive, {} MiB for user space",
             self.mem.kernel_pages * 4,
@@ -346,11 +370,18 @@ impl Kernel {
         let stay = self.cur != IDLE && !self.resched && self.tasks[self.cur].state == State::Ready;
         if !stay {
             self.resched = false;
+            self.charge();
+            // A task within its share goes before any task over its share; among equals
+            // the highest rank goes first, and the lowest index among equal ranks.
             let mut best = IDLE;
-            for (index, task) in self.tasks.iter().enumerate() {
-                let better = best == IDLE || task.rank > self.tasks[best].rank;
-                if task.state == State::Ready && better {
-                    best = index;
+            let mut best_key = (false, i64::MIN);
+            for index in 0..MAX_TASKS {
+                if self.tasks[index].state != State::Ready {
+                    continue;
+                }
+                let key = (!self.over_share(index), self.tasks[index].rank);
+                if best == IDLE || key > best_key {
+                    (best, best_key) = (index, key);
                 }
             }
             if best != self.cur && best != IDLE {
@@ -369,6 +400,41 @@ impl Kernel {
         let frame = &raw const task.frame;
         arch::set_trap_stack(frame);
         Some(frame)
+    }
+
+    /// Charge the cycles since the last charge to the running task and to every task above
+    /// it in the task tree, so that each task's count covers all that it started.
+    pub fn charge(&mut self) {
+        let now = arch::cycles();
+        let spent = now.wrapping_sub(self.run_since);
+        self.run_since = now;
+        let mut t = self.cur;
+        for _ in 0..MAX_TASKS {
+            let Some(task) = self.tasks.get_mut(t) else { break };
+            task.cpu_used = task.cpu_used.saturating_add(spent);
+            t = task.parent as usize;
+        }
+    }
+
+    /// True if task `t`, or a task above it in the task tree, has used up its share of the
+    /// previous window's cycles in this window. Such a task runs only when no task within
+    /// its share is ready, so a share never leaves the processor idle.
+    pub fn over_share(&self, mut t: usize) -> bool {
+        for _ in 0..MAX_TASKS {
+            let Some(task) = self.tasks.get(t) else { break };
+            let allowed = self.window_len.saturating_mul(task.cpu_limit as u64);
+            if task.cpu_limit < 100 && task.cpu_used.saturating_mul(100) >= allowed {
+                return true;
+            }
+            t = task.parent as usize;
+        }
+        false
+    }
+
+    /// What task `t` and everything it started used of the last full window, in
+    /// thousandths. A reading does not depend on how far the current window has run.
+    pub fn share_used(&self, t: usize) -> u32 {
+        self.tasks[t].cpu_last as u32
     }
 
     /// Make task `t` runnable ahead of everything else that is ready, so that a task woken
@@ -407,6 +473,19 @@ impl Kernel {
     /// next ready task. A waiter wakes at the first timer interrupt after its deadline.
     pub fn tick(&mut self) {
         self.ticks += 1;
+        if self.ticks % CPU_WINDOW_TICKS == 0 {
+            // A new accounting window: every count starts again, and the cycles of the
+            // window that ended are what the shares are measured against.
+            self.charge();
+            self.window_len = self.run_since.wrapping_sub(self.window_start);
+            self.window_start = self.run_since;
+            let window = self.window_len.max(1);
+            for task in self.tasks.iter_mut() {
+                task.cpu_last = (task.cpu_used.saturating_mul(1000) / window).min(1000) as u16;
+                task.cpu_used = 0;
+            }
+            self.resched = true;
+        }
         let now = self.micros();
         for t in 0..MAX_TASKS {
             if self.tasks[t].deadline > now {
@@ -584,6 +663,7 @@ impl Kernel {
     /// End task `victim` and every task it started, directly or indirectly. What they held
     /// of the three quotas (memory, tasks, endpoints) goes back to the victim's parent.
     pub fn kill(&mut self, victim: usize, fault: [u32; 4]) {
+        self.charge(); // while the task tree still says who started the running task
         let mut doomed = 1u32 << victim;
         loop {
             let before = doomed;

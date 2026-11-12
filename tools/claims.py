@@ -66,7 +66,7 @@ BENCH = {
     "check every kernel invariant": "check",
 }
 # Attempts shown in the short excerpt.
-ROGUE_SAMPLE = (1, 2, 3, 4, 5, 9, 11, 15, 20, 24, 25, 26, 27, 30, 34, 35, 39, 45, 48, 49, 50)
+ROGUE_SAMPLE = (1, 2, 3, 4, 5, 9, 11, 15, 20, 24, 25, 26, 27, 28, 31, 35, 36, 40, 46, 49, 50, 51)
 
 Put = Callable[[str, object, str], None]
 

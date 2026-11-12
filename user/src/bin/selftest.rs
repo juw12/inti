@@ -16,7 +16,7 @@ use core::slice;
 
 use rt::abi::{
     nr, CapInfo, KStats, Msg, SpawnArgs, TaskInfo, ARCHIVE_MAGIC, CAP_ENDPOINT, CAP_IOPORT,
-    CAP_NULL, CAP_SLOTS, CAUSE_EXIT, CAUSE_KILLED, E_BUSY, E_DEAD, E_FAULT, E_INVAL, E_NOCAP,
+    CAP_IRQ, CAP_MEMORY, CAP_NULL, CAP_SLOTS, CAUSE_EXIT, CAUSE_KILLED, E_BUSY, E_DEAD, E_FAULT, E_INVAL, E_NOCAP,
     E_NOMEM, E_NOSLOT, E_NOSYS, E_PERM, E_TIMEOUT, INFO_CAP, INFO_STATS, INFO_TASK, L_FAULT,
     L_IRQ, L_KERNEL, MAP_WRITE, MAX_TASKS, MSG_DATA, NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND,
     STACK_TOP, ST_FREE, ST_RECV, ST_REPLY, ST_SEND, USER_BASE, USER_END,
@@ -808,22 +808,27 @@ fn capabilities(test: &mut Test, kids: &mut Kids) -> Option<()> {
     c.fails("a capability of task 32", sys::cap_info(INFO, MAX_TASKS as u32, 0), E_INVAL);
     test.done("the Info capability describes tasks and their capabilities", c);
 
+    // Until `init` gave up its capability for every port, this check read "only init holds
+    // a capability for the reset port". Now nobody does, and the walk must still be seen to
+    // find the port capabilities that exist.
     let mut c = Check::new();
-    let mut init_holds_it = false;
+    let mut port_caps = 0;
     for index in 0..MAX_TASKS as u32 {
         if task(index).state == ST_FREE {
             continue;
         }
         for slot in 0..CAP_SLOTS as u32 {
             let found = cap(index, slot);
-            if found.kind == CAP_IOPORT && found.a <= RESET_PORT && found.b >= RESET_PORT {
-                init_holds_it |= index == 0;
-                c.eq("task that can reach port 0x64", index, 0);
+            if found.kind == CAP_IOPORT {
+                port_caps += 1;
+                if found.a <= RESET_PORT && found.b >= RESET_PORT {
+                    c.eq("task that can reach port 0x64", index, MAX_TASKS as u32);
+                }
             }
         }
     }
-    c.yes("init can reach port 0x64", init_holds_it);
-    test.done("only init holds a capability for the reset port 0x64", c);
+    c.yes("the walk finds the port capabilities that were handed out", port_caps >= 6);
+    test.done("no task, init included, holds a capability for the reset port 0x64", c);
 
     let mut c = Check::new();
     for server in [CONSOLE, FILES] {
@@ -1076,6 +1081,40 @@ fn revocation(test: &mut Test, kids: &mut Kids) -> Option<()> {
     c.fails("acknowledging line 5 at the end", sys::irq_ack(IRQ, 5), E_PERM);
     c.ended("the agent", agent.stop(kids), CAUSE_KILLED, None);
     test.done("revoking an interrupt capability frees the line its holder had bound", c);
+
+    // A server gives each client its own badged copy. Revoking one copy cuts off that
+    // client and nobody else, and the server can let the client in again later.
+    let mut c = Check::new();
+    let service = sys::ep_create().ok()?;
+    let for_a = sys::cap_derive(service, R_SEND, 1, 0).ok()?;
+    let for_b = sys::cap_derive(service, R_SEND, 2, 0).ok()?;
+    let client_a = kids.start(mode::CALL_ONCE, 5, 61, &[for_a])?;
+    let client_b = kids.start(mode::CALL_ONCE, 5, 62, &[for_b])?;
+    c.yes("the first client waits to send", kids.wait_state(client_a, ST_SEND));
+    c.yes("the second client waits to send", kids.wait_state(client_b, ST_SEND));
+    c.works("revoking the first client's capability", sys::cap_revoke(for_a));
+    c.ended("the first client", kids.end_of(client_a), CAUSE_EXIT, Some(GONE));
+    c.eq("state of the second client", task(kids.index_of(client_b)).state, ST_SEND);
+    let mut msg = Msg::new(0);
+    let mut answer = Msg::new(0);
+    c.works("receiving the second client's call", sys::recv(service, &mut msg, 2000));
+    c.eq("badge of the call", msg.badge, 2);
+    c.eq("word of the call", msg.words[0], 62);
+    answer.words[0] = 72;
+    c.works("answering the second client", sys::reply(msg.token, &answer));
+    c.ended("the second client", kids.end_of(client_b), CAUSE_EXIT, Some(72));
+    c.fails("receiving anything from the first client", sys::recv(service, &mut msg, 0), E_TIMEOUT);
+    let back = kids.start(mode::CALL_ONCE, 5, 63, &[for_a])?;
+    c.works("receiving a call of a client let in again", sys::recv(service, &mut msg, 2000));
+    c.eq("badge of that call", msg.badge, 1);
+    c.eq("word of that call", msg.words[0], 63);
+    answer.words[0] = 73;
+    c.works("answering it", sys::reply(msg.token, &answer));
+    c.ended("the client let in again", kids.end_of(back), CAUSE_EXIT, Some(73));
+    for slot in [for_a, for_b, service] {
+        c.works("dropping a capability of the service", sys::cap_drop(slot));
+    }
+    test.done("a server takes back one client's access and leaves the other's", c);
     Some(())
 }
 
@@ -1610,6 +1649,148 @@ fn quotas(test: &mut Test, kids: &mut Kids) -> Option<()> {
     Some(())
 }
 
+/// Counts rounds of a fixed piece of arithmetic until `ms` milliseconds have passed: how
+/// much of the processor this program got in that time.
+fn spins_in(ms: u32) -> u32 {
+    let deadline = sys::time() + u64::from(ms) * 1000;
+    let mut rounds = 0u32;
+    let mut value = 1u32;
+    while sys::time() < deadline {
+        for step in 0..2000u32 {
+            value = core::hint::black_box(value.wrapping_mul(1_664_525).wrapping_add(step));
+        }
+        rounds += 1;
+    }
+    core::hint::black_box(value);
+    rounds
+}
+
+/// Tasks that are alive and were started by task `parent`.
+fn children_of(parent: u32) -> u32 {
+    (0..MAX_TASKS as u32).filter(|&index| task(index).state != ST_FREE && task(index).parent == parent).count() as u32
+}
+
+/// A group of three spinning tasks beside this program, with a share of the processor
+/// (0 = this program's own). Returns this program's rounds in two seconds and what the
+/// kernel says the group used of the last full second, in thousandths.
+fn beside_hogs(c: &mut Check, kids: &mut Kids, share: u32) -> Option<(u32, u32)> {
+    let archive_pages = cap(kids.me, ARCHIVE).b;
+    kids.lend(2, 0);
+    let mut spawn = kids.spawn_args(mode::HOGS, archive_pages, 2, &[NO_CAP, ARCHIVE], 120, CHILD_STACK);
+    spawn.cpu = share;
+    let task_cap = c.works("starting the group", sys::spawn(kids.image.bytes(), &spawn))?;
+    let group = Kid { task: task_cap, badge: spawn.fault_badge };
+    let index = kids.index_of(group);
+    c.yes("the group has its two children", wait_until(|| children_of(index) == 2));
+    let want = if share == 0 { task(kids.me).cpu_limit } else { share };
+    c.eq("share of the group", task(index).cpu_limit, want);
+    for child in (0..MAX_TASKS as u32).filter(|&child| task(child).state != ST_FREE && task(child).parent == index) {
+        c.eq("share of a child of the group", task(child).cpu_limit, want);
+    }
+    let rounds = spins_in(2000);
+    let used = task(index).cpu_used;
+    c.ended("the group", kids.kill(group), CAUSE_KILLED, None);
+    Some((rounds, used))
+}
+
+/// A task's share of the processor: what it and everything it starts may use of each
+/// second while somebody else wants the processor.
+fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    let me = kids.me;
+
+    let mut c = Check::new();
+    let mine = task(me).cpu_limit;
+    c.eq("this program's share, which the shell passed on", mine, 80);
+    let mut spawn = kids.spawn_args(mode::EXIT, 0, 0, &[], CHILD_PAGES, CHILD_STACK);
+    for share in [mine + 1, 100, 101, 256 + 20, u32::MAX] {
+        spawn.cpu = share;
+        c.fails("starting a child with a larger share", sys::spawn(kids.image.bytes(), &spawn), E_PERM);
+    }
+    let heir = kids.start(mode::SLEEP, 60_000, 0, &[])?;
+    c.eq("share of a child that was given none", task(kids.index_of(heir)).cpu_limit, mine);
+    c.ended("that child", kids.kill(heir), CAUSE_KILLED, None);
+    let mut spawn = kids.spawn_args(mode::SLEEP, 60_000, 0, &[], CHILD_PAGES, CHILD_STACK);
+    spawn.cpu = 30;
+    let small = Kid { task: sys::spawn(kids.image.bytes(), &spawn).ok()?, badge: spawn.fault_badge };
+    c.eq("share of a child that was given 30%", task(kids.index_of(small)).cpu_limit, 30);
+    c.ended("that child", kids.kill(small), CAUSE_KILLED, None);
+    test.done("a child gets its parent's share of the processor or a smaller one, never a larger", c);
+
+    let mut c = Check::new();
+    // This program's speed with nothing beside it, taken before, between and after the
+    // two runs. Under an emulator on a busy host the machine can stall for a while, and
+    // a stall only ever makes a figure smaller: the largest of the three is the reference.
+    let before = spins_in(500);
+    let (capped, capped_used) = beside_hogs(&mut c, kids, 20)?;
+    let between = spins_in(500);
+    let (free, free_used) = beside_hogs(&mut c, kids, 0)?;
+    let after = spins_in(500);
+    let alone = u64::from(before.max(between).max(after)).max(1);
+    // Rounds per second, as a percentage of the rate with nothing else running.
+    let capped_rate = (u64::from(capped) * 25 / alone) as u32;
+    let free_rate = (u64::from(free) * 25 / alone) as u32;
+    outln!("       beside three spinning tasks this program kept ", capped_rate, "% of its speed when they");
+    outln!("       shared 20% of the processor, and ", free_rate, "% when they had no share of their own;");
+    outln!("       the kernel charged the group ", capped_used / 10, "% and ", free_used / 10, "% of a second");
+    outln!("       rounds alone in half a second: ", before, ", ", between, " and ", after, "; in two");
+    outln!("       seconds beside the groups: ", capped, " and ", free);
+    c.yes("this program keeps at least 45% of its speed beside a group held to 20%", capped_rate >= 45);
+    c.yes("it keeps at most 40% of its speed beside the same group without a share", free_rate <= 40);
+    c.yes("the group held to 20% is charged less than the free one", capped_used < free_used);
+    c.yes("the group held to 20% is charged at most 45% of a second", capped_used <= 450);
+    c.yes("the free group is charged at least 55% of a second", free_used >= 550);
+    test.done("three spinning tasks with a 20% share leave the rest of the processor to others", c);
+    Some(())
+}
+
+/// What `init` handed out by name is all the device authority there is.
+fn authority(test: &mut Test, kids: &mut Kids) -> Option<()> {
+    // The keyboard data port, the test port, the cursor registers, the serial port and the
+    // two power-off ports; the last two stay with `init`.
+    const PORT_RANGES: [(u32, u32); 6] =
+        [(0x60, 0x60), (0x80, 0x80), (0x3D4, 0x3D5), (0x3F8, 0x3FF), (0x604, 0x605), (0xB004, 0xB005)];
+    let archive = cap(kids.me, ARCHIVE);
+    let mut c = Check::new();
+    let (mut ranges, mut lines, mut strays) = (0u32, 0u32, 0u32);
+    for index in 0..MAX_TASKS as u32 {
+        if task(index).state == ST_FREE {
+            continue;
+        }
+        for slot in 0..CAP_SLOTS as u32 {
+            let found = cap(index, slot);
+            let listed = match found.kind {
+                CAP_IOPORT => match PORT_RANGES.iter().position(|&(first, last)| found.a >= first && found.b <= last) {
+                    Some(range) => {
+                        ranges |= 1 << range;
+                        range < 4 || index == 0
+                    }
+                    None => false,
+                },
+                CAP_IRQ => {
+                    lines |= found.a;
+                    true
+                }
+                CAP_MEMORY => {
+                    let end = found.a + found.b * PAGE;
+                    let screen = found.a >= VIDEO && end <= VIDEO + 8 * PAGE;
+                    let files = found.a >= archive.a && end <= archive.a + archive.b * PAGE;
+                    screen || files
+                }
+                _ => true,
+            };
+            if !listed {
+                strays += 1;
+                outln!("       task ", index, " slot ", slot, ": kind ", found.kind, ", ", Hex(found.a), " to ", Hex(found.b));
+            }
+        }
+    }
+    c.eq("device capabilities that are not on the list", strays, 0);
+    c.eq("port ranges of the list that somebody holds", ranges, 0b11_1111);
+    c.eq("interrupt lines that somebody holds", lines, 1 << 1 | 1 << 4 | 1 << 5);
+    test.done("every port, interrupt line and page of device memory that any task holds was handed out by name", c);
+    Some(())
+}
+
 /// The clock and the file server.
 fn time_and_files(test: &mut Test, _kids: &mut Kids) -> Option<()> {
     let mut c = Check::new();
@@ -1752,9 +1933,10 @@ pub fn main() {
     match (Kids::new(), scratch) {
         (Some(mut kids), Ok(())) => {
             let before = usage(kids.me);
-            let groups: [(&str, Group); 11] = [
+            let groups: [(&str, Group); 13] = [
                 ("argument", arguments),
                 ("capability", capabilities),
+                ("authority", authority),
                 ("message", ipc),
                 ("revocation", revocation),
                 ("delegation", delegation),
@@ -1763,6 +1945,7 @@ pub fn main() {
                 ("execution", execution),
                 ("task", tasks),
                 ("quota", quotas),
+                ("processor share", shares),
                 ("clock and file", time_and_files),
             ];
             for (name, group) in groups {

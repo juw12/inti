@@ -13,6 +13,10 @@ pub enum Sink {
     Log(u32),
     /// The console server, through the send capability in this slot.
     Console(u32),
+    /// The serial line through the console server for as long as it takes each line in
+    /// time, and from the first line it does not take, the kernel log. For the supervisor:
+    /// the serial line must have one writer at a time, or two lines cut each other in two.
+    Report { console: u32, log: u32 },
 }
 
 static SINK: Single<Sink> = Single::new(Sink::None);
@@ -27,6 +31,14 @@ pub fn write(bytes: &[u8]) {
             Sink::None => {}
             Sink::Log(slot) => drop(sys::log(slot, chunk)),
             Sink::Console(ep) => drop(client::con_write(ep, chunk)),
+            Sink::Report { console, log } => {
+                if client::con_report(console, chunk).is_err() {
+                    // The console died or did not take the line in time. The kernel log
+                    // is used until the supervisor selects the console again.
+                    SINK.set(Sink::Log(log));
+                    let _ = sys::log(log, chunk);
+                }
+            }
         }
     }
 }

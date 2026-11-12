@@ -1,13 +1,13 @@
 
 Inti 0.1.0 kernel
-kernel: 552 KiB kernel and archive, 62 MiB for user space
+kernel: 560 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-Inti 0.1.0 shell ready at t=18053 us
+init: started shell with 11 capabilities, 15553 pages
+Inti 0.1.0 shell ready at t=25140 us
 Type help for the list of commands, or tour for a guided tour.
-inti> init: started shell with 11 capabilities, 15555 pages
-selftest
+inti> selftest
 Each line is one promise of the kernel, checked from user space.
   ok   the kernel's invariants hold at the start
   ok   the kernel has met nothing unexpected so far
@@ -29,8 +29,9 @@ Each line is one promise of the kernel, checked from user space.
 selftest: this line was written through the Log capability
   ok   the Log capability writes to the kernel log
   ok   the Info capability describes tasks and their capabilities
-  ok   only init holds a capability for the reset port 0x64
+  ok   no task, init included, holds a capability for the reset port 0x64
   ok   the drivers refuse to crash or hang for an ordinary program
+  ok   every port, interrupt line and page of device memory that any task holds was handed out by name
   ok   recv can poll, and can give up after a time limit
   ok   a call that nobody receives times out and leaves nothing queued
   ok   a call to an endpoint that nobody can receive from gives E_DEAD
@@ -48,6 +49,7 @@ selftest: this line was written through the Log capability
   ok   revoking reaches another task: its copy and what it mapped through it
   ok   revoking wakes the tasks that waited through the copies
   ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a server takes back one client's access and leaves the other's
   ok   a capability goes along with a call when both ends hold the grant right
   ok   without the grant right at both ends nothing is handed over
   ok   the sender takes back what it sent
@@ -94,13 +96,20 @@ selftest: this line was written through the Log capability
   ok   an endpoint outlives the task that made it, and its parent pays for it
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
+  ok   a child gets its parent's share of the processor or a smaller one, never a larger
+       beside three spinning tasks this program kept 64% of its speed when they
+       shared 20% of the processor, and 24% when they had no share of their own;
+       the kernel charged the group 36% and 74% of a second
+       rounds alone in half a second: 60895, 57551 and 56210; in two
+       seconds beside the groups: 156219 and 59057
+  ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
   ok   files are read through the file server
   ok   the kernel's invariants hold at the end
   ok   the kernel met nothing unexpected
   ok   no task, endpoint, page frame or quota was lost
-SELFTEST: PASS 87/87, 3 skipped (no no-execute bit)
+SELFTEST: PASS 91/91, 3 skipped (no no-execute bit)
 inti> rogue all
 Starting a hostile program that holds one capability: console output.
 Attempts that need a capability are made with each of the 32 slots.
@@ -129,32 +138,33 @@ Attempts that need a capability are made with each of the 32 slots.
 23. give a child a capability it does not hold denied: E_NOCAP
 24. create an endpoint with no endpoint quota  denied: E_NOSLOT
 25. give a child more task quota than it has   denied: E_NOSLOT
-26. hand a capability to the console driver    denied: E_PERM
-27. revoke capabilities it does not hold       denied: E_NOCAP
-28. call system calls that do not exist        denied: E_NOSYS
-29. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
-30. disable interrupts (cli)                   denied: general protection fault
-31. halt the processor (hlt)                   denied: general protection fault
-32. read the keyboard port directly (in)       denied: general protection fault
-33. reset the machine directly (out 0x64)      denied: general protection fault
-34. read kernel memory                         denied: page fault
-35. write kernel memory                        denied: page fault
-36. jump into kernel code                      denied: page fault
-37. load the kernel's data segment             denied: general protection fault
-38. raise the timer interrupt (int 0x20)       denied: general protection fault
-39. replace the page tables (mov cr3)          denied: general protection fault
-40. turn off paging and protection (mov cr0)   denied: general protection fault
-41. replace the interrupt table (lidt)         denied: general protection fault
-42. far jump to the kernel's code segment      denied: general protection fault
-43. overwrite its own code                     denied: page fault
-44. overflow its stack                         denied: page fault
-45. return to ring 0 with a forged iret frame  denied: general protection fault
-46. write a model-specific register (wrmsr)    denied: general protection fault
-47. enter the kernel through sysenter          denied: general protection fault
-48. run code from its stack                    NOT DENIED: no no-execute bit
-49. run code from its data                     NOT DENIED: no no-execute bit
-50. run code from memory it just mapped        NOT DENIED: no no-execute bit
-ROGUE: 47/50 attempts denied
+26. give a child a larger processor share      denied: E_PERM
+27. hand a capability to the console driver    denied: E_PERM
+28. revoke capabilities it does not hold       denied: E_NOCAP
+29. call system calls that do not exist        denied: E_NOSYS
+30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+31. disable interrupts (cli)                   denied: general protection fault
+32. halt the processor (hlt)                   denied: general protection fault
+33. read the keyboard port directly (in)       denied: general protection fault
+34. reset the machine directly (out 0x64)      denied: general protection fault
+35. read kernel memory                         denied: page fault
+36. write kernel memory                        denied: page fault
+37. jump into kernel code                      denied: page fault
+38. load the kernel's data segment             denied: general protection fault
+39. raise the timer interrupt (int 0x20)       denied: general protection fault
+40. replace the page tables (mov cr3)          denied: general protection fault
+41. turn off paging and protection (mov cr0)   denied: general protection fault
+42. replace the interrupt table (lidt)         denied: general protection fault
+43. far jump to the kernel's code segment      denied: general protection fault
+44. overwrite its own code                     denied: page fault
+45. overflow its stack                         denied: page fault
+46. return to ring 0 with a forged iret frame  denied: general protection fault
+47. write a model-specific register (wrmsr)    denied: general protection fault
+48. enter the kernel through sysenter          denied: general protection fault
+49. run code from its stack                    NOT DENIED: no no-execute bit
+50. run code from its data                     NOT DENIED: no no-execute bit
+51. run code from memory it just mapped        NOT DENIED: no no-execute bit
+ROGUE: 48/51 attempts denied
 This processor has no no-execute bit, so a program can run code from its data.
 kernel invariants: all hold
 inti> ls
@@ -165,7 +175,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       69632 bytes
+  selftest       77824 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes

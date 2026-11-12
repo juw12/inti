@@ -1,8 +1,8 @@
 //! Client side of the server protocols, with retry across server restarts.
 
-use crate::proto::{BUSY, CON_READLINE, CON_WRITE, FS_LIST, FS_READ, FS_STAT, OK};
+use crate::proto::{BUSY, CON_READLINE, CON_REPORT, CON_WRITE, FS_LIST, FS_READ, FS_STAT, OK};
 use crate::sys;
-use abi::{Msg, ARCHIVE_NAME, E_DEAD, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE, ST_ZOMBIE};
+use abi::{Msg, ARCHIVE_NAME, E_DEAD, E_PERM, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE, ST_ZOMBIE};
 
 /// The number of the first running task called `name`, read through an Info capability. The
 /// test programs use it to look up their own entry in the task table; an ended task that
@@ -43,6 +43,22 @@ fn with_data(label: u32, data: &[u8]) -> Msg {
 /// Print up to 256 bytes on the console.
 pub fn con_write(con: u32, bytes: &[u8]) -> Result<(), i32> {
     request(con, &mut with_data(CON_WRITE, bytes))
+}
+
+/// How long the supervisor waits for the console to take one line of a report.
+pub const REPORT_WAIT_MS: u32 = 100;
+
+/// Write up to 256 bytes to the serial line through the console server: one attempt with
+/// a time limit and no second try. This is for the supervisor, which must never wait
+/// long for a server that it supervises.
+pub fn con_report(con: u32, bytes: &[u8]) -> Result<(), i32> {
+    let mut msg = with_data(CON_REPORT, bytes);
+    sys::call(con, &mut msg, REPORT_WAIT_MS)?;
+    if msg.label == OK {
+        Ok(())
+    } else {
+        Err(E_PERM)
+    }
 }
 
 /// Show `prompt` and read one line into `buf`; returns its length. The prompt travels with

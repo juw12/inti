@@ -1,7 +1,7 @@
 //! rogue: a hostile program.
 //!
 //! The shell starts it the way it starts any program: with one capability, the right to
-//! send text to the console. Mode 0 then tries 29 things through the system call interface
+//! send text to the console. Mode 0 then tries 30 things through the system call interface
 //! that such a program must not be able to do, and exits with `denied << 16 | attempts`.
 //! Modes 1 to 21 each try one thing directly on the hardware; the CPU must stop the task,
 //! and the shell reports how it ended. The last three run code from memory that holds
@@ -26,7 +26,7 @@ const KERNEL: u32 = 0x10_0000;
 /// Free user address space for the mapping attempts.
 const SPARE: u32 = 0x6000_0000;
 /// How many attempts mode 0 makes.
-const SOFTWARE_ATTEMPTS: u32 = 29;
+const SOFTWARE_ATTEMPTS: u32 = 30;
 /// The one-byte instruction `ret`.
 const RET: u8 = 0xC3;
 /// A writable byte in this program's data, for the attempt to run code from there.
@@ -239,6 +239,13 @@ fn software(quota: u32) -> ! {
     tally.attempt(
         "give a child more task quota than it has",
         refusal(sys::spawn(&garbage, &greedy)),
+    );
+    // The shell runs at a share of the processor below 100%, and so does this program.
+    let mut hungry = child;
+    hungry.cpu = 100;
+    tally.attempt(
+        "give a child a larger processor share",
+        refusal(sys::spawn(&garbage, &hungry)),
     );
     let mut gift = Msg::new(0);
     gift.cap = CONSOLE;

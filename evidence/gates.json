@@ -1,13 +1,13 @@
 {
   "rubric": "inti-os-v1",
   "mode": "full",
-  "date": "2026-11-12T00:31:05+07:00",
-  "image_sha256": "5d7c93b583fc843ec8be8a815019d0276a88ab8cbbbf9f6aa4c83b95be6cbedd",
+  "date": "2026-11-12T10:29:12+07:00",
+  "image_sha256": "86ff911391ef92e959472ad65b2d1c1dc3bfee041eef1b37182df3214ac8ef09",
   "sizes": {
     "boot_sector_bytes": 512,
-    "kernel_bytes": 69856,
-    "archive_bytes": 197984,
-    "payload_bytes": 267840,
+    "kernel_bytes": 70272,
+    "archive_bytes": 206176,
+    "payload_bytes": 276448,
     "image_bytes": 2097152,
     "files": {
       "bench": 12288,
@@ -17,7 +17,7 @@
       "hello": 8192,
       "init": 16384,
       "rogue": 12288,
-      "selftest": 69632,
+      "selftest": 77824,
       "shell": 28672,
       "tchild": 12288,
       "readme.txt": 1007
@@ -27,13 +27,17 @@
     "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
     "python": "3.13.2"
   },
-  "build_seconds": 42,
+  "build_seconds": 15,
   "tries": {
     "qemu_test": [
-      0
+      1,
+      1,
+      1
     ],
     "browser_check": [
-      0
+      1,
+      1,
+      1
     ]
   },
   "gates": [
@@ -41,57 +45,57 @@
       "id": "G1",
       "title": "One command builds the disk image from a clean tree",
       "ok": true,
-      "detail": "clean build in 42 s wrote build/inti.img (2,097,152 bytes)"
+      "detail": "clean build in 15 s wrote build/inti.img (2,097,152 bytes)"
     },
     {
       "id": "G2",
       "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
-      "ok": true,
-      "detail": "shell prompt 335 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
+      "ok": false,
+      "detail": "evidence/test.json was not measured on the current build/inti.img"
     },
     {
       "id": "G3",
       "title": "The self-test inside the system passes with at least 30 checks",
-      "ok": true,
-      "detail": "SELFTEST: PASS 90/90 after boot and 90/90 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx)"
+      "ok": false,
+      "detail": "evidence/test.json was not measured on the current build/inti.img"
     },
     {
       "id": "G4",
       "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
-      "ok": true,
-      "detail": "console crash 6.6 ms, fs crash 3.1 ms, console hang 758.2 ms, fs hang 752.0 ms, fs crash during a console hang: fs 50.6 ms and console 626.1 ms (median of 5 runs each, guest clock); the shell answered after every run"
+      "ok": false,
+      "detail": "evidence/test.json was not measured on the current build/inti.img"
     },
     {
       "id": "G5",
       "title": "Every attempt of the hostile program without capabilities is denied",
-      "ok": true,
-      "detail": "50/50 attempts denied (including port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers"
+      "ok": false,
+      "detail": "evidence/test.json was not measured on the current build/inti.img"
     },
     {
       "id": "G6",
       "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
-      "ok": true,
-      "detail": "1,002,983 random system calls from 2,078 tasks, 4,212 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
+      "ok": false,
+      "detail": "evidence/test.json was not measured on the current build/inti.img"
     },
     {
       "id": "G7",
       "title": "No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code",
       "ok": true,
-      "detail": "no alloc crate in the kernel; 83 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,853 lines of kernel code (limit 4,000)"
+      "detail": "no alloc crate in the kernel; 84 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,929 lines of kernel code (limit 4,000)"
     },
     {
       "id": "G8",
       "title": "The same disk image boots to the shell prompt in a web browser",
-      "ok": true,
-      "detail": "shell prompt after 2.74 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless); 7 commands answered; byte-for-byte the image of the QEMU test"
+      "ok": false,
+      "detail": "evidence/web.json does not show the current image booting: selftest"
     },
     {
       "id": "G9",
       "title": "Every number in the documents comes from a script or carries a source",
-      "ok": true,
-      "detail": "tools/check_claims.py passes: claims recomputed, documents re-rendered and compared"
+      "ok": false,
+      "detail": "tools/check_claims.py reports problems"
     }
   ],
-  "passed": 9,
+  "passed": 2,
   "total": 9
 }

@@ -63,12 +63,14 @@ pub struct Spawn {
     pub eps: u32,
     /// Slots of the parent whose capabilities the child starts with.
     pub caps: [u32; SPAWN_CAPS],
+    /// The child's share of the processor in percent; 0 asks for the parent's own.
+    pub cpu: u32,
 }
 
 impl Spawn {
     /// A small task with no capability at all.
     pub const PLAIN: Spawn =
-        Spawn { quota: CHILD_FRAMES + 5, stack: 1, fault: NO_CAP, tasks: 0, eps: 0, caps: [NO_CAP; SPAWN_CAPS] };
+        Spawn { quota: CHILD_FRAMES + 5, stack: 1, fault: NO_CAP, tasks: 0, eps: 0, caps: [NO_CAP; SPAWN_CAPS], cpu: 0 };
 
     pub fn with_caps(mut self, slots: &[u32]) -> Spawn {
         self.caps[..slots.len()].copy_from_slice(slots);
@@ -322,6 +324,14 @@ impl World {
         self.raise(0);
     }
 
+    /// Let `count` timer periods pass: whoever the kernel chose runs for each of them.
+    pub fn ticks(&mut self, count: u32) {
+        self.begin();
+        for _ in 0..count {
+            self.tick();
+        }
+    }
+
     /// Let `micros` microseconds pass, with a timer interrupt every 10 ms.
     pub fn pass(&mut self, micros: u64) {
         self.begin();
@@ -470,6 +480,8 @@ impl World {
         for (i, word) in words.iter().chain(&spec.caps).enumerate() {
             put32(&mut args, 12 + 4 * i, *word);
         }
+        // After the six words above, the capabilities and four start arguments: the share.
+        put32(&mut args, 12 + 4 * (6 + SPAWN_CAPS + 4), spec.cpu);
         self.poke(t, SPAWN_ARGS, &args);
         self.syscall(t, nr::SPAWN, [image, image_len, SPAWN_ARGS, 0])
     }

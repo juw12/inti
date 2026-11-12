@@ -8,6 +8,9 @@ pub const CON_WRITE: u32 = 1;
 pub const CON_READLINE: u32 = 2;
 /// Was Ctrl-C pressed since the last time this was asked? `words[0]` = 1 or 0.
 pub const CON_INTR: u32 = 3;
+/// Write `data[..len]` to the serial line only, not to the screen. Honoured only for the
+/// supervisor, which reports through the console so that the serial line has one writer.
+pub const CON_REPORT: u32 = 4;
 
 // File server.
 /// `words[0]` = file number; reply: name in `data`, size in `words[0]`.
@@ -41,6 +44,8 @@ pub const BUSY: u32 = 3;
 
 // Badges that init stamps on the capabilities it hands out; servers use them to tell
 // the shell from the programs the shell starts.
+/// `init` itself sends with the capability it got when it created the endpoint: no badge.
+pub const B_SUPERVISOR: u32 = 0;
 pub const B_SHELL: u32 = 1;
 pub const B_APP: u32 = 2;
 pub const B_CLIENT: u32 = 3;
@@ -72,6 +77,7 @@ pub mod mode {
     pub const GRANDCHILD: u32 = 25;
     pub const ENDPOINTS: u32 = 26;
     pub const AGENT: u32 = 27;
+    pub const HOGS: u32 = 28;
     pub const FUZZ: u32 = 30;
 }
 

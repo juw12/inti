@@ -155,6 +155,9 @@ pub struct SpawnArgs {
     pub caps: [u32; SPAWN_CAPS],
     /// Passed to the child in EAX, EBX, ECX, EDX.
     pub args: [u32; 4],
+    /// The child's share of the processor in percent, for itself and everything it starts
+    /// together. 0 = the same as the caller's; more than the caller's is refused.
+    pub cpu: u32,
 }
 
 impl SpawnArgs {
@@ -171,6 +174,7 @@ impl SpawnArgs {
             endpoints: 0,
             caps: [NO_CAP; SPAWN_CAPS],
             args: [0; 4],
+            cpu: 0,
         };
         let len = name.len().min(11);
         args.name[..len].copy_from_slice(&name[..len]);
@@ -181,7 +185,7 @@ impl SpawnArgs {
 pub const SPAWN_ARGS_SIZE: usize = core::mem::size_of::<SpawnArgs>();
 
 // The kernel reads these two structures field by field at fixed offsets.
-const _: () = assert!(MSG_SIZE == 292 && SPAWN_ARGS_SIZE == 116);
+const _: () = assert!(MSG_SIZE == 292 && SPAWN_ARGS_SIZE == 120);
 const _: () = assert!(core::mem::offset_of!(Msg, cap) == 32);
 
 // ---------------------------------------------------------------- sysinfo
@@ -258,6 +262,10 @@ pub struct TaskInfo {
     /// Tasks it may still start and endpoints it may still create.
     pub tasks: u32,
     pub endpoints: u32,
+    /// Its share of the processor in percent, and what it and everything it started used
+    /// of the last full one-second window, in thousandths.
+    pub cpu_limit: u32,
+    pub cpu_used: u32,
 }
 
 /// Description of one capability. Endpoint: a = endpoint, b = rights, c = badge.
@@ -287,6 +295,8 @@ impl TaskInfo {
         caps: 0,
         tasks: 0,
         endpoints: 0,
+        cpu_limit: 0,
+        cpu_used: 0,
     };
 }
 

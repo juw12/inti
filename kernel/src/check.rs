@@ -149,9 +149,9 @@ impl Kernel {
         Ok((frames, foreign))
     }
 
-    /// Rules 8-17, 20, 21 and 24: reference counts, wait queues, the task tree, interrupt
-    /// bindings, the quotas for the task table and the endpoint table, and the buffers of
-    /// waiting tasks.
+    /// Rules 8-17, 20, 21, 24 and 27: reference counts, wait queues, the task tree,
+    /// interrupt bindings, the quotas for the task table and the endpoint table, the
+    /// buffers of waiting tasks, and the shares of the processor.
     fn check_objects(&self) -> Result<(), u32> {
         let mut refs = [0u16; MAX_ENDPOINTS];
         let mut recv_refs = [0u16; MAX_ENDPOINTS];
@@ -206,6 +206,12 @@ impl Kernel {
                 // Rule 12: a caller waits for a reply only from a task that can still give it.
                 State::Reply(server) if !alive(server) => return Err(12),
                 _ => {}
+            }
+            // Rule 27: a share of the processor is 1 to 100 percent and never above the
+            // share of the task that started this one.
+            let above = self.tasks.get(task.parent as usize).map_or(100, |parent| parent.cpu_limit);
+            if task.alive() && !(1..=above.min(100)).contains(&task.cpu_limit) {
+                return Err(27);
             }
             if !task.alive() {
                 // Rule 14: a task that ended holds no quota of any kind and no capabilities.

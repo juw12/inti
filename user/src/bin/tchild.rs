@@ -56,6 +56,7 @@ pub fn main() {
         mode::GRANDCHILD => grandchild(a),
         mode::ENDPOINTS => endpoints(),
         mode::AGENT => agent(),
+        mode::HOGS => hogs(a, b),
         mode::FUZZ => fuzz(a, b),
         _ => sys::exit(0xBAD0),
     }
@@ -184,6 +185,27 @@ fn grandchild(archive_pages: u32) -> ! {
     }
     loop {
         sys::sleep(1000);
+    }
+}
+
+/// Starts `count` spinning children and then spins itself: a group of tasks that takes all
+/// the processor time it is given.
+fn hogs(archive_pages: u32, count: u32) -> ! {
+    let Some(archive) = map_archive(1, archive_pages) else {
+        sys::exit(0xE1);
+    };
+    let Some(image) = archive::find(archive, b"tchild") else {
+        sys::exit(0xE2);
+    };
+    for _ in 0..count {
+        let mut spawn = SpawnArgs::new(b"hog", 24, 2);
+        spawn.args = [mode::SPIN, 0, 0, 0];
+        if sys::spawn(image, &spawn).is_err() {
+            sys::exit(0xE3);
+        }
+    }
+    loop {
+        core::hint::spin_loop();
     }
 }
 

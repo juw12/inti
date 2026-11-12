@@ -357,6 +357,11 @@ pub fn clock_count() -> u32 {
     with(|machine| machine.cpu.counter as u32)
 }
 
+/// The model's cycle counter runs at the rate of the timer: one count per timer count.
+pub fn cycles() -> u64 {
+    with(|machine| machine.cpu.counts)
+}
+
 pub fn irq_mask(irq: u32, masked: bool) {
     with(|machine| {
         assert!(irq < 16, "the kernel masked interrupt line {irq}, which does not exist");

@@ -232,6 +232,19 @@ pub fn clock_count() -> u32 {
     (high << 8) | low
 }
 
+/// The processor's cycle counter, for the shares of processor time.
+///
+/// Its rate is unknown and is not needed: a share is a fraction of the counts that passed
+/// in the previous accounting window, measured on this same counter. It costs one
+/// instruction at each task switch, where the clock counter would cost three port accesses.
+pub fn cycles() -> u64 {
+    let (low, high): (u32, u32);
+    // SAFETY: `rdtsc` only reads the counter into EAX and EDX. Every processor with PAE
+    // paging, which this kernel requires, has the instruction, and ring 0 may always use it.
+    unsafe { asm!("rdtsc", out("eax") low, out("edx") high, options(nomem, nostack)) };
+    (high as u64) << 32 | low as u64
+}
+
 pub fn read_cr2() -> u32 {
     let value: u32;
     // SAFETY: reading CR2 (the last page-fault address) has no side effects.

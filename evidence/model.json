@@ -1,22 +1,22 @@
 {
- "date": "2026-11-11T15:55:20+00:00",
- "source_sha256": "89337eec24e3e15e8dbeda275919a5b41f6f1a69d8b937783ebbaf90ace8e3a3",
+ "date": "2026-11-12T05:47:28+00:00",
+ "source_sha256": "3d64c36b0ae9275caf8fc63d35907a34c774855d5feeafbd1cce32bf6c037792",
  "command": "model all",
  "target": "x86_64-pc-windows-gnu",
  "host": "Windows-10-10.0.19045-SP0",
- "duration_s": 86,
+ "duration_s": 114,
  "passed": true,
  "seeds": {
-  "found": 41,
-  "planted": 41
+  "found": 44,
+  "planted": 44
  },
  "blind": {
   "unseen": 3,
   "forged": 3
  },
  "tables": {
-  "passed": 154,
-  "total": 154
+  "passed": 173,
+  "total": 173
  },
  "total": {
   "scenarios": 5,

@@ -4,12 +4,15 @@
 //! overwrite anything. Here it holds six capabilities (its request endpoint, three small
 //! port ranges, two interrupt lines and one page of screen memory); when it crashes or
 //! hangs, `init` starts a new copy and the callers simply send their request again.
+//!
+//! While it runs it is the only writer on the serial line. The supervisor's reports come
+//! here as requests too (`CON_REPORT`), so that a line is never cut in two by another.
 #![no_std]
 #![no_main]
 
 use rt::abi::{Msg, FOREVER, L_IRQ, L_KERNEL, MSG_DATA, USER_BASE};
-use rt::proto::{BUSY, B_SHELL, CON_INTR, CON_READLINE, CON_WRITE, DBG_CRASH, DBG_HANG, DENIED};
-use rt::proto::{OK, PING};
+use rt::proto::{BUSY, B_SHELL, B_SUPERVISOR, CON_INTR, CON_READLINE, CON_REPORT, CON_WRITE};
+use rt::proto::{DBG_CRASH, DBG_HANG, DENIED, OK, PING};
 use rt::sys;
 
 // Capability slots, filled by `init`.
@@ -143,6 +146,17 @@ impl Console {
     fn print(&mut self, bytes: &[u8]) {
         for &byte in bytes {
             self.screen_put(byte);
+            if byte == b'\n' {
+                self.serial_put(b'\r');
+            }
+            self.serial_put(byte);
+        }
+    }
+
+    /// Send a line of the supervisor's report down the serial line. It belongs in the log,
+    /// not on the screen.
+    fn report(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
             if byte == b'\n' {
                 self.serial_put(b'\r');
             }
@@ -314,6 +328,9 @@ impl Console {
         let mut reply = Msg::new(OK);
         match msg.label {
             CON_WRITE => self.print(&msg.data[..(msg.len as usize).min(MSG_DATA)]),
+            CON_REPORT if msg.badge == B_SUPERVISOR => {
+                self.report(&msg.data[..(msg.len as usize).min(MSG_DATA)])
+            }
             CON_READLINE => return self.read_line(msg),
             CON_INTR if msg.badge == B_SHELL => {
                 reply.words[0] = core::mem::replace(&mut self.interrupted, false) as u32;

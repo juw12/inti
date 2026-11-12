@@ -9,7 +9,7 @@
 
 use crate::arch::{self, KERNEL_MAP};
 use crate::mem::{frame_of, FOREIGN, NX, RW, US};
-use crate::task::{link, Cap, State, NONE, ORIGINAL};
+use crate::task::{link, Cap, State, CPU_WINDOW_TICKS, IDLE, NONE, ORIGINAL};
 use crate::world::{
     elf_headers, Spawn, World, BUFFER, CHILD_FRAMES, FAULT_BADGE, IMAGE_SIZE, LARGE, ROOT_FRAMES, SMALL,
 };
@@ -615,7 +615,7 @@ fn reports(tally: &mut Tally) {
     let task = &w.k.tasks[child];
     let expected = [ST_READY, 0, task.gen as u32, spec.quota, task.charged, task.cpu_ticks, 2, 2, 2, 3];
     let asked = w.syscall(0, nr::SYSINFO, [1, INFO_TASK, child as u32, REPORT]);
-    let mut report = [0; 52];
+    let mut report = [0; 60];
     w.peek(0, REPORT, &mut report);
     let words: Vec<u32> = (0..10).map(|i| get32(&report, 12 + 4 * i)).collect();
     if words != expected {
@@ -671,6 +671,144 @@ fn reports(tally: &mut Tally) {
         told && get32(&notice, 0) == L_FAULT && words == [13, 0, eip, 0],
     );
     tally.sound(&mut w, "the state afterwards is sound");
+}
+
+// ---- Shares of the processor ---------------------------------------------------------------
+
+/// Let the current window of the accounting end, then a whole window in which no system call
+/// is made - the next one's shares are measured against its length - and then the window
+/// whose figures are read afterwards.
+fn measured_window(w: &mut World) {
+    loop {
+        w.ticks(1);
+        if w.k.ticks % CPU_WINDOW_TICKS == 0 {
+            break;
+        }
+    }
+    w.ticks(2 * CPU_WINDOW_TICKS as u32);
+}
+
+/// Who the scheduler runs if task `t` has just been woken.
+fn chosen_after_waking(w: &mut World, t: usize) -> usize {
+    w.k.ready(t);
+    w.k.schedule();
+    w.k.cur
+}
+
+/// A spawn with this share is refused with E_PERM and leaves no task behind.
+fn share_refused(w: &mut World, t: usize, cpu: u32) -> bool {
+    let before = w.tasks();
+    w.spawn(t, &Spawn { cpu, ..Spawn::PLAIN }) == Some(E_PERM) && w.tasks() == before
+}
+
+fn shares(tally: &mut Tally) {
+    const REPORT: u32 = BUFFER + 0x400;
+    // A group: a task held to 20% of the processor that may start four more.
+    let group = Spawn { quota: 220, tasks: 4, cpu: 20, ..Spawn::PLAIN };
+    let limit = |w: &World, t: usize| w.k.tasks[t].cpu_limit;
+    let used = |w: &World, t: usize| w.k.share_used(t);
+
+    tally.section("A share of the processor: who may have which");
+    let mut w = World::boot(LARGE, true);
+    let (Ok(a), Ok(b)) = (w.spawn_task(0, &group), w.spawn_task(0, &Spawn::PLAIN)) else {
+        tally.check("two tasks start", false);
+        return;
+    };
+    tally.check(
+        "the root task has the whole processor; a task started with 20% has 20%, one started with no figure has its parent's",
+        limit(&w, 0) == 100 && limit(&w, a) == 20 && limit(&w, b) == 100,
+    );
+    tally.check(
+        "the root task cannot give 101%, nor 256% or 276%: the figure is not cut down to eight bits (E_PERM, no task started)",
+        [101, 256, 276, u32::MAX].iter().all(|&cpu| share_refused(&mut w, 0, cpu)),
+    );
+    let heirs: Vec<u8> = [0, 20, 10]
+        .iter()
+        .map(|&cpu| w.spawn_task(a, &Spawn { cpu, ..Spawn::PLAIN }).map_or(0, |heir| limit(&w, heir)))
+        .collect();
+    tally.check("a task with 20% passes on 20% when it names no figure, and may give 20% or 10%", heirs == [20, 20, 10]);
+    tally.check(
+        "it cannot give 21% or 100%, though it may still start a task (E_PERM, no task started)",
+        w.k.tasks[a].task_quota == 1 && share_refused(&mut w, a, 21) && share_refused(&mut w, a, 100),
+    );
+    tally.sound(&mut w, "all that must hold after any step holds with shares handed down");
+
+    tally.section("A share of the processor: what it does, in whole timer periods of the fake machine");
+    let mut w = World::boot(LARGE, true);
+    let (Ok(a), Ok(b)) = (w.spawn_task(0, &group), w.spawn_task(0, &Spawn::PLAIN)) else {
+        tally.check("two tasks start", false);
+        return;
+    };
+    measured_window(&mut w);
+    println!(
+        "  note  of one window, in thousandths: the task held to 20% used {}, the other task {}, the root task with all it started {}",
+        used(&w, a),
+        used(&w, b),
+        used(&w, 0)
+    );
+    tally.check(
+        "beside two tasks that never stop, a task held to 20% that never stops gets exactly 20% of a window",
+        used(&w, a) == 200,
+    );
+    tally.check("the other two get the rest: the second task at least 39%", used(&w, b) >= 390 && used(&w, b) <= 410);
+    tally.check("a task is charged for all that it started: the root task for the whole window", used(&w, 0) == 1000);
+    let asked = w.syscall(0, nr::SYSINFO, [1, INFO_TASK, a as u32, REPORT]);
+    let mut report = [0; 60];
+    w.peek(0, REPORT, &mut report);
+    tally.check(
+        "the kernel reports a task's share and what it used of the last whole window",
+        asked == Some(0) && get32(&report, 12 + 4 * 10) == 20 && get32(&report, 12 + 4 * 11) == 200,
+    );
+
+    measured_window(&mut w);
+    tally.check(
+        "at the start of a window the task is within its share: when it wakes it runs at once",
+        !w.k.over_share(a) && chosen_after_waking(&mut w, a) == a,
+    );
+    w.ticks(70);
+    tally.check(
+        "70 periods later it has used its share: when it wakes, a task within its share runs first",
+        w.k.over_share(a) && chosen_after_waking(&mut w, a) != a,
+    );
+
+    measured_window(&mut w);
+    let Ok(g) = w.spawn_task(a, &Spawn::PLAIN) else {
+        tally.check("the task held to 20% starts a task", false);
+        return;
+    };
+    measured_window(&mut w);
+    println!("  note  with a task of its own, the group used {} thousandths, of which that task {}", used(&w, a), used(&w, g));
+    tally.check(
+        "a task and the task it started get 20% between them, not 20% each",
+        limit(&w, g) == 20 && used(&w, a) == 200 && used(&w, g) > 0 && used(&w, g) < 200,
+    );
+
+    // Nobody else wants the processor: the root task and the second task sleep for a minute.
+    let asleep = w.sleep(0, 60_000).is_none() && w.sleep(b, 60_000).is_none();
+    w.ticks(30);
+    let both_over = w.k.over_share(a) && w.k.over_share(g);
+    let Ok(c) = w.spawn_task(a, &Spawn::PLAIN) else {
+        tally.check("a task that has used its share starts a task", false);
+        return;
+    };
+    tally.check(
+        "a task started by one that has used its share is over the share from its first moment: starting tasks is no way round it",
+        asleep && both_over && w.k.over_share(c),
+    );
+    measured_window(&mut w);
+    tally.check(
+        "while nobody else wants the processor the group has all of it: a share never leaves the processor idle",
+        used(&w, a) == 1000 && used(&w, b) == 0,
+    );
+
+    let all_asleep = [a, g, c].iter().all(|&t| w.sleep(t, 60_000).is_none());
+    let idle = w.k.cur == IDLE;
+    measured_window(&mut w);
+    tally.check(
+        "with every task asleep the processor idles, and the idle time is charged to nobody",
+        all_asleep && idle && [0, a, b, g, c].iter().all(|&t| used(&w, t) == 0),
+    );
+    tally.sound(&mut w, "all that must hold after any step holds at the end");
 }
 
 fn turns(tally: &mut Tally) {
@@ -850,6 +988,9 @@ const SEEDS: &[Seed] = &[
         forge(w, Cap::Memory { page: 0x100, pages: 16, write: true })
     }),
     ("a task holds a capability for the timer interrupt", 26, |w| forge(w, Cap::Irq { mask: 1 })),
+    ("a task has no share of the processor at all", 27, |w| w.k.tasks[CLIENT].cpu_limit = 0),
+    ("a task has a share of 101%", 27, |w| w.k.tasks[CLIENT].cpu_limit = 101),
+    ("a task has a larger share than the task that started it", 27, |w| w.k.tasks[0].cpu_limit = 50),
 ];
 
 /// Forged capabilities that look exactly like ones a task may come to hold honestly: the
@@ -910,6 +1051,7 @@ pub fn run() -> bool {
     messages(&mut tally);
     larger_program(&mut tally);
     reports(&mut tally);
+    shares(&mut tally);
     turns(&mut tally);
     checker_sensitivity(&mut tally);
     let total = tally.passed + tally.failed;

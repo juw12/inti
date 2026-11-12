@@ -5,7 +5,9 @@
 //! summary keeps everything that decides what the kernel can do next - who waits for whom,
 //! every capability and where it was copied from, every quota, every page mapping - and
 //! leaves out what only names things: frame numbers, token values, generation counters,
-//! the clock, statistics, saved registers.
+//! the clock, statistics, saved registers. A task's share of the processor is kept; what it
+//! has used of the share in the current window is left out like the clock, and so is the
+//! order among ready tasks: the explorer lets any ready task take the next step.
 //!
 //! The explorer stores a 128-bit hash of the summary, not the summary. Two different states
 //! with the same hash would be taken for one, and the second would not be explored further.
@@ -60,6 +62,7 @@ pub fn canonical(world: &World, out: &mut Vec<u8>) {
             State::Zombie(ep) => (6, ep),
         };
         out.extend_from_slice(&[code, operand, task.parent, task.fault_ep, task.task_quota, task.ep_quota]);
+        out.push(task.cpu_limit);
         put(out, &[task.fault_badge, task.quota, task.charged, task.foreign]);
         if matches!(task.state, State::Recv(_) | State::Send(_) | State::Reply(_) | State::Sleep) {
             out.push(deadline_kind(task.deadline, now));

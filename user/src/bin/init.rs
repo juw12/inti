@@ -35,6 +35,9 @@ const STACK_PAGES: u32 = 8;
 /// `init` keeps the rest, so that it can always start a server again.
 const SHELL_TASKS: u32 = 26;
 const SHELL_ENDPOINTS: u32 = 48;
+/// The shell's share of the processor in percent, for itself and every program started from
+/// it. The rest is always there for `init` and the two servers when they have work.
+const SHELL_SHARE: u32 = 80;
 /// Service number `n` reports its end with fault badge `FAULT_BADGE + n`.
 const FAULT_BADGE: u32 = 0x100;
 
@@ -51,6 +54,8 @@ const QUICK_END_US: u64 = 2_000_000;
 const RETRY_US: u64 = 100_000;
 
 const SERVICES: usize = 3;
+/// The console is service number 0. `init` reports through it while it answers.
+const CONSOLE: usize = 0;
 
 struct Service {
     name: &'static str,
@@ -58,6 +63,8 @@ struct Service {
     /// How many tasks the service may start and how many endpoints it may create.
     tasks: u32,
     endpoints: u32,
+    /// Its share of the processor in percent; 0 = no limit of its own.
+    cpu: u32,
     /// The capabilities the service starts with (slot numbers in `init`).
     caps: [u32; SPAWN_CAPS],
     /// Capability used to ping the service, or `NO_CAP` if it is not pinged.
@@ -83,6 +90,7 @@ impl Service {
             pages,
             tasks: 0,
             endpoints: 0,
+            cpu: 0,
             caps,
             ping,
             task: NO_CAP,
@@ -102,6 +110,12 @@ impl Service {
         self.endpoints = endpoints;
         self
     }
+
+    /// Hold the service and everything it starts to `percent` of the processor.
+    fn with_share(mut self, percent: u32) -> Service {
+        self.cpu = percent;
+        self
+    }
 }
 
 struct Supervisor {
@@ -113,6 +127,8 @@ struct Supervisor {
     last_ping: u64,
     /// The service that is being pinged right now, if any.
     pinging: Option<usize>,
+    /// The two power-off ports: the only I/O ports `init` keeps for itself.
+    power: [u32; 2],
     services: [Service; SERVICES],
 }
 
@@ -125,6 +141,20 @@ fn need<T>(result: Result<T, i32>, what: &str) -> T {
             outln!("init: cannot ", what, ": ", errname(code));
             sys::exit(1)
         }
+    }
+}
+
+/// Choose where `init`'s own lines go. The serial line must have one writer at a time:
+/// two writers cut each other's lines in two. While a console runs and answers, it is
+/// that writer, and `init` hands it each line as a request. From the moment the console
+/// has ended or has missed a ping, until a new one runs or the old one answers again,
+/// `init` writes through the kernel log instead. A console that stops answering without
+/// being noticed yet costs `init` one wait of `REPORT_WAIT_MS`, once (see `rt::io`).
+fn report_through_console(console: u32, answering: bool) {
+    if answering {
+        set_output(Sink::Report { console, log: LOG });
+    } else {
+        set_output(Sink::Log(LOG));
     }
 }
 
@@ -143,11 +173,15 @@ impl Supervisor {
         spawn.caps = service.caps;
         spawn.tasks = service.tasks;
         spawn.endpoints = service.endpoints;
+        spawn.cpu = service.cpu;
         spawn.args = [service.starts, self.root_starts, self.archive_pages, service.pages];
         match sys::spawn(image, &spawn) {
             Ok(task) => {
                 service.task = task;
                 service.started_at = sys::time();
+                if index == CONSOLE {
+                    report_through_console(service.ping, true);
+                }
                 if service.starts == 0 {
                     let granted = service.caps.iter().filter(|&&cap| cap != NO_CAP).count();
                     outln!(
@@ -216,7 +250,14 @@ impl Supervisor {
             let (ping, incarnation) = (service.ping, service.starts);
             let mut waited_ms = 0;
             self.pinging = Some(index);
-            while sys::call(ping, &mut Msg::new(PING), PING_SLICE_MS) == Err(E_TIMEOUT) {
+            loop {
+                let answer = sys::call(ping, &mut Msg::new(PING), PING_SLICE_MS);
+                if index == CONSOLE {
+                    report_through_console(ping, answer.is_ok());
+                }
+                if answer != Err(E_TIMEOUT) {
+                    break;
+                }
                 waited_ms += PING_SLICE_MS;
                 self.drain();
                 let service = &self.services[index];
@@ -246,6 +287,9 @@ impl Supervisor {
             _ => None,
         };
         let Some(service) = self.services.get_mut(index) else { return };
+        if index == CONSOLE {
+            report_through_console(service.ping, false);
+        }
         let now = sys::time();
         let cause = msg.words[0];
         if cause < 32 {
@@ -305,8 +349,8 @@ impl Supervisor {
         outln!("init: shutdown requested; switching the machine off");
         // ACPI sleep state S5 on the virtual machines Inti runs on: QEMU (port 0x604) and
         // Bochs (port 0xB004).
-        let _ = sys::io_out(PORTS, 0x604, 2, 0x2000);
-        let _ = sys::io_out(PORTS, 0xB004, 2, 0x2000);
+        let _ = sys::io_out(self.power[0], 0x604, 2, 0x2000);
+        let _ = sys::io_out(self.power[1], 0xB004, 2, 0x2000);
         sys::sleep(100);
         outln!("init: this machine has no power-off port that init knows; still running");
     }
@@ -412,6 +456,14 @@ pub fn main() {
         LOG,
         derive(VGA, 7, 1, 1),
     ];
+    // For itself `init` keeps the two power-off ports. Then it gives up the three broad
+    // capabilities it was started with: every I/O port, every interrupt line and all of
+    // the video memory. The narrow copies made above live on. From here on nobody in the
+    // system, `init` included, can reach a device port that was not handed out by name.
+    let power = [derive(PORTS, 0x604, 0x605, 0), derive(PORTS, 0xB004, 0xB005, 0)];
+    for broad in [PORTS, IRQS, VGA] {
+        need(sys::cap_drop(broad), "give up a broad capability");
+    }
 
     let mut supervisor = Supervisor {
         archive,
@@ -420,11 +472,13 @@ pub fn main() {
         control,
         last_ping: 0,
         pinging: None,
+        power,
         services: [
             Service::new("console", SERVER_PAGES, &console_caps, console),
             Service::new("fs", SERVER_PAGES, &files_caps, files),
             Service::new("shell", shell_pages, &shell_caps, NO_CAP)
-                .with_tables(SHELL_TASKS, SHELL_ENDPOINTS),
+                .with_tables(SHELL_TASKS, SHELL_ENDPOINTS)
+                .with_share(SHELL_SHARE),
         ],
     };
     supervisor.start_due();

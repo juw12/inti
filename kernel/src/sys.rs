@@ -300,7 +300,8 @@ impl Kernel {
         let mut raw = [0; SPAWN_ARGS_SIZE];
         self.mem.copy_in(pd, args, &mut raw)?;
         // Words of `abi::SpawnArgs` after the name: memory quota, stack, fault endpoint,
-        // fault badge, task quota, endpoint quota, 16 capability slots, 4 start arguments.
+        // fault badge, task quota, endpoint quota, 16 capability slots, 4 start arguments,
+        // share of the processor.
         let word = |index: usize| get32(&raw, 12 + index * 4);
         let (quota, stack_pages, fault_slot, fault_badge) = (word(0), word(1), word(2), word(3));
         let (tasks, endpoints) = (word(4), word(5));
@@ -315,6 +316,12 @@ impl Kernel {
                 *cap = (self.cap(me, slot)?, link(me, slot as usize));
             }
         }
+        // A child gets the caller's share of the processor or a smaller one, never more.
+        let cpu_limit = match word(26) {
+            0 => self.tasks[me].cpu_limit,
+            share if share <= self.tasks[me].cpu_limit as u32 => share as u8,
+            _ => return Err(E_PERM),
+        };
         let handle = self.free_slot(me)?;
         let caller = &self.tasks[me];
         // One slot of the task table for the child itself, plus what it may use in turn.
@@ -334,7 +341,8 @@ impl Kernel {
         name.copy_from_slice(&raw[..12]);
         let gen = self.tasks[child].gen;
         let parent = me as u8;
-        self.tasks[child] = Tcb { gen, state: State::Zombie(NONE), parent, quota, name, ..Tcb::EMPTY };
+        self.tasks[child] =
+            Tcb { gen, state: State::Zombie(NONE), parent, quota, name, cpu_limit, ..Tcb::EMPTY };
         let entry = match self.load(child, &Image::User { pd, ptr: image, len }, stack_pages) {
             Ok(entry) => entry,
             Err(code) => {
@@ -417,7 +425,7 @@ impl Kernel {
         if self.cap(me, slot)? != Cap::Info {
             return Err(E_NOCAP);
         }
-        let mut out = [0; 52];
+        let mut out = [0; 60];
         let len = match what {
             INFO_STATS => {
                 let tasks = self.tasks.iter().filter(|task| task.state != State::Free).count();
@@ -456,12 +464,14 @@ impl Kernel {
                     caps as u32,
                     task.task_quota as u32,
                     task.ep_quota as u32,
+                    task.cpu_limit as u32,
+                    self.share_used(arg as usize),
                 ];
                 out[..12].copy_from_slice(&task.name);
                 for (index, word) in words.into_iter().enumerate() {
                     put32(&mut out, 12 + index * 4, word);
                 }
-                52
+                60
             }
             INFO_CAP => {
                 let task = self.tasks.get((arg >> 8) as usize).ok_or(E_INVAL)?;
