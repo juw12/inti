@@ -8,7 +8,10 @@
     python build.py model    compile the kernel for this computer and run its model checks
     python build.py mutants  plant defects in a copy of the kernel, count how many the model catches
                              (--held-out: a second sample of places; --fresh: a third, drawn after tests
-                             were aimed at the second, and which no test was written against)
+                             were aimed at the second; --unseen: a fourth, which no test was
+                             written against)
+    python build.py mutants-qemu  boot the mutants the model did not catch and run the tests on them
+    python build.py all      model, then build, test and gates; --mutants also runs every sample again
     python build.py clean    remove build/ and target/
 
 Needs Rust with the i586-unknown-linux-gnu target and Python 3.9 or newer. Nothing else:
@@ -238,6 +241,10 @@ def main() -> int:
         return run_tool("model.py", [str(program), triple])
     if command == "mutants":
         return run_tool("mutants.py", sys.argv[2:])
+    if command == "mutants-qemu":
+        return run_tool("mutants_qemu.py", sys.argv[2:])
+    if command == "all":
+        return run_tool("all.py", sys.argv[2:])
     if command not in ("build", "run", "test", "gates"):
         sys.exit(__doc__)
     image = build()

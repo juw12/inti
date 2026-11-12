@@ -138,6 +138,11 @@ driver or a hostile program is demonstrably a non-event.
 - Assumed: the keep rule, written before any score of this run: a round is kept only if the mean of four council runs on its dossier is at least 8.4125 and the blind pairwise against round 1 is won and the gates are 9/9. A run that reaches no judge is repeated once and its file kept. Nothing is merged otherwise; a draft pull request is opened instead.
 - Assumed: the owner's earlier "continue til finnish dont stop" is read as still in force for the plateau stop only. MAX_ROUNDS, the gates, the keep rule and the session limit stay.
 - Assumed: five rounds of more evidence moved the mean by about 0.1, and C3 sits at 9 to 9.5. Round 6 is aimed at what every judge named under C1 and C2: the 16 mutants the checks missed, the mutants never run in QEMU, the `unsafe` blocks nobody but the author checked.
+- Assumed: the eleven round 5 survivors the model can see were closed with new directed checks only (`model/src/tables.rs`); no kernel line and no sample changed. Two new seeds for the rule on ended tasks were first reported under another rule; the seeds were rewritten to corrupt a task that had really ended, and the expected rule stayed as written.
+- Assumed: the third sample (`--fresh`) is no longer untouched, since checks were now aimed at it. A fourth sample (`--unseen`, the remaining quarter position of each stride) is the figure no check was written against.
+- Assumed: mutants in QEMU run a shorter suite than `python build.py test` (200,000 random system calls, 2 repeats of each injected fault); the numbers are recorded in the result. Only the mutants the host model did not catch are booted.
+- Assumed: Miri runs from a nightly GNU toolchain kept inside the session's scratch folder, so the owner's rustup is untouched. It checks the kernel's source as compiled into the host model, not the paging, trap and port code that only runs in QEMU.
+- Assumed: taking authority away from `init` is not attempted in round 6. It changes the kernel's interface and would force every sample to be run again; it stays in the queue.
 
 ## Rubric
 
@@ -280,10 +285,10 @@ What the judges asked for across the four runs: close the 11 holes of the fresh 
 
 Second run, round 6 (branch `agent/r6-proof`, worktree `worktrees/inti/r6-proof`, started from `agent/r5-holes` at `0522762`).
 
-- Done: plan, keep rule and assumptions written (Q14, "Second run" under Assumptions).
-- In progress: reading the 11 holes.
-- Left: everything in Q14 and Q15.
-- Exact next command: `python build.py model` in the round 6 worktree, then `python build.py mutants --fresh --sample 60`.
+- Done: plan, keep rule and assumptions (Q14). Directed checks for the eleven round 5 survivors, commit `346abc3` (259 of 259 checks, 46 of 46 planted corruptions on the host model). `tools/mutants.py --unseen`, `tools/mutants_qemu.py`, `tools/all.py`, `build.py` commands `mutants-qemu` and `all` written.
+- In progress: the four samples of mutants on the host model; Miri on `model tables`.
+- Left: commit the samples; `python build.py mutants-qemu`; Miri result into `evidence/`; claims, documents and dossier for the unseen sample, QEMU mutants and Miri; `python build.py gates`; push; four council runs; pairwise against round 1; decision; Q15.
+- Exact next command: `python build.py mutants-qemu --only kernel/src/mem.rs:165` in the round 6 worktree, then `python build.py mutants-qemu`.
 
 ### First run, round 5 (kept for the record; superseded by the lines above)
 
