@@ -49,6 +49,7 @@ MODEL_MAIN = "model/src/main.rs"
 MUTANTS = "evidence/mutants.json"
 MUTANTS_BEFORE = "evidence/mutants-before-tests.log"
 MUTANTS_HELD_OUT = "evidence/mutants-held-out.json"
+MUTANTS_HELD_OUT_BEFORE = "evidence/mutants-held-out-before-tests.log"
 MUTANTS_FRESH = "evidence/mutants-fresh.json"
 MUTANTS_PREVIOUS = "evidence/mutants-previous.json"
 
@@ -619,11 +620,14 @@ SURVIVORS: dict[str, str] = {
         "given back. Whether the tests in QEMU notice was not tried."
     ),
     "kernel/src/task.rs:372:assignment removed": (
-        "A hole in the checks. The flag that asks for a new choice of task is then never lowered, so the kernel "
-        "chooses again at every entry and not only after an event that calls for it. The harness of the model "
-        "marks the running task ready before every step, which raises the same flag, so the model cannot tell "
-        "the two kernels apart. On the real kernel a task that is over its share would be switched away at the "
-        "next entry instead of at the next scheduling event; what else differs was not worked out."
+        "A hole in the checks, read through and left open. The flag that asks for a new choice of task is then "
+        "never lowered, so the kernel chooses again at every entry and not only after an event that calls for it. "
+        "Every change of rank or of readiness raises the flag anyway, and nothing else decides the choice except "
+        "whether a task is over its share. So the one difference found is that a task which goes over its share "
+        "is switched away at its next system call and not at the next timer tick, at most one tick sooner. The "
+        "harness of the model marks the running task ready before every step, which raises the same flag, and "
+        "the flag is private, so no test in the model can tell the two kernels apart; the flag was not made "
+        "public for the sake of a test. This is a reading and not a proof."
     ),
     "kernel/src/task.rs:708:assignment removed": (
         "Makes no difference that reading could find; it is a reading and not a proof. The line asks for a new "
@@ -631,27 +635,11 @@ SURVIVORS: dict[str, str] = {
         "chooses again without being asked, and a task that the death wakes raises the flag itself when it is "
         "woken."
     ),
-    # The held-out sample. No test was written this round against any of these.
-    "kernel/src/elf.rs:97:- becomes +": (
-        "A hole in the checks. The start of a program segment is then rounded down wrongly: two single bits are "
-        "cleared instead of everything below a page. A segment that begins on an odd-numbered page gets one "
-        "more page mapped below it, and a segment that begins inside a page is handed on with an address that "
-        "is not a page boundary; what the kernel then does with it was not followed. That the programs the model "
-        "loads have neither kind of segment is inferred from the result and was not checked in the test programs."
-    ),
-    "kernel/src/ipc.rs:178:call removed": (
-        "A hole in the checks, in a reported figure only. The notice of a task's death then leaves out the "
-        "processor time the task had used. Nothing decides by that word, and no check reads it."
-    ),
+    # The second sample. Tests were aimed at six of its places in round 5; these three are what is left.
     "kernel/src/mem.rs:76:< becomes <=": (
         "Makes no difference while the kernel is right. The line is an assertion about an index that the kernel "
         "itself supplies. It holds in both versions, and no check hands it an index one past the end to see that "
         "it stops the kernel."
-    ),
-    "kernel/src/sys.rs:378:assignment removed": (
-        "A hole in the checks, in a counter only. The count of tasks started then never rises. The tests added "
-        "this round read the kernel's counts of system calls and of faults, and not this one. It is reported by "
-        "the statistics call; nothing decides by it."
     ),
     "kernel/src/sys.rs:417:call removed": (
         "Outside what the model can see. The kernel's log call then writes nothing but carriage returns. The "
@@ -663,23 +651,90 @@ SURVIVORS: dict[str, str] = {
         "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
         "and it holds for the constants as they are, so the changed kernel is the same program."
     ),
-    "kernel/src/task.rs:213:< becomes <=": (
-        "A hole in the checks. The frame just past the range of a memory capability then counts as covered by "
-        "it. The function decides which pages of device memory are unmapped after a capability is dropped or "
-        "revoked, and the checker asks it the same question, so the checker is weakened in the same way. It "
-        "would show only when a task loses a capability for device memory while it still holds one for the "
-        "range just below, and no test does that. The same change got away a round ago and was not closed."
+    # The fresh sample, drawn after those tests. No test was written against any of these.
+    "kernel/src/check.rs:203:|| becomes &&": (
+        "A hole in the checks. The rule says that an ended task waits only on its own fault endpoint and only "
+        "while somebody can receive there. The changed checker complains only when both halves are broken at "
+        "once. Each planted corruption of this rule breaks both, so none shows that either half alone is enough."
     ),
-    "kernel/src/task.rs:491:> becomes >=": (
-        "A hole in the checks, at one boundary. A wait whose deadline falls exactly on the time of a timer tick "
-        "then ends one tick late. That no test puts a deadline exactly on a tick is inferred from the result."
+    "kernel/src/elf.rs:94:|| becomes &&": (
+        "A hole in the checks. The loader would then take a segment that starts below user space, or one that "
+        "holds more bytes in the file than in memory. No test in the model loads such an image. Later steps of "
+        "the loader may still refuse some of them; that was not tried."
     ),
-    "kernel/src/task.rs:600:assignment removed": (
-        "A hole in the checks, and not a small one. A task that waits to send, and loses the grant right while "
-        "it waits but keeps the right to send, then still hands its capability over when the message is "
-        "delivered. The line above it, for a waiting receiver, is the same rule on the other side. No test takes "
-        "the grant right from a waiting sender whose message carries a capability. Whether the self-test in "
-        "QEMU catches it was not tried."
+    "kernel/src/ipc.rs:154:assignment removed": (
+        "A hole in the checks. A pending interrupt is then never cleared, so the task that receives it is handed "
+        "the same notice again every time it comes back. The model checks that a notice names only lines bound "
+        "to that endpoint; it does not check that one interrupt gives one notice."
+    ),
+    "kernel/src/ipc.rs:199:assignment removed": (
+        "A hole in the checks. A caller taken from the queue would then keep its own grant right for the reply "
+        "and not the right that both ends share. No test has a server without the grant right answer such a "
+        "caller with a capability."
+    ),
+    "kernel/src/ipc.rs:233:condition inverted": (
+        "A hole in the checks. An interrupt on a bound line is then dropped and never reaches its endpoint. The "
+        "model checks what a notice may say when one arrives, and that every interrupt is acknowledged; it has "
+        "no check that a notice arrives at all. In QEMU the keyboard and the disk would fall silent; that is a "
+        "judgment, since the mutants were not run there."
+    ),
+    "kernel/src/mem.rs:70:< becomes <=": (
+        "Makes no difference while the kernel is right. The line is an assertion about an index that the kernel "
+        "itself supplies. It holds in both versions, and no check hands it an index one past the end to see that "
+        "it stops the kernel."
+    ),
+    "kernel/src/mem.rs:165:assignment removed": (
+        "Outside what the model can see. The kernel would then forget where the root of its own map is and "
+        "switch paging on with an address of zero. The model keeps the same forgotten value on both sides of its "
+        "comparison and never runs the kernel through its page tables. In QEMU the kernel could not go on once "
+        "paging is switched on; that is a judgment, since the mutants were not run there."
+    ),
+    "kernel/src/mem.rs:308:&& becomes ||": (
+        "Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel "
+        "itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops "
+        "the kernel."
+    ),
+    "kernel/src/mem.rs:348:&& becomes ||": (
+        "A hole in the checks. The kernel would then write a result for a task into a page that the task may "
+        "only read, or into a writable page that is not ordinary memory. No test in the model asks the kernel to "
+        "write into such a page. This one guards a promise, and it is the first test to write next."
+    ),
+    "kernel/src/sys.rs:50:&& becomes ||": (
+        "A hole in the checks. The result of a system call would then also be written into the saved registers "
+        "of a caller that is no longer ready, for example one that the call itself ended. No check reads those "
+        "registers afterwards. Whether a running system could tell was not worked out."
+    ),
+    "kernel/src/sys.rs:374:assignment removed": (
+        "Outside what the model can see. A new task would then have no starting registers: no entry point, no "
+        "stack, no arguments. The model drives every task by making its system calls for it and never runs a "
+        "task's code, so it never reads them. In QEMU no task could start; that is a judgment, since the mutants "
+        "were not run there."
+    ),
+    "kernel/src/sys.rs:407:!= becomes ==": (
+        "A hole in the checks. The log call would then be refused to a task that holds the log capability and "
+        "allowed to one that holds something else. No check in the model makes the call both ways. In QEMU the "
+        "boot text is written through this call and a test task is refused it, so it would very likely be "
+        "noticed; that is a judgment, since the mutants were not run there."
+    ),
+    "kernel/src/sys.rs:483:call removed": (
+        "A hole in the checks. The call that describes a capability slot would then answer with zeros. No check "
+        "in the model reads that answer. The self-test in QEMU walks every slot with this call, so it would very "
+        "likely be noticed; that is a judgment, since the mutants were not run there."
+    ),
+    "kernel/src/task.rs:345:condition inverted": (
+        "Outside what the model can see. The kernel would then print the wrong one of two sentences about the "
+        "no-execute bit at boot and enforce exactly what it did before. The simulated serial port only counts "
+        "the bytes it is given."
+    ),
+    "kernel/src/task.rs:593:assignment removed": (
+        "A hole in the checks. A task that waits to receive would then keep its grant right after it gives up "
+        "the capability that carried the right, as long as another capability still lets it receive. No test "
+        "puts a task in that position; the checker's rule about the grant right would see it if one did."
+    ),
+    "kernel/src/task.rs:624:== becomes !=": (
+        "A hole in the checks. When an endpoint goes, the kernel would then unbind the interrupts of every other "
+        "endpoint and leave its own. By reading, its own are already unbound by then, so the harm is a binding "
+        "lost elsewhere, and no check says that a binding lasts until its owner gives it up."
     ),
 }
 
@@ -768,6 +823,14 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
     )
     for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
         put(f"mutants.before.{key}", int(value), MUTANTS_BEFORE)
+
+    # The second sample as it came out while no test had been aimed at it: the run of the round before.
+    before = re.search(
+        r"MUTANTS: (\d+) of (\d+) caught(?: \(\d+%\))?, (\d+) not caught",
+        "\n".join(evidence_lines("mutants-held-out-before-tests.log")),
+    )
+    for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
+        put(f"mutants.held_out.before.{key}", int(value), MUTANTS_HELD_OUT_BEFORE)
 
     # All samples are positions in the list of places, so they are drawn anew whenever that list changes. How
     # many of the places tried now were also tried a round ago is counted here and not guessed. A place is matched

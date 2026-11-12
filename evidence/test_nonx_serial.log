@@ -4,10 +4,10 @@ kernel: 560 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-Inti 0.1.0 shell ready at t=18014 us
+init: started shell with 11 capabilities, 15553 pages
+Inti 0.1.0 shell ready at t=17656 us
 Type help for the list of commands, or tour for a guided tour.
-inti> init: started shell with 11 capabilities, 15553 pages
-selftest
+inti> selftest
 Each line is one promise of the kernel, checked from user space.
   ok   the kernel's invariants hold at the start
   ok   the kernel has met nothing unexpected so far
@@ -97,11 +97,11 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 62% of its speed when they
-       shared 20% of the processor, and 24% when they had no share of their own;
+       beside three spinning tasks this program kept 63% of its speed when they
+       shared 20% of the processor, and 23% when they had no share of their own;
        the kernel charged the group 35% and 74% of a second
-       rounds alone in half a second: 57778, 61002 and 63063; in two
-       seconds beside the groups: 158361 and 62491
+       rounds alone in half a second: 60162, 57735 and 57372; in two
+       seconds beside the groups: 152453 and 57635
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
