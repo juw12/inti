@@ -149,6 +149,37 @@ Turns
   ok    the turns come round again in the same order
   ok    each task is charged the two ticks that ended its turns
   ok    the state afterwards is sound
+Badges, interrupt lines and the edges of user space
+  ok    a holder of the grant right stamps a badge on a capability without one
+  ok    a badge cannot be changed, even by a holder of the grant right
+  ok    a copy made with no badge named has none
+  ok    a capability without the grant right cannot be stamped
+  ok    a copy that names the badge it already has keeps it
+  ok    a copy of a badged capability that names no badge keeps the badge
+  ok    one interrupt line can be split off the lines a task holds
+  ok    a capability for no interrupt line at all is refused
+  ok    the line of the timer, which no task holds, cannot be derived
+  ok    a capability for one line cannot be widened to two
+  ok    the state afterwards is sound
+  ok    the first page of user space is a range a task may name
+  ok    the page below user space is not
+  ok    the last page of user space is a range a task may name
+  ok    a range that runs one page past the end is not
+  ok    a range of no pages, or one that starts inside a page, is not
+Programs with the right first bytes and a wrong header
+  ok    a program that is not an executable is refused, and no task is left behind
+  ok    a program for another processor is refused, and no task is left behind
+  ok    a program whose segment entries have the wrong size is refused, and no task is left behind
+  ok    a program with no segments is refused, and no task is left behind
+  ok    a program with seventeen segments is refused, and no task is left behind
+  ok    the same program with none of those bytes changed starts
+  ok    the state afterwards is sound
+What the kernel counts
+  ok    a system call that succeeds is counted once
+  ok    a system call that is refused is counted once
+  ok    a page fault of a task is counted once
+  ok    a task that ran all but the last of the 100 periods of a window is reported at 990 thousandths of it: 990
+  ok    the state afterwards is sound
 Would the kernel's checker notice? One corruption at a time, planted in a sound state
   ok    an endpoint counts one capability too many: rule 8
   ok    an endpoint counts one receiver too many: rule 9
@@ -200,13 +231,13 @@ Would the kernel's checker notice? One corruption at a time, planted in a sound 
   ok    without a corruption the checker reports nothing
 MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker
 MODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed
-MODEL tables: PASS 173/173
+MODEL tables: PASS 201/201
 MODEL scenario boot: the root task alone, offered nearly every kind of step (depth 4)
   depth 1: 16 new states, 23 transitions
   depth 2: 162 new states, 373 transitions
   depth 3: 1833 new states, 4612 transitions
   depth 4: 23393 new states, 60704 transitions
-MODEL explore boot: depth 4, 25405 states, 65712 transitions, 0 violations, complete no, 42 deliveries checked, 0 replies checked, 3418 restarts, 91 beyond budget, 19.1 s
+MODEL explore boot: depth 4, 25405 states, 65712 transitions, 0 violations, complete no, 42 deliveries checked, 0 replies checked, 3418 restarts, 91 beyond budget, 17.7 s
 MODEL results boot: ok 45214, did not return 5467, events 4889, E_INVAL 0, E_NOCAP 0, E_PERM 4703, E_FAULT 402, E_NOMEM 0, E_NOSLOT 1220, E_DEAD 33, E_TIMEOUT 529, E_BUSY 3255, E_NOSYS 0, another error 0
 MODEL pairs boot: 6 of 49 ordered pairs of failure kinds, 63 failure steps after an earlier failure
 MODEL scenario ipc: a client, a server and their supervisor: calls, replies, capabilities sent along, deaths in between (depth 8)
@@ -218,7 +249,7 @@ MODEL scenario ipc: a client, a server and their supervisor: calls, replies, cap
   depth 6: 1686 new states, 11301 transitions
   depth 7: 2729 new states, 19672 transitions
   depth 8: 4664 new states, 29539 transitions
-MODEL explore ipc: depth 8, 10286 states, 68548 transitions, 0 violations, complete no, 5326 deliveries checked, 700 replies checked, 0 restarts, 29 beyond budget, 49.3 s
+MODEL explore ipc: depth 8, 10286 states, 68548 transitions, 0 violations, complete no, 5326 deliveries checked, 700 replies checked, 0 restarts, 29 beyond budget, 20.3 s
 MODEL results ipc: ok 17209, did not return 16323, events 8165, E_INVAL 4188, E_NOCAP 10470, E_PERM 2254, E_FAULT 1713, E_NOMEM 0, E_NOSLOT 2094, E_DEAD 313, E_TIMEOUT 3245, E_BUSY 480, E_NOSYS 2094, another error 0
 MODEL pairs ipc: 10 of 49 ordered pairs of failure kinds, 950 failure steps after an earlier failure
 MODEL scenario irq: a driver, its interrupt line and its supervisor (depth 12)
@@ -231,7 +262,7 @@ MODEL scenario irq: a driver, its interrupt line and its supervisor (depth 12)
   depth 7: 64 new states, 390 transitions
   depth 8: 24 new states, 160 transitions
   depth 9: 0 new states, 32 transitions
-MODEL explore irq: depth 9, 742 states, 4315 transitions, 0 violations, complete yes, 721 deliveries checked, 0 replies checked, 0 restarts, 0 beyond budget, 1.0 s
+MODEL explore irq: depth 9, 742 states, 4315 transitions, 0 violations, complete yes, 721 deliveries checked, 0 replies checked, 0 restarts, 0 beyond budget, 1.1 s
 MODEL results irq: ok 1642, did not return 790, events 1174, E_INVAL 0, E_NOCAP 0, E_PERM 118, E_FAULT 0, E_NOMEM 0, E_NOSLOT 0, E_DEAD 18, E_TIMEOUT 305, E_BUSY 268, E_NOSYS 0, another error 0
 MODEL pairs irq: 2 of 49 ordered pairs of failure kinds, 21 failure steps after an earlier failure
 MODEL scenario memory: a task that maps, unmaps and runs out of memory, with device memory that can be revoked (depth 6)
@@ -241,7 +272,7 @@ MODEL scenario memory: a task that maps, unmaps and runs out of memory, with dev
   depth 4: 414 new states, 2867 transitions
   depth 5: 2344 new states, 14943 transitions
   depth 6: 8338 new states, 60107 transitions
-MODEL explore memory: depth 6, 11218 states, 78802 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 0 restarts, 3600 beyond budget, 27.2 s
+MODEL explore memory: depth 6, 11218 states, 78802 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 0 restarts, 3600 beyond budget, 21.7 s
 MODEL results memory: ok 39676, did not return 0, events 4318, E_INVAL 4318, E_NOCAP 10795, E_PERM 5482, E_FAULT 2421, E_NOMEM 3114, E_NOSLOT 3349, E_DEAD 1, E_TIMEOUT 0, E_BUSY 3169, E_NOSYS 2159, another error 0
 MODEL pairs memory: 0 of 49 ordered pairs of failure kinds, 0 failure steps after an earlier failure
 MODEL scenario spawn: trees of tasks on a machine too small for them, and the root task dying (depth 8)
@@ -253,7 +284,7 @@ MODEL scenario spawn: trees of tasks on a machine too small for them, and the ro
   depth 6: 560 new states, 4520 transitions
   depth 7: 1348 new states, 11395 transitions
   depth 8: 2369 new states, 23227 transitions
-MODEL explore spawn: depth 8, 4640 states, 41463 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 3968 restarts, 666 beyond budget, 17.6 s
+MODEL explore spawn: depth 8, 4640 states, 41463 transitions, 0 violations, complete no, 0 deliveries checked, 0 replies checked, 3968 restarts, 666 beyond budget, 12.2 s
 MODEL results spawn: ok 10594, did not return 0, events 12437, E_INVAL 0, E_NOCAP 0, E_PERM 0, E_FAULT 0, E_NOMEM 5843, E_NOSLOT 10232, E_DEAD 2357, E_TIMEOUT 0, E_BUSY 0, E_NOSYS 0, another error 0
 MODEL pairs spawn: 8 of 49 ordered pairs of failure kinds, 14374 failure steps after an earlier failure
 MODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds

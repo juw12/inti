@@ -8,7 +8,7 @@
 //! on which the explorer leans, would notice them.
 
 use crate::arch::{self, KERNEL_MAP};
-use crate::mem::{frame_of, FOREIGN, NX, RW, US};
+use crate::mem::{frame_of, user_range, FOREIGN, NX, RW, US};
 use crate::task::{link, Cap, State, CPU_WINDOW_TICKS, IDLE, NONE, ORIGINAL};
 use crate::world::{
     elf_headers, Spawn, World, BUFFER, CHILD_FRAMES, FAULT_BADGE, IMAGE_SIZE, LARGE, ROOT_FRAMES, SMALL,
@@ -836,6 +836,143 @@ fn turns(tally: &mut Tally) {
     tally.sound(&mut w, "the state afterwards is sound");
 }
 
+fn derived_powers(tally: &mut Tally) {
+    tally.section("Badges, interrupt lines and the edges of user space");
+    let mut w = World::boot(SMALL, true);
+    let made = w.ep_create(0);
+    let Cap::Endpoint { ep, badge: 0, .. } = held(&w, made) else {
+        tally.check("the root task makes an endpoint, and its capability has no badge", false);
+        return;
+    };
+    let whole = 6;
+    let sender = |badge| Cap::Endpoint { ep, rights: R_SEND as u8, badge };
+    let stamped = w.derive(0, whole, R_SEND, 0xA1, 0);
+    let stamped_slot = slot_of(stamped).unwrap_or(NO_CAP);
+    tally.check("a holder of the grant right stamps a badge on a capability without one", held(&w, stamped) == sender(0xA1));
+    let granting = w.derive(0, whole, R_SEND | R_GRANT, 0xB1, 0);
+    let granting_slot = slot_of(granting).unwrap_or(NO_CAP);
+    tally.check(
+        "a badge cannot be changed, even by a holder of the grant right",
+        granting_slot != NO_CAP && w.derive(0, granting_slot, R_SEND, 0xB2, 0) == Some(E_PERM),
+    );
+    let plain = w.derive(0, whole, R_SEND, 0, 0);
+    let plain_slot = slot_of(plain).unwrap_or(NO_CAP);
+    tally.check("a copy made with no badge named has none", held(&w, plain) == sender(0));
+    tally.check(
+        "a capability without the grant right cannot be stamped",
+        plain_slot != NO_CAP && w.derive(0, plain_slot, R_SEND, 0xC1, 0) == Some(E_PERM),
+    );
+    let same = w.derive(0, stamped_slot, R_SEND, 0xA1, 0);
+    tally.check("a copy that names the badge it already has keeps it", held(&w, same) == sender(0xA1));
+    let kept = w.derive(0, stamped_slot, R_SEND, 0, 0);
+    tally.check("a copy of a badged capability that names no badge keeps the badge", held(&w, kept) == sender(0xA1));
+
+    let Cap::Irq { mask } = w.k.tasks[0].caps[3] else {
+        tally.check("the root task holds the interrupt lines", false);
+        return;
+    };
+    let line = w.derive(0, 3, 0x0002, 0, 0);
+    let line_slot = slot_of(line).unwrap_or(NO_CAP);
+    tally.check("one interrupt line can be split off the lines a task holds", held(&w, line) == Cap::Irq { mask: 0x0002 });
+    tally.check("a capability for no interrupt line at all is refused", w.derive(0, 3, 0, 0, 0) == Some(E_PERM));
+    tally.check(
+        "the line of the timer, which no task holds, cannot be derived",
+        mask & 1 == 0 && w.derive(0, 3, 0x0001, 0, 0) == Some(E_PERM),
+    );
+    tally.check(
+        "a capability for one line cannot be widened to two",
+        line_slot != NO_CAP && w.derive(0, line_slot, 0x0006, 0, 0) == Some(E_PERM),
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+
+    tally.check("the first page of user space is a range a task may name", user_range(USER_BASE, 1).is_ok());
+    tally.check("the page below user space is not", user_range(USER_BASE - PAGE, 1).is_err());
+    tally.check("the last page of user space is a range a task may name", user_range(USER_END - PAGE, 1).is_ok());
+    tally.check("a range that runs one page past the end is not", user_range(USER_END - PAGE, 2).is_err());
+    tally.check("a range of no pages, or one that starts inside a page, is not", {
+        user_range(USER_BASE, 0).is_err() && user_range(USER_BASE + 1, 1).is_err()
+    });
+}
+
+fn refused_programs(tally: &mut Tally) {
+    tally.section("Programs with the right first bytes and a wrong header");
+    let mut w = World::boot(SMALL, true);
+    let mut good = vec![0; IMAGE_SIZE as usize];
+    elf_headers(&mut good, IMAGE_SIZE, IMAGE_SIZE);
+    let mapped = w.map(0, HEAP, 1, true) == Some(0);
+    let wrong: [(&str, usize, u8); 5] = [
+        ("that is not an executable", 16, 3),
+        ("for another processor", 18, 40),
+        ("whose segment entries have the wrong size", 42, 0),
+        ("with no segments", 44, 0),
+        ("with seventeen segments", 44, 17),
+    ];
+    for (what, offset, value) in wrong {
+        let mut program = good.clone();
+        program[offset] = value;
+        let before = w.tasks();
+        let placed = mapped && w.poke(0, HEAP + 0x100, &program);
+        let started = w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, IMAGE_SIZE);
+        tally.check(
+            &format!("a program {what} is refused, and no task is left behind"),
+            placed && started == Some(E_INVAL) && w.tasks() == before,
+        );
+    }
+    let before = w.tasks();
+    let placed = mapped && w.poke(0, HEAP + 0x100, &good);
+    let started = w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, IMAGE_SIZE);
+    tally.check(
+        "the same program with none of those bytes changed starts",
+        placed && slot_of(started).is_some() && w.tasks() == before + 1,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+fn counts(tally: &mut Tally) {
+    tally.section("What the kernel counts");
+    let mut w = World::boot(LARGE, true);
+    let calls = w.k.stats.syscalls;
+    let made = w.ep_create(0).is_some();
+    tally.check("a system call that succeeds is counted once", made && w.k.stats.syscalls == calls.wrapping_add(1));
+    let refused = w.derive(0, NO_CAP, 1, 0, 0);
+    tally.check(
+        "a system call that is refused is counted once",
+        refused.is_some_and(|result| result < 0) && w.k.stats.syscalls == calls.wrapping_add(2),
+    );
+    let Ok(child) = w.spawn_task(0, &Spawn::PLAIN) else {
+        tally.check("a task starts", false);
+        return;
+    };
+    let faults = w.k.stats.faults;
+    w.fault(child, 0x10);
+    tally.check("a page fault of a task is counted once", w.k.stats.faults == faults.wrapping_add(1));
+
+    // The root task runs for all but the last timer period of a window and then sleeps, so
+    // that the window ends while nobody runs. Its figure for that window must hold exactly
+    // the periods it ran, measured against the whole window.
+    loop {
+        w.ticks(1);
+        if w.k.ticks % CPU_WINDOW_TICKS == 0 {
+            break;
+        }
+    }
+    let periods = CPU_WINDOW_TICKS as u32;
+    w.ticks(periods - 1);
+    let asleep = w.sleep(0, 1000).is_none();
+    w.ticks(1);
+    let ended = w.k.ticks % CPU_WINDOW_TICKS == 0;
+    let ran = w.k.tasks[0].cpu_last as u32;
+    let expected = (periods - 1) * 1000 / periods;
+    tally.check(
+        &format!(
+            "a task that ran all but the last of the {periods} periods of a window is reported \
+             at {expected} thousandths of it: {ran}"
+        ),
+        asleep && ended && ran == expected,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
 // ---- Would the checker notice? -----------------------------------------------------------------
 
 // The stage for the corruptions below. Tasks and endpoints get the lowest free numbers.
@@ -1053,6 +1190,9 @@ pub fn run() -> bool {
     reports(&mut tally);
     shares(&mut tally);
     turns(&mut tally);
+    derived_powers(&mut tally);
+    refused_programs(&mut tally);
+    counts(&mut tally);
     checker_sensitivity(&mut tally);
     let total = tally.passed + tally.failed;
     println!("MODEL tables: {} {}/{total}", if tally.failed == 0 { "PASS" } else { "FAIL" }, tally.passed);
