@@ -1,0 +1,340 @@
+{
+ "date": "2026-11-12T15:35:10+00:00",
+ "command": "python build.py mutants-qemu",
+ "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
+ "options": {
+  "fuzz": 200000,
+  "runs": 2
+ },
+ "unchanged": {
+  "image_sha256": "c50687aac3966153e39925daebc75707fb447bcb2ade4ad6380e0b7c18b6195c",
+  "before": {
+   "passed": true,
+   "failed": [],
+   "checks": 32,
+   "seconds": 131,
+   "timed_out": false
+  },
+  "after": {
+   "passed": true,
+   "failed": [],
+   "checks": 32,
+   "seconds": 128,
+   "timed_out": false
+  }
+ },
+ "time_limit_s": 600,
+ "summary": {
+  "tried": 21,
+  "caught": 9,
+  "same_image": 2,
+  "not_caught": 10,
+  "does_not_build": 0
+ },
+ "mutants": [
+  {
+   "sample": "first",
+   "number": 21,
+   "file": "kernel/src/mem.rs",
+   "line": 57,
+   "operator": "+ becomes -",
+   "before": "const ROOT: usize = KERNEL_TABLES + 1;",
+   "after": "const ROOT: usize = KERNEL_TABLES - 1;",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 111
+  },
+  {
+   "sample": "first",
+   "number": 24,
+   "file": "kernel/src/mem.rs",
+   "line": 196,
+   "operator": "condition inverted",
+   "before": "if address == 0 {",
+   "after": "if !(address == 0) {",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "the run reached its end",
+    "without the no-execute bit: the run reached its end"
+   ],
+   "seconds": 5
+  },
+  {
+   "sample": "first",
+   "number": 25,
+   "file": "kernel/src/mem.rs",
+   "line": 253,
+   "operator": "assignment removed",
+   "before": "self.hint = word;",
+   "after": "(line removed)",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "selftest after boot"
+   ],
+   "seconds": 126
+  },
+  {
+   "sample": "first",
+   "number": 26,
+   "file": "kernel/src/mem.rs",
+   "line": 296,
+   "operator": "&& becomes ||",
+   "before": "assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) && inside);",
+   "after": "assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) || inside);",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 123
+  },
+  {
+   "sample": "first",
+   "number": 31,
+   "file": "kernel/src/mem.rs",
+   "line": 515,
+   "operator": "call removed",
+   "before": "arch::write_cr3(pd); // drop stale translations and cached table addresses",
+   "after": "(line removed)",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 107
+  },
+  {
+   "sample": "first",
+   "number": 47,
+   "file": "kernel/src/task.rs",
+   "line": 372,
+   "operator": "assignment removed",
+   "before": "self.resched = false;",
+   "after": "(line removed)",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 122
+  },
+  {
+   "sample": "first",
+   "number": 57,
+   "file": "kernel/src/task.rs",
+   "line": 708,
+   "operator": "assignment removed",
+   "before": "self.resched = true;",
+   "after": "(line removed)",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 106
+  },
+  {
+   "sample": "held-out",
+   "number": 22,
+   "file": "kernel/src/mem.rs",
+   "line": 76,
+   "operator": "< becomes <=",
+   "before": "assert!(index < ENTRIES);",
+   "after": "assert!(index <= ENTRIES);",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 126
+  },
+  {
+   "sample": "held-out",
+   "number": 45,
+   "file": "kernel/src/task.rs",
+   "line": 31,
+   "operator": "< becomes <=",
+   "before": "const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);",
+   "after": "const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS <= NONE as usize && NO_TASK == NONE as u32);",
+   "verdict": "same image",
+   "how": "",
+   "by": [],
+   "seconds": 0
+  },
+  {
+   "sample": "fresh",
+   "number": 21,
+   "file": "kernel/src/mem.rs",
+   "line": 70,
+   "operator": "< becomes <=",
+   "before": "assert!(table < KERNEL_TABLES + 2);",
+   "after": "assert!(table <= KERNEL_TABLES + 2);",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 122
+  },
+  {
+   "sample": "fresh",
+   "number": 23,
+   "file": "kernel/src/mem.rs",
+   "line": 165,
+   "operator": "assignment removed",
+   "before": "self.kernel_pd = kernel_table(ROOT);",
+   "after": "(line removed)",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "the run reached its end",
+    "without the no-execute bit: the run reached its end"
+   ],
+   "seconds": 3
+  },
+  {
+   "sample": "fresh",
+   "number": 26,
+   "file": "kernel/src/mem.rs",
+   "line": 308,
+   "operator": "&& becomes ||",
+   "before": "assert!(self.managed(frame) && offset as usize + data.len() <= PAGE as usize);",
+   "after": "assert!(self.managed(frame) || offset as usize + data.len() <= PAGE as usize);",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 108
+  },
+  {
+   "sample": "fresh",
+   "number": 42,
+   "file": "kernel/src/sys.rs",
+   "line": 374,
+   "operator": "assignment removed",
+   "before": "task.frame = TrapFrame::user(entry, STACK_TOP, start);",
+   "after": "(line removed)",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "the run reached its end",
+    "no kernel panic anywhere in the serial log",
+    "without the no-execute bit: the run reached its end",
+    "without the no-execute bit: no kernel panic anywhere in the serial log"
+   ],
+   "seconds": 3
+  },
+  {
+   "sample": "fresh",
+   "number": 46,
+   "file": "kernel/src/task.rs",
+   "line": 345,
+   "operator": "condition inverted",
+   "before": "if self.mem.nx != 0 {",
+   "after": "if !(self.mem.nx != 0) {",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "the kernel enforces W^X: its boot log says the no-execute bit is in use",
+    "without the no-execute bit: the kernel boots and says that W^X is not enforced"
+   ],
+   "seconds": 145
+  },
+  {
+   "sample": "unseen",
+   "number": 19,
+   "file": "kernel/src/ipc.rs",
+   "line": 187,
+   "operator": "assignment removed",
+   "before": "self.stats.anomalies += 1;",
+   "after": "(line removed)",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 108
+  },
+  {
+   "sample": "unseen",
+   "number": 36,
+   "file": "kernel/src/sys.rs",
+   "line": 154,
+   "operator": "< becomes <=",
+   "before": "if a > b || a < first as u32 || b > last as u32 {",
+   "after": "if a > b || a <= first as u32 || b > last as u32 {",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "selftest after boot",
+    "selftest after all faults",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+   ],
+   "seconds": 113
+  },
+  {
+   "sample": "unseen",
+   "number": 40,
+   "file": "kernel/src/sys.rs",
+   "line": 284,
+   "operator": "!= becomes ==",
+   "before": "if owner != NONE && owner as usize != me {",
+   "after": "if owner != NONE && owner as usize == me {",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "selftest after boot",
+    "selftest after all faults",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+   ],
+   "seconds": 129
+  },
+  {
+   "sample": "unseen",
+   "number": 44,
+   "file": "kernel/src/sys.rs",
+   "line": 432,
+   "operator": "!= becomes ==",
+   "before": "let endpoints = self.eps.iter().filter(|endpoint| endpoint.refs != 0).count();",
+   "after": "let endpoints = self.eps.iter().filter(|endpoint| endpoint.refs == 0).count();",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "selftest after boot",
+    "selftest after all faults",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+   ],
+   "seconds": 113
+  },
+  {
+   "sample": "unseen",
+   "number": 45,
+   "file": "kernel/src/task.rs",
+   "line": 33,
+   "operator": "&& becomes ||",
+   "before": "const _: () = assert!(CAP_SLOTS == 32 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);",
+   "after": "const _: () = assert!(CAP_SLOTS == 32 || MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);",
+   "verdict": "same image",
+   "how": "",
+   "by": [],
+   "seconds": 0
+  },
+  {
+   "sample": "unseen",
+   "number": 48,
+   "file": "kernel/src/task.rs",
+   "line": 387,
+   "operator": "!= becomes ==",
+   "before": "if best != self.cur && best != IDLE {",
+   "after": "if best != self.cur && best == IDLE {",
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 119
+  },
+  {
+   "sample": "unseen",
+   "number": 51,
+   "file": "kernel/src/task.rs",
+   "line": 507,
+   "operator": "call removed",
+   "before": "self.preempt(t);",
+   "after": "(line removed)",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "selftest after boot",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+   ],
+   "seconds": 140
+  }
+ ]
+}

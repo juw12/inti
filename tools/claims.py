@@ -51,6 +51,11 @@ MUTANTS_BEFORE = "evidence/mutants-before-tests.log"
 MUTANTS_HELD_OUT = "evidence/mutants-held-out.json"
 MUTANTS_HELD_OUT_BEFORE = "evidence/mutants-held-out-before-tests.log"
 MUTANTS_FRESH = "evidence/mutants-fresh.json"
+MUTANTS_FRESH_BEFORE = "evidence/mutants-fresh-before-tests.log"
+MUTANTS_UNSEEN = "evidence/mutants-unseen.json"
+MUTANTS_QEMU = "evidence/mutants-qemu.json"
+MUTANTS_QEMU_REPEATS = "evidence/mutants-qemu-repeats.json"
+MIRI = "evidence/miri.json"
 MUTANTS_PREVIOUS = "evidence/mutants-previous.json"
 
 FAULTS = {
@@ -331,6 +336,7 @@ def add_source(put: Put) -> None:
     put("count.kernel_files", len(gates.rust_files(("kernel/src",))), "kernel/src")
     put("count.unsafe_total", gates.unsafe_report(gates.ALL_SOURCES)[0], "kernel/src, abi/src, boot/src, user/src")
     put("count.unsafe_kernel", gates.unsafe_report(gates.KERNEL_SOURCES)[0], "kernel/src, abi/src")
+    add_unsafe(put)
 
     put("loc.kernel", gates.code_lines(("kernel/src",)), "kernel/src")
     put("loc.abi", gates.code_lines(("abi/src",)), "abi/src")
@@ -339,6 +345,45 @@ def add_source(put: Put) -> None:
     put("loc.boot", gates.code_lines(("boot/src",)), "boot/src")
     put("loc.user", gates.code_lines(("user/src",)), "user/src")
     put("loc.tools", python_lines(), "build.py, tools/*.py")
+
+
+def add_unsafe(put: Put) -> None:
+    """Where the kernel's uses of `unsafe` are, and which of them the host model (and so Miri) runs."""
+    in_model = {
+        "kernel/src/" + name
+        for name in re.findall(r'#\[path = "\.\./\.\./kernel/src/(\w+\.rs)"\]', source_text(MODEL_MAIN))
+    }
+    # The model links the abi crate, but not the modules that crate only builds for the 32-bit target.
+    only_x86 = {
+        "abi/src/" + name + ".rs"
+        for name in re.findall(r'#\[cfg\(target_arch = "x86"\)\]\s+pub mod (\w+);', source_text("abi/src/lib.rs"))
+    }
+    rows = []
+    seen = 0
+    unseen = 0
+    for path in gates.rust_files(gates.KERNEL_SOURCES):
+        name = path.relative_to(ROOT).as_posix()
+        uses = sum(
+            1 for line in path.read_text(encoding="utf-8").splitlines()
+            if re.search(r"\bunsafe\b", gates.code_only(line))
+        )
+        if not uses:
+            continue
+        reached = name in in_model or (name.startswith("abi/src/") and name not in only_x86)
+        seen += uses if reached else 0
+        unseen += 0 if reached else uses
+        rows.append([
+            f"`{name}`",
+            uses,
+            "compiled into the host model, so the model's checks and Miri run it" if reached
+            else "only in the image that boots in QEMU",
+        ])
+    if seen + unseen != gates.unsafe_report(gates.KERNEL_SOURCES)[0]:
+        raise ValueError("the uses of unsafe per file do not add up to the count the gate reports")
+    sources = "kernel/src, abi/src, model/src/main.rs"
+    put("count.unsafe_in_model", seen, sources)
+    put("count.unsafe_outside_model", unseen, sources)
+    put("table.unsafe", table(["File", "Uses of `unsafe`", "Where it runs"], rows), sources)
 
 
 def add_tables(put: Put, test: dict, result: dict) -> None:
@@ -590,23 +635,29 @@ JUDGMENTS = {
 
 SURVIVORS: dict[str, str] = {
     "kernel/src/mem.rs:57:+ becomes -": (
-        "Outside what the model can see. The root of the kernel's own map would then be the last of the tables "
-        "that map memory, not the table after them. The checker compares that map with the function that filled "
-        "it, so the two agree with each other, and the model calls the kernel's functions directly and never runs "
-        "the kernel through its page tables. In QEMU the kernel could not go on once paging is switched on; that "
-        "is a judgment, since the mutants were not run there."
+        "Outside what the model can see. The root of the kernel's own map would then lie on the last of the "
+        "tables that map memory, not after the directory. The checker compares that map with the function that "
+        "filled it, so the two agree with each other, and the model calls the kernel's functions directly and "
+        "never runs the kernel through its page tables. The first reading, that in QEMU the kernel could not go "
+        "on once paging is switched on, was wrong, and the runs in QEMU refuted it. Only the last table is "
+        "spoilt, the one that maps the top two mebibytes of all the memory the kernel can manage, and the tests "
+        "give the emulated machine half of that, so the spoilt part of the map covers memory that is not there. "
+        "Frames are handed out from the bottom, so even on a machine with all the memory only a test that "
+        "reaches the top of it would notice. There is no such test: a hole in the tests in QEMU."
     ),
     "kernel/src/mem.rs:196:condition inverted": (
         "Outside what the model can see. The kernel's own half of every address space would then map page zero "
         "and nothing else. The model calls the kernel's functions directly and never runs the kernel through its "
-        "page tables, and no check reads that half. In QEMU the kernel could not go on once paging is switched "
-        "on; that is a judgment, since the mutants were not run there."
+        "page tables, and no check reads that half. The reading was that in QEMU the kernel could not go on once "
+        "paging is switched on; the table of the runs in QEMU says what happened there."
     ),
     "kernel/src/mem.rs:253:assignment removed": (
         "Makes no difference to anything that is promised. The line remembers where the last free frame was "
         "found, so that the next search starts there. Without it every search starts from the beginning and "
         "finds a free frame all the same; which free frame a task is handed is not promised, and no check may "
-        "depend on it."
+        "depend on it. In QEMU the changed kernel failed the self-test once; the unchanged kernel fails the same "
+        "check now and then, and the changed kernel passed when it was run again. The account of the runs in "
+        "QEMU says more."
     ),
     "kernel/src/mem.rs:296:&& becomes ||": (
         "Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel "
@@ -617,7 +668,9 @@ SURVIVORS: dict[str, str] = {
         "Outside what the model can see. After an unmapping the kernel reloads the address space so that the "
         "processor forgets the old translations. The changed kernel never reloads, and the simulated machine "
         "keeps no translations that could go stale. On a real processor a task could go on using a page it has "
-        "given back. Whether the tests in QEMU notice was not tried."
+        "given back, until another address space is loaded. QEMU keeps translations as a processor does, and "
+        "the reading was that the tests there might notice. They did not: the selftest and the fuzzer unmap "
+        "pages, but no test touches a page after unmapping it and expects a fault. A hole in the tests in QEMU."
     ),
     "kernel/src/task.rs:372:assignment removed": (
         "A hole in the checks, read through and left open. The flag that asks for a new choice of task is then "
@@ -635,49 +688,18 @@ SURVIVORS: dict[str, str] = {
         "chooses again without being asked, and a task that the death wakes raises the flag itself when it is "
         "woken."
     ),
-    # The second sample. Tests were aimed at six of its places in round 5; these three are what is left.
+    # The second sample. Tests were aimed at six of its places in round 5, and a test written in round 6 for
+    # the fresh sample caught a seventh as a side effect; these two are what is left.
     "kernel/src/mem.rs:76:< becomes <=": (
         "Makes no difference while the kernel is right. The line is an assertion about an index that the kernel "
         "itself supplies. It holds in both versions, and no check hands it an index one past the end to see that "
         "it stops the kernel."
-    ),
-    "kernel/src/sys.rs:417:call removed": (
-        "Outside what the model can see. The kernel's log call then writes nothing but carriage returns. The "
-        "simulated serial port only counts the bytes it is given, and no check reads what was written. In QEMU "
-        "every test reads the serial line, so it would very likely be noticed; that is a judgment, since the "
-        "mutants were not run there."
     ),
     "kernel/src/task.rs:31:< becomes <=": (
         "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
         "and it holds for the constants as they are, so the changed kernel is the same program."
     ),
     # The fresh sample, drawn after those tests. No test was written against any of these.
-    "kernel/src/check.rs:203:|| becomes &&": (
-        "A hole in the checks. The rule says that an ended task waits only on its own fault endpoint and only "
-        "while somebody can receive there. The changed checker complains only when both halves are broken at "
-        "once. Each planted corruption of this rule breaks both, so none shows that either half alone is enough."
-    ),
-    "kernel/src/elf.rs:94:|| becomes &&": (
-        "A hole in the checks. The loader would then take a segment that starts below user space, or one that "
-        "holds more bytes in the file than in memory. No test in the model loads such an image. Later steps of "
-        "the loader may still refuse some of them; that was not tried."
-    ),
-    "kernel/src/ipc.rs:154:assignment removed": (
-        "A hole in the checks. A pending interrupt is then never cleared, so the task that receives it is handed "
-        "the same notice again every time it comes back. The model checks that a notice names only lines bound "
-        "to that endpoint; it does not check that one interrupt gives one notice."
-    ),
-    "kernel/src/ipc.rs:199:assignment removed": (
-        "A hole in the checks. A caller taken from the queue would then keep its own grant right for the reply "
-        "and not the right that both ends share. No test has a server without the grant right answer such a "
-        "caller with a capability."
-    ),
-    "kernel/src/ipc.rs:233:condition inverted": (
-        "A hole in the checks. An interrupt on a bound line is then dropped and never reaches its endpoint. The "
-        "model checks what a notice may say when one arrives, and that every interrupt is acknowledged; it has "
-        "no check that a notice arrives at all. In QEMU the keyboard and the disk would fall silent; that is a "
-        "judgment, since the mutants were not run there."
-    ),
     "kernel/src/mem.rs:70:< becomes <=": (
         "Makes no difference while the kernel is right. The line is an assertion about an index that the kernel "
         "itself supplies. It holds in both versions, and no check hands it an index one past the end to see that "
@@ -686,55 +708,60 @@ SURVIVORS: dict[str, str] = {
     "kernel/src/mem.rs:165:assignment removed": (
         "Outside what the model can see. The kernel would then forget where the root of its own map is and "
         "switch paging on with an address of zero. The model keeps the same forgotten value on both sides of its "
-        "comparison and never runs the kernel through its page tables. In QEMU the kernel could not go on once "
-        "paging is switched on; that is a judgment, since the mutants were not run there."
+        "comparison and never runs the kernel through its page tables. The reading was that in QEMU the kernel "
+        "could not go on once paging is switched on; the table of the runs in QEMU says what happened there."
     ),
     "kernel/src/mem.rs:308:&& becomes ||": (
         "Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel "
         "itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops "
         "the kernel."
     ),
-    "kernel/src/mem.rs:348:&& becomes ||": (
-        "A hole in the checks. The kernel would then write a result for a task into a page that the task may "
-        "only read, or into a writable page that is not ordinary memory. No test in the model asks the kernel to "
-        "write into such a page. This one guards a promise, and it is the first test to write next."
-    ),
-    "kernel/src/sys.rs:50:&& becomes ||": (
-        "A hole in the checks. The result of a system call would then also be written into the saved registers "
-        "of a caller that is no longer ready, for example one that the call itself ended. No check reads those "
-        "registers afterwards. Whether a running system could tell was not worked out."
-    ),
     "kernel/src/sys.rs:374:assignment removed": (
         "Outside what the model can see. A new task would then have no starting registers: no entry point, no "
         "stack, no arguments. The model drives every task by making its system calls for it and never runs a "
-        "task's code, so it never reads them. In QEMU no task could start; that is a judgment, since the mutants "
-        "were not run there."
-    ),
-    "kernel/src/sys.rs:407:!= becomes ==": (
-        "A hole in the checks. The log call would then be refused to a task that holds the log capability and "
-        "allowed to one that holds something else. No check in the model makes the call both ways. In QEMU the "
-        "boot text is written through this call and a test task is refused it, so it would very likely be "
-        "noticed; that is a judgment, since the mutants were not run there."
-    ),
-    "kernel/src/sys.rs:483:call removed": (
-        "A hole in the checks. The call that describes a capability slot would then answer with zeros. No check "
-        "in the model reads that answer. The self-test in QEMU walks every slot with this call, so it would very "
-        "likely be noticed; that is a judgment, since the mutants were not run there."
+        "task's code, so it never reads them. The reading was that in QEMU no task could start; the table of the "
+        "runs in QEMU says what happened there."
     ),
     "kernel/src/task.rs:345:condition inverted": (
         "Outside what the model can see. The kernel would then print the wrong one of two sentences about the "
         "no-execute bit at boot and enforce exactly what it did before. The simulated serial port only counts "
-        "the bytes it is given."
+        "the bytes it is given. The tests in QEMU read that sentence, with the bit and without it."
     ),
-    "kernel/src/task.rs:593:assignment removed": (
-        "A hole in the checks. A task that waits to receive would then keep its grant right after it gives up "
-        "the capability that carried the right, as long as another capability still lets it receive. No test "
-        "puts a task in that position; the checker's rule about the grant right would see it if one did."
+    # The unseen sample, drawn last. No test was written against any of these, and none will be before a
+    # new unseen sample is drawn.
+    "kernel/src/ipc.rs:187:assignment removed": (
+        "Makes no difference that reading could find; it is a reading and not a proof. The line counts an "
+        "anomaly in a branch that the kernel's own comment calls unreachable: the message of a blocked sender "
+        "was checked when the call was made, and only the sender can unmap its own memory, which it cannot do "
+        "while it is blocked."
     ),
-    "kernel/src/task.rs:624:== becomes !=": (
-        "A hole in the checks. When an endpoint goes, the kernel would then unbind the interrupts of every other "
-        "endpoint and leave its own. By reading, its own are already unbound by then, so the harm is a binding "
-        "lost elsewhere, and no check says that a binding lasts until its owner gives it up."
+    "kernel/src/sys.rs:154:< becomes <=": (
+        "A hole in the checks. Deriving a range of I/O ports that begins at the first port of the range it is "
+        "derived from is then refused. The changed kernel hands out less and not more, and no check derives "
+        "such a range."
+    ),
+    "kernel/src/sys.rs:284:!= becomes ==": (
+        "A hole in the checks, and the one that matters most. A task could then bind an interrupt line that "
+        "another task holds, and a task that binds its own line a second time is refused. No check binds a "
+        "line that is already bound, by its holder or by anyone else."
+    ),
+    "kernel/src/sys.rs:432:!= becomes ==": (
+        "A hole in the checks. The call that reports on the system would then give the number of free "
+        "endpoints as the number in use. No check compares that figure with the true one, and a check that "
+        "only compares it before and after, to look for a leak, passes either way."
+    ),
+    "kernel/src/task.rs:33:&& becomes ||": (
+        "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
+        "and it holds for the constants as they are, so the changed kernel is the same program."
+    ),
+    "kernel/src/task.rs:387:!= becomes ==": (
+        "A hole in the checks. Only the count of switches from one task to another goes wrong: the kernel "
+        "chooses the same tasks in the same order. No check reads that count."
+    ),
+    "kernel/src/task.rs:507:call removed": (
+        "A hole in the checks. A task woken by the timer then keeps its old place among the tasks of its rank "
+        "and does not go to the back, and the kernel is not asked to choose again at once. That is a matter of "
+        "fairness and not of isolation, and no check asks where a woken task lands."
     ),
 }
 
@@ -784,8 +811,9 @@ def add_mutant_run(put: Put, prefix: str, table_name: str, mutants: dict, source
         put(f"{prefix}.{name}", count, f"{source}, as judged in tools/claims.py")
 
 
-def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
-    """The kernel broken on purpose, one place at a time: python build.py mutants, plain, --held-out and --fresh."""
+def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: dict) -> None:
+    """The kernel broken on purpose, one place at a time: python build.py mutants, plain, --held-out, --fresh
+    and --unseen."""
     add_mutant_run(put, "mutants", "table.mutants_not_caught", mutants, MUTANTS, "python build.py mutants")
     add_mutant_run(
         put, "mutants.held_out", "table.mutants_held_out_not_caught", held_out, MUTANTS_HELD_OUT,
@@ -795,11 +823,17 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
         put, "mutants.fresh", "table.mutants_fresh_not_caught", fresh, MUTANTS_FRESH,
         "python build.py mutants --fresh",
     )
+    add_mutant_run(
+        put, "mutants.unseen", "table.mutants_unseen_not_caught", unseen, MUTANTS_UNSEEN,
+        "python build.py mutants --unseen",
+    )
 
     def identity(mutant: dict) -> tuple:
         return mutant["file"], mutant["line"], mutant["operator"], mutant["after"]
 
-    samples = ((MUTANTS, mutants), (MUTANTS_HELD_OUT, held_out), (MUTANTS_FRESH, fresh))
+    samples = (
+        (MUTANTS, mutants), (MUTANTS_HELD_OUT, held_out), (MUTANTS_FRESH, fresh), (MUTANTS_UNSEEN, unseen),
+    )
     for index, (source, run) in enumerate(samples):
         for other_source, other in samples[index + 1:]:
             if {identity(mutant) for mutant in run["mutants"]} & {identity(mutant) for mutant in other["mutants"]}:
@@ -808,7 +842,7 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
     # A note that belongs to no surviving mutant has outlived what it describes.
     alive = {
         survivor_key(mutant)
-        for run in (mutants, held_out, fresh)
+        for run in (mutants, held_out, fresh, unseen)
         for mutant in run["mutants"]
         if mutant["verdict"] == "not caught"
     }
@@ -832,6 +866,31 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
     for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
         put(f"mutants.held_out.before.{key}", int(value), MUTANTS_HELD_OUT_BEFORE)
 
+    # The third sample as it came out while no test had been aimed at it, and how many of the mutants that
+    # got away then are caught now. The kernel has not changed since, so file, line and change identify one.
+    fresh_before = evidence_lines("mutants-fresh-before-tests.log")
+    before = re.search(
+        r"MUTANTS: (\d+) of (\d+) caught(?: \(\d+%\))?, (\d+) not caught", "\n".join(fresh_before),
+    )
+    for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
+        put(f"mutants.fresh.before.{key}", int(value), MUTANTS_FRESH_BEFORE)
+    got_away = set()
+    for line in fresh_before:
+        found = re.match(r"mutant\s+\d+\s+(\S+):(\d+)\s+(.+): not caught\s*$", line)
+        if found:
+            got_away.add((found.group(1), int(found.group(2)), found.group(3)))
+    if len(got_away) != int(before.group(3)):
+        raise ValueError(f"{MUTANTS_FRESH_BEFORE}: its lines and its summary disagree")
+    now = {
+        (mutant["file"], mutant["line"], mutant["operator"]): mutant["verdict"]
+        for mutant in fresh["mutants"]
+    }
+    if not got_away <= set(now):
+        raise ValueError(f"{MUTANTS_FRESH_BEFORE} names mutants the present fresh sample does not hold")
+    source = f"{MUTANTS_FRESH_BEFORE} against {MUTANTS_FRESH}"
+    put("mutants.fresh.closed", sum(1 for key in got_away if now[key] == "caught"), source)
+    put("mutants.fresh.left_open", sum(1 for key in got_away if now[key] == "not caught"), source)
+
     # All samples are positions in the list of places, so they are drawn anew whenever that list changes. How
     # many of the places tried now were also tried a round ago is counted here and not guessed. A place is matched
     # by file, kind of change and the text of the line; identical lines can match each other, so these are upper
@@ -847,7 +906,10 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
     def place(mutant: dict) -> tuple:
         return mutant["file"], mutant["operator"], mutant["before"].strip()
 
-    for prefix, run in (("mutants", mutants), ("mutants.held_out", held_out), ("mutants.fresh", fresh)):
+    for prefix, run in (
+        ("mutants", mutants), ("mutants.held_out", held_out), ("mutants.fresh", fresh),
+        ("mutants.unseen", unseen),
+    ):
         for name in ("first", "held_out", "held_out_not_caught"):
             known = {tuple(item) for item in previous[name]}
             count = sum(1 for mutant in run["mutants"] if place(mutant) in known)
@@ -860,6 +922,139 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
         ),
         f"{MUTANTS_PREVIOUS} against the present sample",
     )
+
+
+QEMU_VERDICTS = {
+    "caught": "caught",
+    "same image": "builds the same image",
+    "not caught": "not caught",
+    "does not build": "does not build",
+}
+
+
+def doubted_catches(qemu: dict, repeats: dict) -> set[str]:
+    """The catches in QEMU that the repeat runs could not tell from a check that fails by itself.
+
+    A mutant is doubted when the batch caught it through one failed check and the unchanged kernel, run again
+    beside it under the batch's options, failed that same check."""
+    if not repeats:
+        raise KeyError(f"{MUTANTS_QEMU_REPEATS} is missing; it is collected by hand from repeat runs")
+    place = survivor_key(repeats)
+    batch = [mutant for mutant in qemu["mutants"] if survivor_key(mutant) == place]
+    if len(batch) != 1 or batch[0]["verdict"] != "caught" or len(batch[0]["by"]) != 1:
+        raise ValueError(f"{MUTANTS_QEMU_REPEATS}: {place} is not a mutant that {MUTANTS_QEMU} caught by one check")
+    if repeats["options"] != qemu["options"]:
+        raise ValueError(f"{MUTANTS_QEMU_REPEATS} was not run under the options of {MUTANTS_QEMU}")
+    in_batch = [run for run in repeats["runs"] if run["kind"] == "mutant" and run["where"] == "the batch"]
+    if len(in_batch) != 1 or in_batch[0]["failed"] != batch[0]["by"]:
+        raise ValueError(f"{MUTANTS_QEMU_REPEATS} does not hold the batch's own run as {MUTANTS_QEMU} has it")
+    unchanged_fails = {
+        check for run in repeats["runs"] if run["kind"] == "unchanged" for check in run["failed"]
+    }
+    return {place} if batch[0]["by"][0] in unchanged_fails else set()
+
+
+def add_mutants_qemu_repeats(put: Put, repeats: dict) -> None:
+    """One counted catch run again beside the unchanged kernel: evidence/mutants-qemu-repeats.json."""
+    for kind in ("mutant", "unchanged"):
+        runs = [run for run in repeats["runs"] if run["kind"] == kind]
+        if any(run["passed"] != (not run["failed"]) for run in runs):
+            raise ValueError(f"{MUTANTS_QEMU_REPEATS}: a run is marked passed and lists a failed check, or the reverse")
+        failed = sum(1 for run in runs if not run["passed"])
+        put(f"mutants.qemu.repeats.{kind}_runs", len(runs), MUTANTS_QEMU_REPEATS)
+        put(f"mutants.qemu.repeats.{kind}_failed", failed, MUTANTS_QEMU_REPEATS)
+        put(f"mutants.qemu.repeats.{kind}_passed", len(runs) - failed, MUTANTS_QEMU_REPEATS)
+    put("mutants.qemu.repeats.place", f"`{repeats['file']}`, line {repeats['line']}", MUTANTS_QEMU_REPEATS)
+    put("mutants.qemu.repeats.unchanged_subtest", repeats["unchanged_failure"]["subtest"], MUTANTS_QEMU_REPEATS)
+
+
+def add_mutants_qemu(put: Put, qemu: dict, runs: tuple[dict, ...], repeats: dict) -> None:
+    """The mutants the host model let through, booted in QEMU: python build.py mutants-qemu."""
+    if not qemu:
+        raise KeyError(f"{MUTANTS_QEMU} is missing; run python build.py mutants-qemu")
+    summary = qemu["summary"]
+    for key in ("tried", "caught", "same_image", "not_caught", "does_not_build"):
+        put(f"mutants.qemu.{key}", summary[key], MUTANTS_QEMU)
+    if summary["tried"] != len(qemu["mutants"]):
+        raise ValueError(f"{MUTANTS_QEMU}: the list of mutants does not match its summary")
+    survivors = sorted(
+        survivor_key(mutant) for run in runs for mutant in run["mutants"] if mutant["verdict"] == "not caught"
+    )
+    if sorted(survivor_key(mutant) for mutant in qemu["mutants"]) != survivors:
+        raise ValueError(f"{MUTANTS_QEMU} does not hold exactly the mutants the four samples did not catch")
+    put("mutants.qemu.fuzz", qemu["options"]["fuzz"], MUTANTS_QEMU)
+    put("mutants.qemu.runs", qemu["options"]["runs"], MUTANTS_QEMU)
+    put("mutants.qemu.time_limit_s", round(qemu["time_limit_s"]), MUTANTS_QEMU)
+    for when in ("before", "after"):
+        unchanged = qemu["unchanged"][when]
+        if not unchanged["passed"]:
+            raise ValueError(f"{MUTANTS_QEMU}: the unchanged kernel did not pass {when} the mutants")
+        put(f"mutants.qemu.unchanged_{when}_checks", unchanged["checks"], MUTANTS_QEMU)
+    put(
+        "mutants.qemu.caught_by_time_limit",
+        sum(1 for mutant in qemu["mutants"] if mutant["how"] == "time limit"), MUTANTS_QEMU,
+    )
+    put(
+        "mutants.qemu.caught_by_failed_check",
+        sum(1 for mutant in qemu["mutants"] if mutant["how"] == "failed check"), MUTANTS_QEMU,
+    )
+    # A catch through one check that the unchanged kernel also fails now and then is not a catch. The batch
+    # file stays as measured; the counts below leave such a catch out.
+    doubted = doubted_catches(qemu, repeats)
+    caught = [mutant for mutant in qemu["mutants"] if mutant["verdict"] == "caught"]
+    believed = [mutant for mutant in caught if survivor_key(mutant) not in doubted]
+    put("mutants.qemu.doubted", len(doubted), MUTANTS_QEMU_REPEATS)
+    put("mutants.qemu.noticed", len(believed), MUTANTS_QEMU_REPEATS)
+    put(
+        "mutants.qemu.noticed_by_several_checks",
+        sum(1 for mutant in believed if len(mutant["by"]) > 1 or mutant["how"] == "time limit"),
+        MUTANTS_QEMU_REPEATS,
+    )
+    # A mutant that neither the host model nor the booted system notices is the real remainder.
+    put(
+        "mutants.qemu.not_noticed",
+        summary["not_caught"] + summary["same_image"] + len(doubted), MUTANTS_QEMU_REPEATS,
+    )
+
+    def code(text: str) -> str:
+        return "`" + text.strip().replace("|", "\\|") + "`"
+
+    rows = []
+    for mutant in qemu["mutants"]:
+        how = ""
+        if mutant["verdict"] == "caught":
+            how = "the run passed its time limit" if mutant["how"] == "time limit" else (
+                f"{len(mutant['by'])} failed, the first: {mutant['by'][0]}" if mutant["by"] else "the suite failed"
+            )
+            if survivor_key(mutant) in doubted:
+                how += "; the unchanged kernel fails this check now and then, so this is not counted"
+        rows.append([
+            f"`{mutant['file']}`, line {mutant['line']}",
+            mutant["sample"],
+            mutant["operator"].replace("|", "\\|"),
+            code(mutant["after"]),
+            QEMU_VERDICTS[mutant["verdict"]],
+            how.replace("|", "\\|"),
+        ])
+    put(
+        "table.mutants_qemu",
+        table(["Where", "Sample", "Change", "After", "In QEMU", "Which checks"], rows), MUTANTS_QEMU,
+    )
+
+
+def add_miri(put: Put, miri: dict) -> None:
+    """The model's directed checks under Miri: python build.py miri."""
+    if not miri:
+        raise KeyError(f"{MIRI} is missing; run python build.py miri")
+    for key in (
+        "miri", "rustc", "ran", "limit_s", "seconds", "checks_passed", "checks_failed", "undefined_behaviour",
+        "sections_started", "last_section",
+    ):
+        put(f"miri.{key}", miri[key], MIRI)
+    put("miri.minutes", round(miri["seconds"] / 60), MIRI)
+    put("miri.limit_minutes", round(miri["limit_s"] / 60), MIRI)
+    put("miri.ended", "ran to its end" if miri["finished"] else "was cut short at its time limit", MIRI)
+    put("miri.finished", "yes" if miri["finished"] else "no", MIRI)
 
 
 def collect() -> dict[str, dict]:
@@ -887,9 +1082,15 @@ def collect() -> dict[str, dict]:
         NONX_SERIAL_LOG.read_text(encoding="utf-8").splitlines(),
     )
     add_model(put, gates.load("model.json"))
-    add_mutants(
-        put, gates.load("mutants.json"), gates.load("mutants-held-out.json"), gates.load("mutants-fresh.json"),
+    samples = tuple(
+        gates.load(name)
+        for name in ("mutants.json", "mutants-held-out.json", "mutants-fresh.json", "mutants-unseen.json")
     )
+    add_mutants(put, *samples)
+    repeats = gates.load("mutants-qemu-repeats.json")
+    add_mutants_qemu(put, gates.load("mutants-qemu.json"), samples, repeats)
+    add_mutants_qemu_repeats(put, repeats)
+    add_miri(put, gates.load("miri.json"))
     return claims
 
 

@@ -48,11 +48,11 @@ kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=12761 us
+Inti 0.1.0 shell ready at t=15881 us
 Type help for the list of commands, or tour for a guided tour.
 ```
 
-The prompt appeared 12.8 ms after the kernel started, by the system's own clock, and 127 ms after the test script started the emulator.
+The prompt appeared 15.9 ms after the kernel started, by the system's own clock, and 153 ms after the test script started the emulator.
 
 | Part of the disk image | Bytes |
 |---|---|
@@ -87,21 +87,21 @@ Every quota is lent, never created. A parent gives a child part of its own memor
 
 A share of the processor is a percentage from one to 100. A task gets its parent's share or a smaller one when it is started (word 26 of the `spawn` request; zero means the parent's), and nothing raises it afterwards. At every switch the kernel reads the processor's cycle counter and charges the cycles to the task that ran and to every task above it in the tree, so a task's count covers everything it started: starting children, or starting them again and again, does not escape the count. Time is cut into windows of 100 timer interrupts, one second. A task is over its share when it, or a task above it, has used its percentage of the previous window's cycles in the current window, and the scheduler picks such a task only when no ready task is within its share. A share is therefore a promise to everybody else and not a ceiling: it never leaves the processor idle, and a group that is over its share still runs when nobody else wants to. `init` gives the shell and everything started from it 80%, so the servers and `init` itself come first once the shell's programs have had that much of a second.
 
-In QEMU the self-test starts three tasks that never yield, once with a share of 20% and once with no share of their own, and counts its own work beside them. It kept 60% of its speed beside the held group and 22% beside the free one; the kernel charged the groups 35% and 75% of a second. The run after all the injected faults gave 62% and 24%, with 35% and 74% charged. The held group is charged more than its 20% by design, not by error: the self-test runs under the shell, and once the shell's tree has used its 80% of a window every task in it is over a share, none is preferred, and the four tasks split what is left of the second evenly again.
+In QEMU the self-test starts three tasks that never yield, once with a share of 20% and once with no share of their own, and counts its own work beside them. It kept 58% of its speed beside the held group and 21% beside the free one; the kernel charged the groups 35% and 74% of a second. The run after all the injected faults gave 46% and 24%, with 34% and 74% charged. The held group is charged more than its 20% by design, not by error: the self-test runs under the shell, and once the shell's tree has used its 80% of a window every task in it is over a share, none is preferred, and the four tasks split what is left of the second evenly again.
 
 ```log
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 60% of its speed when they
-       shared 20% of the processor, and 22% when they had no share of their own;
-       the kernel charged the group 35% and 75% of a second
-       rounds alone in half a second: 69778, 65157 and 63780; in two
-       seconds beside the groups: 169503 and 61510
+       beside three spinning tasks this program kept 58% of its speed when they
+       shared 20% of the processor, and 21% when they had no share of their own;
+       the kernel charged the group 35% and 74% of a second
+       rounds alone in half a second: 69442, 63268 and 61372; in two
+       seconds beside the groups: 163314 and 59816
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
 ```
 
 What a share does not do: a server's work for a client is charged to the server, not to the client (no donation across a call); no share is enforced in the first second after boot, because there is no previous window to measure against; time the kernel spends in a system call is charged to the caller; a task can overrun by up to one timer period (10 ms) per window before the kernel looks again; and the usage that `sysinfo` reports is that of the last full window, in thousandths, not of the current one.
 
-The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 0.9997 of real time while idle and 0.9992 during the fuzz run.
+The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 1.0008 of real time while idle and 0.9963 during the fuzz run.
 
 ## Capabilities
 
@@ -200,11 +200,11 @@ Each server gets a memory quota of 64 pages.
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 8.8 ms | 6.4 to 9.7 ms | 14 ms | 2.4 ms |
-| file server crashes (page fault) | 5 | 4.0 ms | 3.3 to 4.8 ms | 9 ms | 1.9 ms |
-| console driver hangs (stops answering) | 5 | 752 ms | 644 to 776 ms | 760 ms | 2.0 ms |
-| file server hangs (stops answering) | 5 | 745 ms | 579 to 791 ms | 749 ms | 0.8 ms |
-| file server hangs right after a restart | 3 | 1000 ms | 862 to 1102 ms | 1051 ms | 19.4 ms |
+| console driver crashes (page fault) | 5 | 7.1 ms | 6.0 to 7.8 ms | 11 ms | 2.7 ms |
+| file server crashes (page fault) | 5 | 17.6 ms | 4.0 to 36.6 ms | 21 ms | 13.4 ms |
+| console driver hangs (stops answering) | 5 | 700 ms | 694 to 776 ms | 754 ms | 2.5 ms |
+| file server hangs (stops answering) | 5 | 715 ms | 699 to 736 ms | 719 ms | 0.6 ms |
+| file server hangs right after a restart | 3 | 1179 ms | 1170 to 1200 ms | 1181 ms | 0.8 ms |
 
 "Until the service answers again" is measured by the shell on the system's clock, from just before it injects the fault to the first answer from the new copy. "Host stopwatch" is the same interval timed by the test script from outside, including the serial line. "Supervisor restart" is the time `init` reports between noticing the end and having started the new copy.
 
@@ -214,22 +214,22 @@ A hang, as the serial port recorded it:
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 460 us (restart 6)
-RECOVERY: fs hang -> answering again after 782725 us
+init: fs restarted after 368 us (restart 6)
+RECOVERY: fs hang -> answering again after 698924 us
 ```
 
-Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of 5 runs, and that the shell and a file listing answer afterwards. The file server answered again after 40.9 ms and the console driver after 785 ms (medians):
+Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of 5 runs, and that the shell and a file listing answer afterwards. The file server answered again after 59.6 ms and the console driver after 815 ms (medians):
 
 ```log
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 44161 us (restart 17)
+init: fs restarted after 1477 us (restart 17)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 4260 us (restart 11)
-DOUBLE FAILURE: fs answering again after 83984 us, console after 853268 us
+init: console restarted after 342 us (restart 11)
+DOUBLE FAILURE: fs answering again after 41489 us, console after 622376 us
 ```
 
 A crash loop. The third and fourth quick ends in a row were delayed by 100 ms and 200 ms:
@@ -238,26 +238,26 @@ A crash loop. The third and fourth quick ends in a row were delayed by 100 ms an
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 3 times in a row; next restart in 100 ms
-init: fs restarted after 119000 us (restart 27)
-RECOVERY: fs crash -> answering again after 120380 us
+init: fs restarted after 117459 us (restart 27)
+RECOVERY: fs crash -> answering again after 118615 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 4 times in a row; next restart in 200 ms
-init: fs restarted after 214644 us (restart 28)
-RECOVERY: fs crash -> answering again after 216055 us
+init: fs restarted after 235412 us (restart 28)
+RECOVERY: fs crash -> answering again after 236610 us
 ```
 
-The supervisor crashing. The kernel had user space running again 17 ms later on the host's stopwatch:
+The supervisor crashing. The kernel had user space running again 15 ms later on the host's stopwatch:
 
 ```log
 inti> crash init
 Crashing the root task. The kernel will start user space again.
-kernel: the root task ended (cause 0xe); restarting user space at t=116578914 us
+kernel: the root task ended (cause 0xe); restarting user space at t=118254387 us
 [user space restarted]
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=116589225 us
+Inti 0.1.0 shell ready at t=118263121 us
 Type help for the list of commands, or tour for a guided tour.
 ```
 
@@ -266,8 +266,8 @@ What the shell's `svc` command showed at the end of the test run:
 ```log
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up           17  killed                    481 us
-fs        up           28  page fault                214644 us
+console   up           17  killed                    786 us
+fs        up           28  page fault                235412 us
 shell     up            0  -
 ```
 
@@ -307,10 +307,10 @@ After the whole test run, with every injected fault and the fuzz run behind it, 
 
 ```log
 inti> uptime
-up 210.454 s, 20984 timer interrupts
-4 tasks, 4 endpoints, 2723131 system calls, 256917 task switches
-21215 device interrupts, 868 faults contained
-5766 tasks started, 0 kernel anomalies
+up 235.752 s, 22651 timer interrupts
+4 tasks, 4 endpoints, 2584789 system calls, 260999 task switches
+22898 device interrupts, 870 faults contained
+5955 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 ```
 
@@ -320,7 +320,7 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 
 | Check | Result | Measured |
 |---|---|---|
-| boots from its own boot sector to the shell prompt within 20 s | pass | 127 ms after QEMU started |
+| boots from its own boot sector to the shell prompt within 20 s | pass | 153 ms after QEMU started |
 | the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |
 | selftest after boot | pass | SELFTEST: PASS 94/94 |
 | the selftest's line written through the Log capability is in the kernel log | pass |  |
@@ -328,22 +328,22 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 | rogue all: the kernel invariants hold afterwards | pass |  |
 | rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 50/50 attempts denied, 1 skipped |
 | the system is still up after the hostile program (ls answers) | pass |  |
-| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 8765 us, worst 9742 us |
-| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 3956 us, worst 4781 us |
-| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 752298 us, worst 775554 us |
-| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 744951 us, worst 791224 us |
-| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 999688 us, worst 1102468 us |
-| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 40946 us, console 785351 us |
-| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8197 ms |
+| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 7133 us, worst 7808 us |
+| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 17641 us, worst 36582 us |
+| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 700322 us, worst 775650 us |
+| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 715446 us, worst 736125 us |
+| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1178953 us, worst 1200297 us |
+| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 59629 us, console 814667 us |
+| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8447 ms |
 | a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |
-| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 17 ms later (host time) |
+| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 15 ms later (host time) |
 | fuzz: the report is complete | pass |  |
-| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1001247 random system calls from 2061 tasks in 74373 ms; FUZZ: 4182 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
+| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1004365 random system calls from 2139 tasks in 89253 ms; FUZZ: 4384 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
 | bench runs to the end | pass | 6 results |
 | selftest after all faults | pass | SELFTEST: PASS 94/94 |
 | keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |
-| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 0.9997 |
-| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2723131 system calls, 868 faults contained, 5766 tasks started |
+| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 1.0008 |
+| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2584789 system calls, 870 faults contained, 5955 tasks started |
 | shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |
 | no kernel panic anywhere in the serial log | pass |  |
 | without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |
@@ -358,8 +358,8 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 - **`fuzz`** keeps 4 child tasks running, each making random and almost-right system calls for up to 400 ms before it is replaced. Every 25 ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint, frame or quota went missing. `cap_revoke` is among the random calls, some of the messages name a capability to hand over, and each child works within a quota of tasks and endpoints lent by the fuzzer, part of which it lends to children of its own. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
 - **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one 5 times, checks that the shell still answers and that a file can still be read, and records the times. `double`, the two failures at once shown above, is run 5 times as well.
 - **Without the no-execute bit.** The script boots the same image once more with the processor model `qemu32`. The kernel then says in its boot log that W^X is not enforced. The self-test passes its other 91 checks and reports the 3 execute checks as skipped, `rogue all` reports 48 of 51 attempts denied and names the 3 that were not, the kernel's rules still hold and nothing panics.
-- **The guided tour.** `tour` runs 5 steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took 8.2 s in QEMU and 8.38 s in the browser check, which fails if the tour takes a minute or longer.
-- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless), types 7 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `tour`, `uptime`) and checks each result. All 7 passed; the prompt appeared after 2.41 s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
+- **The guided tour.** `tour` runs 5 steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took 8.4 s in QEMU and 9.02 s in the browser check, which fails if the tour takes a minute or longer.
+- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless), types 7 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `tour`, `uptime`) and checks each result. All 7 passed; the prompt appeared after 0.78 s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
 - **Two checks changed in this version.** The check "only `init` holds a capability for the reset port `0x64`" became "no task, `init` included, holds a capability for the reset port `0x64`", because `init` now drops it; the new check also requires that its walk finds at least six port capabilities, so it cannot pass by finding none. The share measurement used to compare against one half-second baseline. In one run the host stalled during that baseline, it came out about eight times too small, and the check failed with speeds several times higher than running alone while the kernel's own charge figures were normal. The self-test now takes three baselines (before, between and after the two measurements), uses the largest and prints all the raw counts. The thresholds are the same as before. A larger reference makes "kept enough speed beside the held group" harder to pass and "lost speed beside the free group" easier, and it adds about a second to each run.
 - **The gates.** `python build.py gates` does all of the above from a clean tree and then runs `tools/check_claims.py` over these documents.
 - **The model.** `python build.py model` runs the kernel's own source on the build machine against a simulated processor, with directed tests and a bounded exploration of its states, and `python build.py mutants` measures whether those checks notice a kernel that was broken on purpose. Both are described under [the model](#the-model). Neither is a gate.
@@ -455,11 +455,11 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 60% of its speed when they
-       shared 20% of the processor, and 22% when they had no share of their own;
-       the kernel charged the group 35% and 75% of a second
-       rounds alone in half a second: 69778, 65157 and 63780; in two
-       seconds beside the groups: 169503 and 61510
+       beside three spinning tasks this program kept 58% of its speed when they
+       shared 20% of the processor, and 21% when they had no share of their own;
+       the kernel charged the group 35% and 74% of a second
+       rounds alone in half a second: 69442, 63268 and 61372; in two
+       seconds beside the groups: 163314 and 59816
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
@@ -520,20 +520,20 @@ What the kernel's basic operations cost in this emulator. These figures describe
 
 | Operation | Time |
 |---|---|
-| system call entry and return | 927 ns |
-| read the clock | 1,499 ns |
-| IPC call and reply | 35,928 ns |
-| start, run and reap a task | 821,265 ns |
-| map and unmap one page | 35,519 ns |
-| check every kernel invariant | 3,122,400 ns |
+| system call entry and return | 946 ns |
+| read the clock | 1,483 ns |
+| IPC call and reply | 33,300 ns |
+| start, run and reap a task | 796,590 ns |
+| map and unmap one page | 42,096 ns |
+| check every kernel invariant | 32,245,500 ns |
 
 ## The model
 
-QEMU runs the whole system, but only along the paths that the test programs take, and a failure in the middle of a system call is hard to arrange from user space. So the kernel is also run a second way. `model/` compiles 7 of the kernel's 9 source files, unchanged, as a program for the build machine: `check.rs`, `elf.rs`, `frame.rs`, `ipc.rs`, `mem.rs`, `sys.rs`, `task.rs`, which hold 2,109 of the kernel's 2,590 lines. The other 2, `arch.rs` and `main.rs`, talk to the processor. The model replaces them with a simulated machine that keeps physical memory in an array, walks page tables by the rules of PAE paging and records what the kernel asks of the processor. A system call is a call of the kernel's own entry point with a trap frame. `python build.py model` builds and runs it and writes `evidence/model.json`; the last run, of 2026-11-12T08:20:05+00:00, took 91 s.
+QEMU runs the whole system, but only along the paths that the test programs take, and a failure in the middle of a system call is hard to arrange from user space. So the kernel is also run a second way. `model/` compiles 7 of the kernel's 9 source files, unchanged, as a program for the build machine: `check.rs`, `elf.rs`, `frame.rs`, `ipc.rs`, `mem.rs`, `sys.rs`, `task.rs`, which hold 2,109 of the kernel's 2,590 lines. The other 2, `arch.rs` and `main.rs`, talk to the processor. The model replaces them with a simulated machine that keeps physical memory in an array, walks page tables by the rules of PAE paging and records what the kernel asks of the processor. A system call is a call of the kernel's own entry point with a trap frame. `python build.py model` builds and runs it and writes `evidence/model.json`; the last run, of 2026-11-12T12:04:15+00:00, took 104 s.
 
 This is a bounded check of small configurations and not a proof. It is not one of the gates either: the rubric and its gates were frozen before the model existed. Its numbers reach these documents the way all the others do, through `evidence/claims.json`. Every result of the model and of the mutation check below also records a fingerprint of the source files of the kernel, the interface crate and the model. `tools/check_claims.py`, which is one of the gates, refuses a result whose fingerprint is not that of the files as they are, so after a change to any of them the figures have to be measured again before a document may quote them.
 
-**Directed tests.** 217 tests put the kernel into situations that a program in QEMU cannot reach or cannot observe: the task table and the endpoint table full, memory running out part of the way through a system call, a capability revoked while it is in use, the root task dying while others wait. The "table full" branches are reached by forging a quota, because the rule that quotas balance keeps honest programs away from them. 217 of the 217 pass. Among them, 44 corruptions are planted in the kernel's state one at a time and the checker has to report each one under the number of the rule that describes it, so that a corruption which some other rule happens to notice does not count; it reports 44. 3 more are forged capabilities that the checker has no means to tell from honest ones: a capability for every I/O port, one for the kernel log and a handle on a task that is not a child. The test requires that they go unnoticed, and 3 of 3 do, so that the checker's blind spots are written down and cannot grow without a test failing.
+**Directed tests.** 259 tests put the kernel into situations that a program in QEMU cannot reach or cannot observe: the task table and the endpoint table full, memory running out part of the way through a system call, a capability revoked while it is in use, the root task dying while others wait. The "table full" branches are reached by forging a quota, because the rule that quotas balance keeps honest programs away from them. 259 of the 259 pass. Among them, 46 corruptions are planted in the kernel's state one at a time and the checker has to report each one under the number of the rule that describes it, so that a corruption which some other rule happens to notice does not count; it reports 46. 3 more are forged capabilities that the checker has no means to tell from honest ones: a capability for every I/O port, one for the kernel log and a handle on a task that is not a child. The test requires that they go unnoticed, and 3 of 3 do, so that the checker's blind spots are written down and cannot grow without a test failing.
 
 **What the first run found.** The first run failed: 103 of 108 tests passed, and the checker reported 36 of 40 planted corruptions. Its raw log is kept as `evidence/model-before-fixes.log`. These are its failures:
 
@@ -557,9 +557,9 @@ One suspicion did not hold up: that device memory could be revoked from under th
 The same tests today:
 
 ```modellog
-MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker
+MODEL seeds: 46 of 46 planted corruptions reported by the kernel's checker
 MODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed
-MODEL tables: PASS 217/217
+MODEL tables: PASS 259/259
 MODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds
 MODEL: PASS
 ```
@@ -584,64 +584,108 @@ There is one exemption from "an error changes nothing", because the kernel is me
 | `memory` | a task that maps, unmaps and runs out of memory, with device memory that can be revoked | 6 | 11,218 | 78,802 | no | 0 |
 | `spawn` | trees of tasks on a machine too small for them, and the root task dying | 8 | 4,640 | 41,463 | no | 0 |
 
-Together that is 52,291 states and 258,840 steps with 0 violations. 6,089 deliveries and 700 replies were compared with what had been sent, and 7,386 restarts with a fresh boot. 90,942 of the steps were system calls that returned an error, 8,957 of them because memory had run out and 16,895 because a table or a quota was full. The exploration found no defect in the kernel: everything this round found came from the directed tests.
+Together that is 52,291 states and 258,840 steps with 0 violations. 6,089 deliveries and 700 replies were compared with what had been sent, and 7,386 restarts with a fresh boot. 90,942 of the steps were system calls that returned an error, 8,957 of them because memory had run out and 16,895 because a table or a quota was full. The exploration found no defect in the kernel: every defect found on the build machine came from the directed tests.
 
 **Failures in pairs.** The explorer notes which kinds of failure it has met on the way to each state: a task that exits, faults or is killed, a capability dropped or revoked under a task that was using it, a timeout, and the death of the root task. Of the 49 ordered pairs of these kinds, 13 occur on the paths it took. The other 36 do not: drop after exit; exit after fault; fault after fault; kill after fault; drop after fault; revoke after fault; timeout after fault; root death after fault; exit after drop; fault after drop; kill after drop; drop after drop; revoke after drop; timeout after drop; root death after drop; exit after revoke; fault after revoke; kill after revoke; drop after revoke; revoke after revoke; timeout after revoke; root death after revoke; exit after timeout; fault after timeout; kill after timeout; drop after timeout; revoke after timeout; timeout after timeout; root death after timeout; exit after root death; fault after root death; kill after root death; drop after root death; revoke after root death; timeout after root death; root death after root death. Part of the reason is the search itself, which is breadth first, keeps only the first path to each state and starts its record again after the root task dies. Those pairs are not shown to be handled. They are not shown at all.
 
 **The mutation check.** A check that passes says little unless it would have failed on a broken kernel. `python build.py mutants` finds 908 places in the kernel files that the model compiles where a small change is possible: a comparison turned into its opposite or moved by one, `&&` and `||` exchanged, `+` and `-` exchanged, a call or an assignment removed, a condition inverted. It puts them in a fixed order, cuts the list into 60 equal stretches and takes the middle place of each, so that nobody chooses. It makes each change alone and runs the directed tests and then the exploration against the changed kernel, which counts as caught when a check fails, when the program panics or when a check runs past its time limit.
 
-The places are positions in that list, so every sample is drawn anew whenever the list changes. It last changed a round ago: it had 886 places, code added then made it 908, and every stretch moved. This round changed no kernel file, so the list, and with it the places of the first two samples, are what they were a round ago. Of the 60 places in the first sample, 8 were in the first sample before the list changed and 2 in the held-out sample then; the other 50 were new. A place is matched here by file, kind of change and the text of the line, so two identical lines can match each other and the counts of places met before are upper bounds. The scores from before the change, 58 of 60 in the first sample and 45 of 60 in the held-out one, therefore do not carry over, and they are not comparable with the figures below place for place. The earlier places are kept in `evidence/mutants-previous.json` so that the overlap can be counted again.
+The places are positions in that list, so every sample is drawn anew whenever the list changes. It last changed when code was last added to the kernel: it had 886 places, the new code made it 908, and every stretch moved. No kernel file has changed since, so the list stands still, the places of every sample are what they were, and the same mutants can be run again. Of the 60 places in the first sample, 8 were in the first sample before the list changed and 2 in the held-out sample then; the other 50 were new. A place is matched here by file, kind of change and the text of the line, so two identical lines can match each other and the counts of places met before are upper bounds. The scores from before the change, 58 of 60 in the first sample and 45 of 60 in the held-out one, therefore do not carry over, and they are not comparable with the figures below place for place. The earlier places are kept in `evidence/mutants-previous.json` so that the overlap can be counted again.
 
-The first run on the present list, a round ago, caught 46 of 60 changed kernels and missed 14; its log is kept as `evidence/mutants-before-tests.log`. Since most of its places were new, that run measured tests that had for the most part not been aimed at them. Every mutant it missed was read. Before that, the misses had pointed at questions no test had asked: what happens at the first and at the last value of a range, in what order queued messages arrive and whether a buffer that lies across two pages is copied whole, whether a program of more than one page is loaded whole, what the kernel reports about a task and about its end, and whose turn it is. Five groups of directed tests were written for those. That run's misses pointed at more: which badge a derived endpoint capability carries, which interrupt lines a derived capability covers, whether a program is refused for a single wrong field in its header, what happens at the edges of user space, what the kernel counts of system calls and of faults, and what a task is charged when a window of processor time ends. Three more groups now ask these. They were added; no directed test that existed was changed or removed, and the kernel was not changed for them: what this run found were holes in the tests.
+The first run on the present list caught 46 of 60 changed kernels and missed 14; its log is kept as `evidence/mutants-before-tests.log`. Since most of its places were new, that run measured tests that had for the most part not been aimed at them. Every mutant it missed was read. Before that, the misses had pointed at questions no test had asked: what happens at the first and at the last value of a range, in what order queued messages arrive and whether a buffer that lies across two pages is copied whole, whether a program of more than one page is loaded whole, what the kernel reports about a task and about its end, and whose turn it is. Five groups of directed tests were written for those. That run's misses pointed at more: which badge a derived endpoint capability carries, which interrupt lines a derived capability covers, whether a program is refused for a single wrong field in its header, what happens at the edges of user space, what the kernel counts of system calls and of faults, and what a task is charged when a window of processor time ends. Three more groups now ask these. They were added; no directed test that existed was changed or removed, and the kernel was not changed for them: what this run found were holes in the tests.
 
-The same 60 places today: 0 of the changed kernels did not compile. Of the 60 that did, 53 were caught (88 %), 49 by a directed test and 4 by the exploration: 38 through a check that failed, 14 through a panic and 1 by running past the time limit. 7 were not caught:
+The same 60 places today: 0 of the changed kernels did not compile. Of the 60 that did, 53 were caught (88 %), 52 by a directed test and 1 by the exploration: 36 through a check that failed, 16 through a panic and 1 by running past the time limit. 7 were not caught:
 
 | Where | Change | Before | After | Why no check caught it |
 |---|---|---|---|---|
-| `kernel/src/mem.rs`, line 57 | + becomes - | `const ROOT: usize = KERNEL_TABLES + 1;` | `const ROOT: usize = KERNEL_TABLES - 1;` | Outside what the model can see. The root of the kernel's own map would then be the last of the tables that map memory, not the table after them. The checker compares that map with the function that filled it, so the two agree with each other, and the model calls the kernel's functions directly and never runs the kernel through its page tables. In QEMU the kernel could not go on once paging is switched on; that is a judgment, since the mutants were not run there. |
-| `kernel/src/mem.rs`, line 196 | condition inverted | `if address == 0 {` | `if !(address == 0) {` | Outside what the model can see. The kernel's own half of every address space would then map page zero and nothing else. The model calls the kernel's functions directly and never runs the kernel through its page tables, and no check reads that half. In QEMU the kernel could not go on once paging is switched on; that is a judgment, since the mutants were not run there. |
-| `kernel/src/mem.rs`, line 253 | assignment removed | `self.hint = word;` | `(line removed)` | Makes no difference to anything that is promised. The line remembers where the last free frame was found, so that the next search starts there. Without it every search starts from the beginning and finds a free frame all the same; which free frame a task is handed is not promised, and no check may depend on it. |
+| `kernel/src/mem.rs`, line 57 | + becomes - | `const ROOT: usize = KERNEL_TABLES + 1;` | `const ROOT: usize = KERNEL_TABLES - 1;` | Outside what the model can see. The root of the kernel's own map would then lie on the last of the tables that map memory, not after the directory. The checker compares that map with the function that filled it, so the two agree with each other, and the model calls the kernel's functions directly and never runs the kernel through its page tables. The first reading, that in QEMU the kernel could not go on once paging is switched on, was wrong, and the runs in QEMU refuted it. Only the last table is spoilt, the one that maps the top two mebibytes of all the memory the kernel can manage, and the tests give the emulated machine half of that, so the spoilt part of the map covers memory that is not there. Frames are handed out from the bottom, so even on a machine with all the memory only a test that reaches the top of it would notice. There is no such test: a hole in the tests in QEMU. |
+| `kernel/src/mem.rs`, line 196 | condition inverted | `if address == 0 {` | `if !(address == 0) {` | Outside what the model can see. The kernel's own half of every address space would then map page zero and nothing else. The model calls the kernel's functions directly and never runs the kernel through its page tables, and no check reads that half. The reading was that in QEMU the kernel could not go on once paging is switched on; the table of the runs in QEMU says what happened there. |
+| `kernel/src/mem.rs`, line 253 | assignment removed | `self.hint = word;` | `(line removed)` | Makes no difference to anything that is promised. The line remembers where the last free frame was found, so that the next search starts there. Without it every search starts from the beginning and finds a free frame all the same; which free frame a task is handed is not promised, and no check may depend on it. In QEMU the changed kernel failed the self-test once; the unchanged kernel fails the same check now and then, and the changed kernel passed when it was run again. The account of the runs in QEMU says more. |
 | `kernel/src/mem.rs`, line 296 | && becomes \|\| | `assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) && inside);` | `assert!(frame % PAGE == 0 \|\| (PAGE..MAX_RAM).contains(&frame) && inside);` | Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops the kernel. |
-| `kernel/src/mem.rs`, line 515 | call removed | `arch::write_cr3(pd); // drop stale translations and cached table addresses` | `(line removed)` | Outside what the model can see. After an unmapping the kernel reloads the address space so that the processor forgets the old translations. The changed kernel never reloads, and the simulated machine keeps no translations that could go stale. On a real processor a task could go on using a page it has given back. Whether the tests in QEMU notice was not tried. |
+| `kernel/src/mem.rs`, line 515 | call removed | `arch::write_cr3(pd); // drop stale translations and cached table addresses` | `(line removed)` | Outside what the model can see. After an unmapping the kernel reloads the address space so that the processor forgets the old translations. The changed kernel never reloads, and the simulated machine keeps no translations that could go stale. On a real processor a task could go on using a page it has given back, until another address space is loaded. QEMU keeps translations as a processor does, and the reading was that the tests there might notice. They did not: the selftest and the fuzzer unmap pages, but no test touches a page after unmapping it and expects a fault. A hole in the tests in QEMU. |
 | `kernel/src/task.rs`, line 372 | assignment removed | `self.resched = false;` | `(line removed)` | A hole in the checks, read through and left open. The flag that asks for a new choice of task is then never lowered, so the kernel chooses again at every entry and not only after an event that calls for it. Every change of rank or of readiness raises the flag anyway, and nothing else decides the choice except whether a task is over its share. So the one difference found is that a task which goes over its share is switched away at its next system call and not at the next timer tick, at most one tick sooner. The harness of the model marks the running task ready before every step, which raises the same flag, and the flag is private, so no test in the model can tell the two kernels apart; the flag was not made public for the sake of a test. This is a reading and not a proof. |
 | `kernel/src/task.rs`, line 708 | assignment removed | `self.resched = true;` | `(line removed)` | Makes no difference that reading could find; it is a reading and not a proof. The line asks for a new choice of task after a kill. A running task that has just died is no longer ready, so the scheduler chooses again without being asked, and a task that the death wakes raises the flag itself when it is woken. |
 
-That figure is no estimate for the rest of the kernel. The tests were written with these very mutants in view, so it measures how well they were aimed. For how far they reach there is a second sample, `python build.py mutants --held-out`, which takes the first place of each stretch instead of the middle one. It shares no place with the first sample. A round ago no test had been written against it, and it came out at 50 of 59 caught and 9 missed; that log is kept as `evidence/mutants-held-out-before-tests.log`. Six of the misses were judged then to be holes in the checks. This round each of the six was read again and a directed test was written for it. The tests ask whether a program segment that does not begin on the first page of its file is mapped where it belongs, whether the notice of a task's death carries the system calls and the timer ticks it used, whether a task that is started is counted once, where a capability for device memory ends, whether a sleeper wakes at the tick that falls exactly on its deadline, and whether a sender that lost the grant right while it waited still hands its capability over. None of the six turned out to be a fault in the kernel: in each case the kernel did the right thing and no test had asked. The kernel was not changed, and no test that existed was changed or removed. The second sample today: 1 of its 60 changed kernels did not compile, and of the 59 that did, 56 were caught (95 %), 53 by a directed test and 3 by the exploration. 3 were not caught:
+That figure is no estimate for the rest of the kernel. The tests were written with these very mutants in view, so it measures how well they were aimed. For how far they reach there is a second sample, `python build.py mutants --held-out`, which takes the first place of each stretch instead of the middle one. It shares no place with the first sample. When it was first run on the present list no test had been written against it, and it came out at 50 of 59 caught and 9 missed; that log is kept as `evidence/mutants-held-out-before-tests.log`. Six of the misses were judged then to be holes in the checks. Each of the six was then read again and a directed test was written for it. The tests ask whether a program segment that does not begin on the first page of its file is mapped where it belongs, whether the notice of a task's death carries the system calls and the timer ticks it used, whether a task that is started is counted once, where a capability for device memory ends, whether a sleeper wakes at the tick that falls exactly on its deadline, and whether a sender that lost the grant right while it waited still hands its capability over. None of the six turned out to be a fault in the kernel: in each case the kernel did the right thing and no test had asked. The kernel was not changed, and no test that existed was changed or removed. A seventh miss, the kernel's log call with its write to the serial line removed, had been judged to lie outside what the model can see. It is caught now as well, by a test written later for the third sample, the one that asks who may write to the log; no test was aimed at it. The second sample today: 1 of its 60 changed kernels did not compile, and of the 59 that did, 57 were caught (97 %), 55 by a directed test and 2 by the exploration. 2 were not caught:
 
 | Where | Change | Before | After | Why no check caught it |
 |---|---|---|---|---|
 | `kernel/src/mem.rs`, line 76 | < becomes <= | `assert!(index < ENTRIES);` | `assert!(index <= ENTRIES);` | Makes no difference while the kernel is right. The line is an assertion about an index that the kernel itself supplies. It holds in both versions, and no check hands it an index one past the end to see that it stops the kernel. |
-| `kernel/src/sys.rs`, line 417 | call removed | `arch::serial_put(byte);` | `(line removed)` | Outside what the model can see. The kernel's log call then writes nothing but carriage returns. The simulated serial port only counts the bytes it is given, and no check reads what was written. In QEMU every test reads the serial line, so it would very likely be noticed; that is a judgment, since the mutants were not run there. |
 | `kernel/src/task.rs`, line 31 | < becomes <= | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);` | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS <= NONE as usize && NO_TASK == NONE as u32);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and it holds for the constants as they are, so the changed kernel is the same program. |
 
-That sample is no longer held out, because tests have been aimed at it, and its figure now says what the first one says: how well tests were aimed. So a third sample was drawn after those tests, `python build.py mutants --fresh`, which takes the place three quarters of the way through each stretch. It shares no place with the other two, and no test has been written against it. That does not make it untouched: 0 of its places were in the first sample before the list last changed, where tests were aimed at them, and 7 were in the held-out sample then. It is reported as it came out: 0 of its 60 changed kernels did not compile, and of the 60 that did, 44 were caught (73 %), 43 by a directed test and 1 by the exploration. 16 were not caught. No test has been written for them, so that the sample stays fresh:
+That sample is no longer held out, because tests have been aimed at it, and its figure now says what the first one says: how well tests were aimed. So a third sample was drawn after those tests, `python build.py mutants --fresh`, which takes the place three quarters of the way through each stretch. It shares no place with the other two. 0 of its places were in the first sample before the list last changed, where tests were aimed at them, and 7 were in the held-out sample then. When it was first run no test had been written against it, and it came out at 44 of 60 caught and 16 missed; that log is kept as `evidence/mutants-fresh-before-tests.log`. 11 of the misses were judged to be holes in the checks, and a directed test has since been written for each. The tests ask whether the checker objects when an ended task waits anywhere but on its own fault endpoint and when nobody can receive there, each on its own; whether a program is refused when a segment starts below user space or holds more bytes in the file than in memory; whether an interrupt on a bound line reaches its endpoint, gives one notice and no second one, and stays bound when another endpoint is deleted; whether a server that received a call without the grant right can answer it with a capability; whether a waiting receiver loses the grant right together with the capability that carried it; whether the kernel refuses to write a result into a page that the task may only read; whether a task that ends itself has anything written into what it left behind; whether the log can be written with the log capability and with nothing else; and whether the call that describes a capability slot tells the truth. None of them turned out to be a fault in the kernel: in each case the kernel did the right thing and no test had asked. The kernel was not changed, and no test that existed was changed or removed. Two of the new planted corruptions had to be rewritten before they were kept. They break the rule about ended tasks one half at a time, and as first written the checker reported them under its first rule, because the task they corrupted still held memory and so had not really ended. They now corrupt a task that has; the rule they are expected to trip was not changed. The third sample today: 0 of its 60 changed kernels did not compile, and of the 60 that did, 55 were caught (92 %), 55 by a directed test and 0 by the exploration. 5 were not caught, the 5 of the first run's misses for which no test was written:
 
 | Where | Change | Before | After | Why no check caught it |
 |---|---|---|---|---|
-| `kernel/src/check.rs`, line 203 | \|\| becomes && | `State::Zombie(ep) if ep != task.fault_ep \|\| !receivable(ep) => return Err(11),` | `State::Zombie(ep) if ep != task.fault_ep && !receivable(ep) => return Err(11),` | A hole in the checks. The rule says that an ended task waits only on its own fault endpoint and only while somebody can receive there. The changed checker complains only when both halves are broken at once. Each planted corruption of this rule breaks both, so none shows that either half alone is enough. |
-| `kernel/src/elf.rs`, line 94 | \|\| becomes && | `if file_size > size \|\| start < USER_BASE \|\| end > IMAGE_END as u64 {` | `if file_size > size && start < USER_BASE \|\| end > IMAGE_END as u64 {` | A hole in the checks. The loader would then take a segment that starts below user space, or one that holds more bytes in the file than in memory. No test in the model loads such an image. Later steps of the loader may still refuse some of them; that was not tried. |
-| `kernel/src/ipc.rs`, line 154 | assignment removed | `self.eps[ep].irq_pending = 0;` | `(line removed)` | A hole in the checks. A pending interrupt is then never cleared, so the task that receives it is handed the same notice again every time it comes back. The model checks that a notice names only lines bound to that endpoint; it does not check that one interrupt gives one notice. |
-| `kernel/src/ipc.rs`, line 199 | assignment removed | `self.tasks[sender].grant = granted;` | `(line removed)` | A hole in the checks. A caller taken from the queue would then keep its own grant right for the reply and not the right that both ends share. No test has a server without the grant right answer such a caller with a capability. |
-| `kernel/src/ipc.rs`, line 233 | condition inverted | `if bind.task != NONE {` | `if !(bind.task != NONE) {` | A hole in the checks. An interrupt on a bound line is then dropped and never reaches its endpoint. The model checks what a notice may say when one arrives, and that every interrupt is acknowledged; it has no check that a notice arrives at all. In QEMU the keyboard and the disk would fall silent; that is a judgment, since the mutants were not run there. |
 | `kernel/src/mem.rs`, line 70 | < becomes <= | `assert!(table < KERNEL_TABLES + 2);` | `assert!(table <= KERNEL_TABLES + 2);` | Makes no difference while the kernel is right. The line is an assertion about an index that the kernel itself supplies. It holds in both versions, and no check hands it an index one past the end to see that it stops the kernel. |
-| `kernel/src/mem.rs`, line 165 | assignment removed | `self.kernel_pd = kernel_table(ROOT);` | `(line removed)` | Outside what the model can see. The kernel would then forget where the root of its own map is and switch paging on with an address of zero. The model keeps the same forgotten value on both sides of its comparison and never runs the kernel through its page tables. In QEMU the kernel could not go on once paging is switched on; that is a judgment, since the mutants were not run there. |
+| `kernel/src/mem.rs`, line 165 | assignment removed | `self.kernel_pd = kernel_table(ROOT);` | `(line removed)` | Outside what the model can see. The kernel would then forget where the root of its own map is and switch paging on with an address of zero. The model keeps the same forgotten value on both sides of its comparison and never runs the kernel through its page tables. The reading was that in QEMU the kernel could not go on once paging is switched on; the table of the runs in QEMU says what happened there. |
 | `kernel/src/mem.rs`, line 308 | && becomes \|\| | `assert!(self.managed(frame) && offset as usize + data.len() <= PAGE as usize);` | `assert!(self.managed(frame) \|\| offset as usize + data.len() <= PAGE as usize);` | Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops the kernel. |
-| `kernel/src/mem.rs`, line 348 | && becomes \|\| | `pte & (RW \| FOREIGN) == RW && self.managed(frame)` | `pte & (RW \| FOREIGN) == RW \|\| self.managed(frame)` | A hole in the checks. The kernel would then write a result for a task into a page that the task may only read, or into a writable page that is not ordinary memory. No test in the model asks the kernel to write into such a page. This one guards a promise, and it is the first test to write next. |
-| `kernel/src/sys.rs`, line 50 | && becomes \|\| | `if task.gen == gen && task.state == State::Ready {` | `if task.gen == gen \|\| task.state == State::Ready {` | A hole in the checks. The result of a system call would then also be written into the saved registers of a caller that is no longer ready, for example one that the call itself ended. No check reads those registers afterwards. Whether a running system could tell was not worked out. |
-| `kernel/src/sys.rs`, line 374 | assignment removed | `task.frame = TrapFrame::user(entry, STACK_TOP, start);` | `(line removed)` | Outside what the model can see. A new task would then have no starting registers: no entry point, no stack, no arguments. The model drives every task by making its system calls for it and never runs a task's code, so it never reads them. In QEMU no task could start; that is a judgment, since the mutants were not run there. |
-| `kernel/src/sys.rs`, line 407 | != becomes == | `if self.cap(me, slot)? != Cap::Log {` | `if self.cap(me, slot)? == Cap::Log {` | A hole in the checks. The log call would then be refused to a task that holds the log capability and allowed to one that holds something else. No check in the model makes the call both ways. In QEMU the boot text is written through this call and a test task is refused it, so it would very likely be noticed; that is a judgment, since the mutants were not run there. |
-| `kernel/src/sys.rs`, line 483 | call removed | `put32(&mut out, index * 4, word);` | `(line removed)` | A hole in the checks. The call that describes a capability slot would then answer with zeros. No check in the model reads that answer. The self-test in QEMU walks every slot with this call, so it would very likely be noticed; that is a judgment, since the mutants were not run there. |
-| `kernel/src/task.rs`, line 345 | condition inverted | `if self.mem.nx != 0 {` | `if !(self.mem.nx != 0) {` | Outside what the model can see. The kernel would then print the wrong one of two sentences about the no-execute bit at boot and enforce exactly what it did before. The simulated serial port only counts the bytes it is given. |
-| `kernel/src/task.rs`, line 593 | assignment removed | `self.tasks[t].grant &= task.reaches(ep, R_RECV \| R_GRANT, None);` | `(line removed)` | A hole in the checks. A task that waits to receive would then keep its grant right after it gives up the capability that carried the right, as long as another capability still lets it receive. No test puts a task in that position; the checker's rule about the grant right would see it if one did. |
-| `kernel/src/task.rs`, line 624 | == becomes != | `if self.irqs[irq].task != NONE && self.irqs[irq].ep as usize == ep {` | `if self.irqs[irq].task != NONE && self.irqs[irq].ep as usize != ep {` | A hole in the checks. When an endpoint goes, the kernel would then unbind the interrupts of every other endpoint and leave its own. By reading, its own are already unbound by then, so the harm is a binding lost elsewhere, and no check says that a binding lasts until its owner gives it up. |
+| `kernel/src/sys.rs`, line 374 | assignment removed | `task.frame = TrapFrame::user(entry, STACK_TOP, start);` | `(line removed)` | Outside what the model can see. A new task would then have no starting registers: no entry point, no stack, no arguments. The model drives every task by making its system calls for it and never runs a task's code, so it never reads them. The reading was that in QEMU no task could start; the table of the runs in QEMU says what happened there. |
+| `kernel/src/task.rs`, line 345 | condition inverted | `if self.mem.nx != 0 {` | `if !(self.mem.nx != 0) {` | Outside what the model can see. The kernel would then print the wrong one of two sentences about the no-execute bit at boot and enforce exactly what it did before. The simulated serial port only counts the bytes it is given. The tests in QEMU read that sentence, with the bit and without it. |
 
-A mutant that survives is a change that makes no difference, or one that the model cannot see, or a hole in the checks. The last column of the three tables says which, as judged by reading the code; the tool cannot tell them apart, and a reading can be wrong. Of the 16 in the fresh sample, 2 were judged to make no difference and 3 to lie outside what the model can see. The other 11 are holes: the changed kernel behaves differently and no check on the build machine asks. Most of them lie in four places: the delivery of interrupt notices, the grant right on the paths that reply and that give a capability up, the bounds the loader checks on a program image, and the check the kernel makes before it writes into a page of a task. The last of these guards a promise, that the kernel writes for a task only where the task itself may write, and it is the first test to write next. The rest are single questions, and each row of the table names its own. They are open work. Of the 3 left in the second sample, 2 were judged to make no difference, 1 to lie outside what the model can see and 0 to be holes.
+With that the third sample is spent as well: it too now says how well tests were aimed. A fourth was drawn after them, `python build.py mutants --unseen`, which takes the place one quarter of the way through each stretch. It shares no place with the other three, and no test has been written against it or after looking at it. That does not make it untouched: 2 of its places were in the first sample before the list last changed, where tests were aimed at them, and 8 were in the held-out sample then. It is reported as it came out: 1 of its 60 changed kernels did not compile, and of the 59 that did, 52 were caught (88 %), 51 by a directed test and 1 by the exploration. 7 were not caught. No test has been written for them, so that this sample stays unseen:
 
-The holes named a round ago were seven, six in the second sample and one in the first. A sample that moves cannot show that a hole named earlier is closed; only a run of that very mutant can, and this round the list stood still, so each was run again. The six in the second sample are caught now, by the tests named above. The seventh, the line that lowers the flag which asks for a new choice of task, was read through and left open; its row in the first table says why. Holes named before the list last changed lie at places that are in no sample now. They were not closed on purpose, and whether today's tests happen to catch them was not measured. No sample was run in QEMU, so a mutant listed here may well be caught by the tests there; that was not tried.
+| Where | Change | Before | After | Why no check caught it |
+|---|---|---|---|---|
+| `kernel/src/ipc.rs`, line 187 | assignment removed | `self.stats.anomalies += 1;` | `(line removed)` | Makes no difference that reading could find; it is a reading and not a proof. The line counts an anomaly in a branch that the kernel's own comment calls unreachable: the message of a blocked sender was checked when the call was made, and only the sender can unmap its own memory, which it cannot do while it is blocked. |
+| `kernel/src/sys.rs`, line 154 | < becomes <= | `if a > b \|\| a < first as u32 \|\| b > last as u32 {` | `if a > b \|\| a <= first as u32 \|\| b > last as u32 {` | A hole in the checks. Deriving a range of I/O ports that begins at the first port of the range it is derived from is then refused. The changed kernel hands out less and not more, and no check derives such a range. |
+| `kernel/src/sys.rs`, line 284 | != becomes == | `if owner != NONE && owner as usize != me {` | `if owner != NONE && owner as usize == me {` | A hole in the checks, and the one that matters most. A task could then bind an interrupt line that another task holds, and a task that binds its own line a second time is refused. No check binds a line that is already bound, by its holder or by anyone else. |
+| `kernel/src/sys.rs`, line 432 | != becomes == | `let endpoints = self.eps.iter().filter(\|endpoint\| endpoint.refs != 0).count();` | `let endpoints = self.eps.iter().filter(\|endpoint\| endpoint.refs == 0).count();` | A hole in the checks. The call that reports on the system would then give the number of free endpoints as the number in use. No check compares that figure with the true one, and a check that only compares it before and after, to look for a leak, passes either way. |
+| `kernel/src/task.rs`, line 33 | && becomes \|\| | `const _: () = assert!(CAP_SLOTS == 32 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | `const _: () = assert!(CAP_SLOTS == 32 \|\| MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and it holds for the constants as they are, so the changed kernel is the same program. |
+| `kernel/src/task.rs`, line 387 | != becomes == | `if best != self.cur && best != IDLE {` | `if best != self.cur && best == IDLE {` | A hole in the checks. Only the count of switches from one task to another goes wrong: the kernel chooses the same tasks in the same order. No check reads that count. |
+| `kernel/src/task.rs`, line 507 | call removed | `self.preempt(t);` | `(line removed)` | A hole in the checks. A task woken by the timer then keeps its old place among the tasks of its rank and does not go to the back, and the kernel is not asked to choose again at once. That is a matter of fairness and not of isolation, and no check asks where a woken task lands. |
 
-The fresh figure has a weakness of its own: its places lie a few places after those of the first sample in the same order, often in the same function, so a test written for one may catch the other. And it stays fresh only until a test is written against one of its survivors; after that a new sample is needed again.
+A mutant that survives is a change that makes no difference, or one that the model cannot see, or a hole in the checks. The last column of the four tables says which, as judged by reading the code; the tool cannot tell them apart, and a reading can be wrong. Of the 7 in the unseen sample, 2 were judged to make no difference and 0 to lie outside what the model can see. The other 5 are holes: the changed kernel behaves differently and no check on the build machine asks. With the changed kernel a range of I/O ports that begins at the first port of the range it is derived from is refused; a task can bind an interrupt line that another task holds, and a task that binds its own line again is refused; the call that reports on the system gives the number of free endpoints as the number in use; the count of switches from one task to another is wrong; and a task woken by the timer keeps its old place among the tasks of its rank where it should go to the back. The second of these matters most, because it is the only one in which the changed kernel hands a task something that belongs to another. None of the five was judged, by reading, to be a fault in the kernel as it stands: in each the unchanged kernel does what it should, and no test asks. They are open work. Of the 5 left in the third sample, 2 were judged to make no difference, 3 to lie outside what the model can see and 0 to be holes; of the 2 left in the second, 2, 0 and 0.
 
-The tool had a defect of its own. It works in a copy of the sources, and the copy kept the file times of the originals, so the build could mistake the program left from the last mutant of an earlier run for the unchanged kernel. The tool's first step, in which the unchanged kernel must compile and pass every check, failed and stopped the run, which is how the defect was found. The copies now get the time of the copying, and the tool stops if the program it is about to judge is not newer than the file it changed. All three samples reported here were run with the corrected tool. A changed kernel was compiled anew in any case, because the tool writes the changed file just before it builds.
+The holes named before this sample were eighteen: one in the first sample, six in the second and eleven in the third. A sample that moves cannot show that a hole named earlier is closed; only a run of that very mutant can, and the list has stood still since they were named, so each was run again. The six and the eleven are caught now, by the tests named above. The one in the first sample, the line that lowers the flag which asks for a new choice of task, was read through and left open; its row in the first table says why. Holes named before the list last changed lie at places that are in no sample now. They were not closed on purpose, and whether today's tests happen to catch them was not measured.
+
+**The same mutants in QEMU.** The model leaves out the code that talks to the processor and the devices, so a mutant it lets through may still be caught by the tests that boot the whole system. `python build.py mutants-qemu` takes every mutant that the four samples did not catch, 21 in all, builds the system with that one change and runs the test suite in QEMU against it. The suite is shortened for this: 200,000 random system calls and 2 repeats of each timed fault. A mutant counts as caught when a check fails or when the run passes its time limit of 600 s, and a changed kernel that builds to the very image of the unchanged one is listed as such and not run. The unchanged kernel passed 32 checks under the shortened suite before the mutants were run and 32 after. By that rule, of the 21, 9 were caught in QEMU, 9 through a check that failed and 0 by running past the time limit; 2 built the same image, 0 did not build and 10 ran through with every check passing:
+
+| Where | Sample | Change | After | In QEMU | Which checks |
+|---|---|---|---|---|---|
+| `kernel/src/mem.rs`, line 57 | first | + becomes - | `const ROOT: usize = KERNEL_TABLES - 1;` | not caught |  |
+| `kernel/src/mem.rs`, line 196 | first | condition inverted | `if !(address == 0) {` | caught | 2 failed, the first: the run reached its end |
+| `kernel/src/mem.rs`, line 253 | first | assignment removed | `(line removed)` | caught | 1 failed, the first: selftest after boot; the unchanged kernel fails this check now and then, so this is not counted |
+| `kernel/src/mem.rs`, line 296 | first | && becomes \|\| | `assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) \|\| inside);` | not caught |  |
+| `kernel/src/mem.rs`, line 515 | first | call removed | `(line removed)` | not caught |  |
+| `kernel/src/task.rs`, line 372 | first | assignment removed | `(line removed)` | not caught |  |
+| `kernel/src/task.rs`, line 708 | first | assignment removed | `(line removed)` | not caught |  |
+| `kernel/src/mem.rs`, line 76 | held-out | < becomes <= | `assert!(index <= ENTRIES);` | not caught |  |
+| `kernel/src/task.rs`, line 31 | held-out | < becomes <= | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS <= NONE as usize && NO_TASK == NONE as u32);` | builds the same image |  |
+| `kernel/src/mem.rs`, line 70 | fresh | < becomes <= | `assert!(table <= KERNEL_TABLES + 2);` | not caught |  |
+| `kernel/src/mem.rs`, line 165 | fresh | assignment removed | `(line removed)` | caught | 2 failed, the first: the run reached its end |
+| `kernel/src/mem.rs`, line 308 | fresh | && becomes \|\| | `assert!(self.managed(frame) \|\| offset as usize + data.len() <= PAGE as usize);` | not caught |  |
+| `kernel/src/sys.rs`, line 374 | fresh | assignment removed | `(line removed)` | caught | 4 failed, the first: the run reached its end |
+| `kernel/src/task.rs`, line 345 | fresh | condition inverted | `if !(self.mem.nx != 0) {` | caught | 2 failed, the first: the kernel enforces W^X: its boot log says the no-execute bit is in use |
+| `kernel/src/ipc.rs`, line 187 | unseen | assignment removed | `(line removed)` | not caught |  |
+| `kernel/src/sys.rs`, line 154 | unseen | < becomes <= | `if a > b \|\| a <= first as u32 \|\| b > last as u32 {` | caught | 3 failed, the first: selftest after boot |
+| `kernel/src/sys.rs`, line 284 | unseen | != becomes == | `if owner != NONE && owner as usize == me {` | caught | 3 failed, the first: selftest after boot |
+| `kernel/src/sys.rs`, line 432 | unseen | != becomes == | `let endpoints = self.eps.iter().filter(\|endpoint\| endpoint.refs == 0).count();` | caught | 3 failed, the first: selftest after boot |
+| `kernel/src/task.rs`, line 33 | unseen | && becomes \|\| | `const _: () = assert!(CAP_SLOTS == 32 \|\| MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | builds the same image |  |
+| `kernel/src/task.rs`, line 387 | unseen | != becomes == | `if best != self.cur && best == IDLE {` | not caught |  |
+| `kernel/src/task.rs`, line 507 | unseen | call removed | `(line removed)` | caught | 2 failed, the first: selftest after boot |
+
+One catch in that table is not believed. By reading, the mutant at `kernel/src/mem.rs`, line 253 changes nothing that a test may depend on, and in the batch it failed one check, the self-test. It was run again beside the unchanged kernel under the batch's options. With the batch's own runs counted in, the changed kernel failed 2 of 7 runs and the unchanged kernel 1 of 7. The unchanged kernel failed the very check the mutant failed in the batch, in the subtest "three spinning tasks with a 20% share leave the rest of the processor to others"; the mutant's other failure was the check of the guest clock against the host clock. The batch kept no serial log for each mutant, so which subtest the mutant failed there is not known. A catch that the unchanged kernel produces as well is not a catch, so it is not counted, and `evidence/mutants-qemu-repeats.json` lists every run. That leaves 8 mutants noticed in QEMU, 8 of them through two or more failed checks, and 13 noticed neither by the model nor in QEMU.
+
+The repeat runs showed a weakness of the suite itself. Its checks of timing fail now and then: the subtest on processor shares failed once on the unchanged kernel, and the clock check failed once on a mutant that should make no difference. In the runs that failed, the test program's own speed fell to about a tenth for a stretch, and once the guest clock ran ahead of the host's. The cause was not found. An emulator held up by other work on the build machine and then catching up is the likely one, and a fault in the kernel's accounting of shares was not ruled out. The tool does not yet repeat a catch beside the unchanged kernel by itself; here that was done by hand, and only for the one catch that rested on a single check.
+
+Against the readings above, the runs say this. `mem.rs:196`, `mem.rs:165` and `sys.rs:374` stop the run before its end, the last with a kernel panic, and `task.rs:345` is caught by the sentence about the no-execute bit in the boot log, with the bit and without it. One reading was refuted: `mem.rs:57` was read as stopping the kernel once paging is on, and it ran through. Only the last table of the kernel's map of memory is spoilt, the tests give the emulated machine half the memory the kernel can manage, and frames are handed out from the bottom, so no test reaches the spoilt part. `mem.rs:515` ran through as well, because no test touches a page after unmapping it. Of the 5 holes in the unseen sample, all but one are caught in QEMU, the binding of another task's interrupt line among them; the count of task switches at `task.rs:387` is read by no check anywhere. The 2 that build the same image change assertions that the compiler works out while it builds. The rest are changes that make no difference, or tests that are missing. Only the survivors were run in QEMU, so there is no share caught in QEMU for a whole sample, and the shortened suite may let through what the full one would catch; that was not tried.
+
+The unseen figure has a weakness of its own: its places lie between those of the held-out and the first sample in the same order, often in the same function, so a test written for one of those may catch a mutant here. And it stays unseen only until a test is written against one of its survivors; after that a new sample is needed again.
+
+The tool had a defect of its own. It works in a copy of the sources, and the copy kept the file times of the originals, so the build could mistake the program left from the last mutant of an earlier run for the unchanged kernel. The tool's first step, in which the unchanged kernel must compile and pass every check, failed and stopped the run, which is how the defect was found. The copies now get the time of the copying, and the tool stops if the program it is about to judge is not newer than the file it changed. All four samples reported here were run with the corrected tool. A changed kernel was compiled anew in any case, because the tool writes the changed file just before it builds.
+
+**The model under Miri.** Miri is an interpreter for Rust that reports undefined behaviour in the code it runs: a read outside an allocation, a use after free, a reference that breaks the aliasing rules, a value that is not valid for its type. `python build.py miri` runs the model's directed tests under it, with none of the flags that make Miri less strict. The run used miri 0.1.0 (3ef0c22cdb 2026-11-11) and has a time limit of 180 minutes, because interpreted code is slow. It was cut short at its time limit after 180 minutes, in which 60 checks passed, 0 failed and Miri reported undefined behaviour 0 times; 6 groups of tests had been started, the last of them "Messages and device memory". What this covers is narrow. Of the 42 uses of `unsafe` in the kernel, Miri can reach only the 9 in files that the model compiles, and there the function that turns a physical address into a pointer is the model's stand-in and not the kernel's. The other 33 run only in the image that boots in QEMU:
+
+| File | Uses of `unsafe` | Where it runs |
+|---|---|---|
+| `kernel/src/arch.rs` | 14 | only in the image that boots in QEMU |
+| `kernel/src/main.rs` | 9 | only in the image that boots in QEMU |
+| `kernel/src/mem.rs` | 8 | compiled into the host model, so the model's checks and Miri run it |
+| `kernel/src/task.rs` | 1 | compiled into the host model, so the model's checks and Miri run it |
+| `abi/src/mem.rs` | 10 | only in the image that boots in QEMU |
+
+The exploration was not run under Miri; it would take far longer than the limit.
 
 **What the model does not show.**
 
@@ -652,8 +696,8 @@ The tool had a defect of its own. It works in a copy of the sources, and the cop
 - States are merged by a hashed summary of tasks, capabilities, endpoints, waits, mappings, quotas and share limits. What a task has used of its share and the order among ready tasks are not part of the summary, and in the exploration every share is 100%, so the exploration says nothing about scheduling under a share; the directed tests of the model do that. The contents of user pages, message tokens and counters are left out, so two states that differ only there count as one, and a hash collision would hide a state.
 - The root task never drops the capabilities it was booted with, and in three of the scenarios its steps are restricted to keep the number of states small.
 - The oracles lean on the kernel's own checker, which is itself under test. The planted corruptions and the mutants that fall in the checker's file are the evidence that it notices things, and its known blind spots are named above.
-- The mutation check is three samples of 60 out of 908 places and uses simple changes, one at a time. The shares caught in the first and the second sample were raised by tests aimed at them. The fresh share is the one to read, with the caution that its places lie close to places that tests were aimed at, and no share would make the kernel correct. Every sample moves whenever the list of places changes, so a share from one round can be set beside a share from another only while the list stands still.
-- Not done: a proof, symbolic execution, a run of the `unsafe` code under Miri, and an exploration of the real 32-bit build.
+- The mutation check is four samples of 60 out of 908 places and uses simple changes, one at a time. The shares caught in the first three samples were raised by tests aimed at them. The unseen share is the one to read, with the caution that its places lie close to places that tests were aimed at, and no share would make the kernel correct. Every sample moves whenever the list of places changes, so a share from one round can be set beside a share from another only while the list stands still.
+- Not done: a proof, symbolic execution, Miri over the `unsafe` code that runs only in QEMU and over the exploration, and an exploration of the real 32-bit build.
 
 ## What has to be trusted
 
@@ -662,7 +706,7 @@ The tool had a defect of its own. It works in a copy of the sources, and the cop
 - **`init`**, which starts with every capability and decides who gets what. After start-up it keeps what it hands to the servers when it restarts them and two port ranges that power the machine off (`0x604` to `0x605` and `0xB004` to `0xB005`); it drops its capabilities for all ports, all interrupt lines and the screen memory.
 - **The console driver**, but only for what it carries: it sees every keystroke and all output. It cannot touch another task's memory.
 - **The Rust compiler and its core library**, and the machine underneath, which here has always been an emulator.
-- **The model**, for everything it shows: its simulated machine and its oracles are 3,336 lines by the same author as the kernel, and a mistake there can hide a mistake in the kernel. The mutation check measures how much they notice, not whether they are right.
+- **The model**, for everything it shows: its simulated machine and its oracles are 3,654 lines by the same author as the kernel, and a mistake there can hide a mistake in the kernel. The mutation check measures how much they notice, not whether they are right.
 
 Not trusted: the file server, the shell's child programs and anything else started with a narrowed set of capabilities.
 

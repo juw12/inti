@@ -230,7 +230,8 @@ def check_excerpts() -> tuple[list[Problem], int]:
 
 
 def check_fresh() -> list[Problem]:
-    """Rule 6: the model and all three samples of mutants were run on the kernel and the model as they are now."""
+    """Rule 6: the model, all four samples of mutants, the mutants in QEMU and the run under Miri were made
+    on the kernel and the model as they are now."""
     fingerprint = claims.model_fingerprint()
     problems: list[Problem] = []
     for source, name, command in (
@@ -238,6 +239,10 @@ def check_fresh() -> list[Problem]:
         (claims.MUTANTS, "mutants.json", "python build.py mutants"),
         (claims.MUTANTS_HELD_OUT, "mutants-held-out.json", "python build.py mutants --held-out"),
         (claims.MUTANTS_FRESH, "mutants-fresh.json", "python build.py mutants --fresh"),
+        (claims.MUTANTS_UNSEEN, "mutants-unseen.json", "python build.py mutants --unseen"),
+        (claims.MUTANTS_QEMU, "mutants-qemu.json", "python build.py mutants-qemu"),
+        (claims.MUTANTS_QEMU_REPEATS, "mutants-qemu-repeats.json", "the repeat runs beside the unchanged kernel"),
+        (claims.MIRI, "miri.json", "python build.py miri"),
     ):
         if gates.load(name).get("source_sha256") != fingerprint:
             problems.append((

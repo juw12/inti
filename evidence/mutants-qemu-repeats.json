@@ -1,0 +1,150 @@
+{
+ "date": "2026-11-12T16:13:06+00:00",
+ "about": "One mutant that the batch in mutants-qemu.json counted as caught, run again beside the unchanged kernel under the batch's options, to tell a catch from a check that fails now and then. Collected by hand from the batch, from one run alone and from five interleaved pairs; no run was left out.",
+ "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
+ "file": "kernel/src/mem.rs",
+ "line": 253,
+ "operator": "assignment removed",
+ "options": {
+  "fuzz": 200000,
+  "runs": 2
+ },
+ "images": {
+  "mutant": "d64a1865f41d4332",
+  "unchanged": "c50687aac3966153"
+ },
+ "runs": [
+  {
+   "kind": "unchanged",
+   "where": "the batch, before the mutants",
+   "passed": true,
+   "failed": [],
+   "seconds": 131
+  },
+  {
+   "kind": "mutant",
+   "where": "the batch",
+   "passed": false,
+   "failed": [
+    "selftest after boot"
+   ],
+   "seconds": null
+  },
+  {
+   "kind": "unchanged",
+   "where": "the batch, after the mutants",
+   "passed": true,
+   "failed": [],
+   "seconds": 128
+  },
+  {
+   "kind": "mutant",
+   "where": "one run alone",
+   "passed": false,
+   "failed": [
+    "the guest clock keeps time against the host clock over 5 idle seconds"
+   ],
+   "seconds": null,
+   "detail": [
+    "guest/host = 1.4727"
+   ]
+  },
+  {
+   "kind": "mutant",
+   "where": "pair 1 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 147
+  },
+  {
+   "kind": "unchanged",
+   "where": "pair 1 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 126
+  },
+  {
+   "kind": "mutant",
+   "where": "pair 2 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 147
+  },
+  {
+   "kind": "unchanged",
+   "where": "pair 2 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 125
+  },
+  {
+   "kind": "mutant",
+   "where": "pair 3 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 126
+  },
+  {
+   "kind": "unchanged",
+   "where": "pair 3 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 128
+  },
+  {
+   "kind": "mutant",
+   "where": "pair 4 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 124
+  },
+  {
+   "kind": "unchanged",
+   "where": "pair 4 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 133
+  },
+  {
+   "kind": "mutant",
+   "where": "pair 5 of the interleaved runs",
+   "passed": true,
+   "failed": [],
+   "seconds": 126
+  },
+  {
+   "kind": "unchanged",
+   "where": "pair 5 of the interleaved runs",
+   "passed": false,
+   "failed": [
+    "selftest after boot"
+   ],
+   "seconds": 133
+  }
+ ],
+ "shorter_run": {
+  "options": {
+   "fuzz": 20000,
+   "runs": 1
+  },
+  "kind": "mutant",
+  "passed": true,
+  "failed": []
+ },
+ "unchanged_failure": {
+  "where": "pair 5 of the interleaved runs",
+  "check": "selftest after boot",
+  "subtest": "three spinning tasks with a 20% share leave the rest of the processor to others",
+  "serial_log": [
+   "  ok   a child gets its parent's share of the processor or a smaller one, never a larger",
+   "       beside three spinning tasks this program kept 34% of its speed when they",
+   "       shared 20% of the processor, and 2% when they had no share of their own;",
+   "       the kernel charged the group 36% and 75% of a second",
+   "       rounds alone in half a second: 62606, 6182 and 3481; in two",
+   "       seconds beside the groups: 85358 and 5337",
+   "       not true: this program keeps at least 45% of its speed beside a group held to 20%",
+   "  FAIL three spinning tasks with a 20% share leave the rest of the processor to others"
+  ],
+  "same_boot_second_selftest": "passed 94 of 94"
+ }
+}

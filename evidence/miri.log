@@ -1,0 +1,76 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+     Running `<path> runner <path> tables`
+Boot
+  note  173 frames are managed, the root task holds 14 of them, 159 are free
+  ok    every frame beyond the kernel is managed
+  ok    the root task holds the frames this model expects
+  ok    the root task owns the whole memory quota
+  ok    the state after boot is sound
+  note  a task with one page of program and one of stack holds 7 frames
+  ok    a small task holds the frames this model expects
+  ok    its frames come out of the free memory
+  ok    its program is a copy of its parent's, its stack is all zero
+  ok    the state after a spawn is sound
+The endpoint table
+  ok    the root task may create every endpoint there is
+  ok    the root task has given away all it had
+  ok    all 64 endpoints exist
+  ok    a 65th is refused to each of the three tasks with E_NOSLOT
+  ok    the state with a full endpoint table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing one of the two returns its 31 endpoints to the root task
+  ok    the root task can create an endpoint again
+  ok    the state afterwards is sound
+The task table
+  ok    the root task may create every other task there is
+  ok    all 32 tasks exist
+  ok    a 33rd is refused to the root task and to its child with E_NOSLOT
+  ok    the state with a full task table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing the child kills its 15 children and returns 16 places to the root task
+  ok    the root task can spawn again
+  ok    the state afterwards is sound
+  ok    when the root task dies, all 16 others die with it and a new root task starts
+  ok    the new root task finds as much free memory as the first
+  ok    the state after the restart is sound
+The last frame and the last slot
+  ok    a spawn that runs out of memory after 0 to 6 frames leaves nothing behind
+  ok    with exactly 7 frames it succeeds
+  ok    killing the task returns its frames
+  note  49 pages and their page table took the 50 free frames
+  ok    mapping page after page ends with E_NOMEM when the last frame is taken
+  ok    the state without a free frame is sound
+  ok    an endpoint can still be created, it needs no memory
+  note  (free frames, frames charged) before the failing MAP (2, 62), after it (2, 62)
+  ok    a MAP that fails at its second page gives back all it took for the first
+  ok    the state after the failed MAP is sound
+  ok    a spawn is refused with E_NOMEM
+  ok    25 copies of a capability fill the 32 slots, then copying and creating give E_NOSLOT
+  ok    the state without a free slot is sound
+  ok    one revocation removes all 25 copies
+  ok    the death of the root task returns every frame and endpoint
+  ok    the state after the restart is sound
+The clock, the restart delay and timeouts
+  note  after about 123,456 microseconds a task is told 130003, the machine says 130003
+  ok    the time a task is told is the machine's time
+  ok    a root task that dies right after boot is not restarted at once
+  ok    the state while the root task waits to restart is sound
+  ok    it runs again one second after boot, not before
+  ok    a root task that dies after running for a second restarts at once
+  ok    the state after both restarts is sound
+  ok    a task that sleeps 30 ms is asleep after 20 ms and awake after 40 ms
+  ok    a sleeper is left asleep a microsecond before its deadline, and woken by the tick that falls exactly on it
+  ok    a call that nobody receives within its 50 ms ends with E_TIMEOUT
+  ok    the state after the timeout is sound
+  ok    a call that is received but not answered within its 50 ms ends with E_TIMEOUT
+  ok    the answer that comes too late is refused with E_INVAL
+  ok    the state after the late answer is sound
+Messages and device memory
+  ok    receiving into device memory is refused with E_FAULT
+  ok    a call whose answer would land in device memory is refused with E_FAULT
+  ok    the state after both refusals is sound
+MIRI: cut short after 10801 s: 60 directed checks had passed, 0 had failed, 0 reports of undefined behaviour

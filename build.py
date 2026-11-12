@@ -11,6 +11,7 @@
                              were aimed at the second; --unseen: a fourth, which no test was
                              written against)
     python build.py mutants-qemu  boot the mutants the model did not catch and run the tests on them
+    python build.py miri     the model's directed checks under Miri (needs a nightly toolchain with miri)
     python build.py all      model, then build, test and gates; --mutants also runs every sample again
     python build.py clean    remove build/ and target/
 
@@ -243,6 +244,8 @@ def main() -> int:
         return run_tool("mutants.py", sys.argv[2:])
     if command == "mutants-qemu":
         return run_tool("mutants_qemu.py", sys.argv[2:])
+    if command == "miri":
+        return run_tool("miri.py", sys.argv[2:])
     if command == "all":
         return run_tool("all.py", sys.argv[2:])
     if command not in ("build", "run", "test", "gates"):

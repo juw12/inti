@@ -34,8 +34,15 @@ EXCERPTS = (
     ("kernel/src/check.rs", "page_ok", "Rule 22 of the invariant checker, applied to every mapped user page."),
     ("kernel/src/mem.rs", "drop_empty_table", "New in round 3: a page table that maps nothing goes back at once."),
     ("model/src/explore.rs", "judge", "The explorer's verdict on one step: an error changes nothing, a restart is a fresh boot."),
+    (
+        "model/src/tables.rs", "read_only_stays_read_only",
+        "One of the directed tests written for a mutant that had got through: the kernel must not write a result "
+        "into a page that the task may only read.",
+    ),
     ("user/src/bin/init.rs", "ping_all", "The supervisor's health check, which keeps handling other failures while it waits."),
 )
+# How many lines of the Miri log are shown from its beginning and from its end.
+MIRI_LOG_LINES = 30
 WHOLE_FILES = (
     ("user/src/bin/hello.rs", "A complete user program."),
 )
@@ -125,7 +132,7 @@ def model_table(model: dict) -> str:
     return claims.table(["Measure", *[f"`{scenario['name']}`" for scenario in scenarios]], rows)
 
 
-def mutants_table(first: dict, held_out: dict, fresh: dict) -> str:
+def mutants_table(first: dict, held_out: dict, fresh: dict, unseen: dict) -> str:
     """The samples side by side: mutant N of each comes from stretch N of the same ordered list of places."""
 
     def place(mutant: dict) -> str:
@@ -138,10 +145,18 @@ def mutants_table(first: dict, held_out: dict, fresh: dict) -> str:
         return f"{mutant['how']}, {mutant['by']}"
 
     return claims.table(
-        ["Stretch", "First sample", "Outcome", "Second sample", "Outcome", "Fresh sample", "Outcome"],
         [
-            [one["number"], place(one), outcome(one), place(two), outcome(two), place(three), outcome(three)]
-            for one, two, three in zip(first["mutants"], held_out["mutants"], fresh["mutants"], strict=True)
+            "Stretch", "First sample", "Outcome", "Second sample", "Outcome", "Fresh sample", "Outcome",
+            "Unseen sample", "Outcome",
+        ],
+        [
+            [
+                one["number"], place(one), outcome(one), place(two), outcome(two), place(three), outcome(three),
+                place(four), outcome(four),
+            ]
+            for one, two, three, four in zip(
+                first["mutants"], held_out["mutants"], fresh["mutants"], unseen["mutants"], strict=True,
+            )
         ],
     )
 
@@ -193,12 +208,31 @@ def main() -> int:
     parts.append("## The model run, scenario by scenario\n\n" + model_table(gates.load("model.json")))
     parts.append(
         "## Every sampled mutant\n\n"
-        "All three samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
+        "All four samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
         "caught and by which run of the model: `tables` are the directed tests, `explore` is an exploration. "
-        "NOT CAUGHT marks a survivor, and each survivor is explained in the design document above.\n\n"
+        "NOT CAUGHT marks a mutant that the host model let through; each of those is explained in the design "
+        "document above, which also says what became of it when the changed kernel was booted in QEMU.\n\n"
         + mutants_table(
             gates.load("mutants.json"), gates.load("mutants-held-out.json"), gates.load("mutants-fresh.json"),
+            gates.load("mutants-unseen.json"),
         )
+    )
+    parts.append(
+        "## The surviving mutants in QEMU, as logged\n\n"
+        "The log of `python build.py mutants-qemu`: every mutant that the host model let through in any of the four "
+        "samples, built into the whole system and run against a shortened test suite in QEMU.\n\n```\n"
+        + "\n".join(claims.evidence_lines("mutants-qemu.log")).strip() + "\n```"
+    )
+    miri_log = claims.evidence_lines("miri.log")
+    shown = miri_log if len(miri_log) <= 2 * MIRI_LOG_LINES else [
+        *miri_log[:MIRI_LOG_LINES],
+        f"[... {len(miri_log) - 2 * MIRI_LOG_LINES} lines left out here; the whole log is evidence/miri.log ...]",
+        *miri_log[-MIRI_LOG_LINES:],
+    ]
+    parts.append(
+        "## The directed tests under Miri, as logged\n\n"
+        "The beginning and the end of the log of `python build.py miri`.\n\n```\n"
+        + "\n".join(shown).strip() + "\n```"
     )
     text = "\n\n".join(parts) + "\n"
     OUTPUT.write_text(text, encoding="utf-8", newline="\n")
