@@ -1,10 +1,10 @@
 {
- "date": "2026-11-12T06:38:07+00:00",
- "source_sha256": "679dfce0f05467fd5ecb4ebb4c5a3b544349468f4840f99f57efa6db6df59728",
+ "date": "2026-11-12T08:20:05+00:00",
+ "source_sha256": "bb874e6f0221295e8b0aa93f867acfe9473b6465916fcfc0d25f4776aae0adf6",
  "command": "model all",
  "target": "x86_64-pc-windows-gnu",
  "host": "Windows-10-10.0.19045-SP0",
- "duration_s": 73,
+ "duration_s": 91,
  "passed": true,
  "seeds": {
   "found": 44,
@@ -15,8 +15,8 @@
   "forged": 3
  },
  "tables": {
-  "passed": 201,
-  "total": 201
+  "passed": 217,
+  "total": 217
  },
  "total": {
   "scenarios": 5,

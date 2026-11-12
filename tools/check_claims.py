@@ -13,7 +13,7 @@ if there is none. It checks six things:
    in a paragraph, list item or table row that carries a source URL.
 4. A number in code formatting occurs as a literal in the source code or the build scripts.
 5. Every line of a log excerpt is a line of the raw log it was cut from.
-6. The figures of the model and of both samples of mutants were measured on the sources as
+6. The figures of the model and of all three samples of mutants were measured on the sources as
    they are now. Each of those results carries a fingerprint of every Rust file in
    kernel/src, abi/src and model/src; a result with another fingerprint is refused.
 """
@@ -230,13 +230,14 @@ def check_excerpts() -> tuple[list[Problem], int]:
 
 
 def check_fresh() -> list[Problem]:
-    """Rule 6: the model and both samples of mutants were run on the kernel and the model as they are now."""
+    """Rule 6: the model and all three samples of mutants were run on the kernel and the model as they are now."""
     fingerprint = claims.model_fingerprint()
     problems: list[Problem] = []
     for source, name, command in (
         (claims.MODEL, "model.json", "python build.py model"),
         (claims.MUTANTS, "mutants.json", "python build.py mutants"),
         (claims.MUTANTS_HELD_OUT, "mutants-held-out.json", "python build.py mutants --held-out"),
+        (claims.MUTANTS_FRESH, "mutants-fresh.json", "python build.py mutants --fresh"),
     ):
         if gates.load(name).get("source_sha256") != fingerprint:
             problems.append((

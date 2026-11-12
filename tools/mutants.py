@@ -1,6 +1,6 @@
 """Plant defects in a copy of the kernel and count how many the model catches.
 
-    python tools/mutants.py [--sample N] [--jobs N] [--held-out] [--only N,N,...]
+    python tools/mutants.py [--sample N] [--jobs N] [--held-out | --fresh] [--only N,N,...]
 
 Why. The model (model/src, `python build.py model`) reports no violation in the kernel. That
 says something only if it would have reported one, so this script breaks the kernel on
@@ -17,6 +17,11 @@ would catch elsewhere. --held-out takes the first site of each stretch instead o
 middle one: a second sample that shares no site with the first and that no test was
 written against. Its result goes to files of its own and is reported as it comes out.
 
+The fresh sample. Once tests have been aimed at the held-out sample too, it is held out
+no longer. --fresh takes the site three quarters of the way through each stretch: a third
+sample that shares no site with the other two. Whether a test was written against it is
+not something the script can know; the documents say when it was drawn.
+
 What counts. A changed kernel (a "mutant") is caught when a directed test or a scenario of
 the exploration fails, when the program stops with a panic, or when a check runs past its
 time limit. The checks are the ones `python build.py model` runs, with the same depths,
@@ -31,7 +36,8 @@ result whose fingerprint is not that of the sources as they are.
 
 Nothing in the repository is changed: the work happens in copies under build/mutants/.
 The result goes to evidence/mutants.json and evidence/mutants.log, or with --held-out to
-evidence/mutants-held-out.json and evidence/mutants-held-out.log. --only writes nothing.
+evidence/mutants-held-out.json and evidence/mutants-held-out.log, or with --fresh to
+evidence/mutants-fresh.json and evidence/mutants-fresh.log. --only writes nothing.
 """
 from __future__ import annotations
 
@@ -116,19 +122,23 @@ def sites() -> list[dict]:
     return found
 
 
-def positions(total: int, count: int, held_out: bool) -> list[int]:
+# Where in its stretch each sample takes its site, in quarters of the stretch.
+QUARTER = {"first": 2, "held-out": 0, "fresh": 3}
+
+
+def positions(total: int, count: int, which: str) -> list[int]:
     """Where a sample lies in the ordered list: one site from each of `count` equal stretches.
 
-    The first sample takes the middle site of each stretch, the held-out sample the first one.
+    The first sample takes the middle site of each stretch, the held-out sample the first one,
+    the fresh sample the one three quarters of the way through.
     """
-    place = 0 if held_out else 1
-    return [(2 * index + place) * total // (2 * count) for index in range(count)]
+    return [(4 * index + QUARTER[which]) * total // (4 * count) for index in range(count)]
 
 
-def sample(found: list[dict], count: int, held_out: bool = False) -> list[dict]:
+def sample(found: list[dict], count: int, which: str = "first") -> list[dict]:
     """`count` sites at even spacing, numbered from one."""
     count = min(count, len(found))
-    chosen = [dict(found[position]) for position in positions(len(found), count, held_out)]
+    chosen = [dict(found[position]) for position in positions(len(found), count, which)]
     for number, site in enumerate(chosen, start=1):
         site["number"] = number
     return chosen
@@ -253,21 +263,27 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=JOBS, help=f"how many copies to work in at once (default {JOBS})")
     parser.add_argument("--held-out", action="store_true",
                         help="take the second sample: the first site of each stretch, none shared with the first")
+    parser.add_argument("--fresh", action="store_true",
+                        help="take the third sample: three quarters of the way through each stretch")
     parser.add_argument("--only", default="", help="numbers of the sampled mutants to run; nothing is written")
     options = parser.parse_args()
+    if options.held_out and options.fresh:
+        print("mutants: stopped: --held-out and --fresh name two different samples; give one", flush=True)
+        return 1
+    which = "held-out" if options.held_out else "fresh" if options.fresh else "first"
 
     fingerprint = claims.model_fingerprint()
     found = sites()
     count = min(options.sample, len(found))
-    if set(positions(len(found), count, False)) & set(positions(len(found), count, True)):
-        print("mutants: stopped: the two samples would share a site; take a smaller --sample", flush=True)
+    drawn = [position for name in QUARTER for position in positions(len(found), count, name)]
+    if len(set(drawn)) != len(drawn):
+        print("mutants: stopped: two of the samples would share a site; take a smaller --sample", flush=True)
         return 1
-    chosen = sample(found, options.sample, options.held_out)
+    chosen = sample(found, options.sample, which)
     if options.only:
         wanted = {int(number) for number in options.only.split(",")}
         chosen = [site for site in chosen if site["number"] in wanted]
-    which = "held-out sample" if options.held_out else "first sample"
-    print(f"mutants: {len(found)} sites in {len(FILES)} kernel files, {len(chosen)} to try ({which}), "
+    print(f"mutants: {len(found)} sites in {len(FILES)} kernel files, {len(chosen)} to try ({which} sample), "
           f"{options.jobs} at a time", flush=True)
 
     waiting: queue.Queue = queue.Queue()
@@ -317,16 +333,17 @@ def main() -> int:
         return 0
     report = {
         "date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-        "command": "python build.py mutants" + (" --held-out" if options.held_out else "")
+        "command": "python build.py mutants" + ("" if which == "first" else f" --{which}")
                    + f" --sample {options.sample}",
         "held_out": options.held_out,
+        "fresh": options.fresh,
         "source_sha256": fingerprint,
         "files": [f"kernel/src/{name}" for name in FILES],
         "operators": OPERATORS,
         "summary": counts,
         "mutants": results,
     }
-    name = "mutants-held-out" if options.held_out else "mutants"
+    name = "mutants" if which == "first" else f"mutants-{which}"
     EVIDENCE.mkdir(exist_ok=True)
     (EVIDENCE / f"{name}.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8", newline="\n")
     log = [line_of(result) for result in results]

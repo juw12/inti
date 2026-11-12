@@ -7,7 +7,8 @@
     python build.py gates    build, test, and check every hard gate of rubric.md
     python build.py model    compile the kernel for this computer and run its model checks
     python build.py mutants  plant defects in a copy of the kernel, count how many the model catches
-                             (--held-out: a second sample of places, which no test was written against)
+                             (--held-out: a second sample of places; --fresh: a third, drawn after tests
+                             were aimed at the second, and which no test was written against)
     python build.py clean    remove build/ and target/
 
 Needs Rust with the i586-unknown-linux-gnu target and Python 3.9 or newer. Nothing else:

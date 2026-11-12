@@ -49,6 +49,7 @@ MODEL_MAIN = "model/src/main.rs"
 MUTANTS = "evidence/mutants.json"
 MUTANTS_BEFORE = "evidence/mutants-before-tests.log"
 MUTANTS_HELD_OUT = "evidence/mutants-held-out.json"
+MUTANTS_FRESH = "evidence/mutants-fresh.json"
 MUTANTS_PREVIOUS = "evidence/mutants-previous.json"
 
 FAULTS = {
@@ -728,24 +729,31 @@ def add_mutant_run(put: Put, prefix: str, table_name: str, mutants: dict, source
         put(f"{prefix}.{name}", count, f"{source}, as judged in tools/claims.py")
 
 
-def add_mutants(put: Put, mutants: dict, held_out: dict) -> None:
-    """The kernel broken on purpose, one place at a time: python build.py mutants, with and without --held-out."""
+def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict) -> None:
+    """The kernel broken on purpose, one place at a time: python build.py mutants, plain, --held-out and --fresh."""
     add_mutant_run(put, "mutants", "table.mutants_not_caught", mutants, MUTANTS, "python build.py mutants")
     add_mutant_run(
         put, "mutants.held_out", "table.mutants_held_out_not_caught", held_out, MUTANTS_HELD_OUT,
         "python build.py mutants --held-out",
     )
+    add_mutant_run(
+        put, "mutants.fresh", "table.mutants_fresh_not_caught", fresh, MUTANTS_FRESH,
+        "python build.py mutants --fresh",
+    )
 
     def identity(mutant: dict) -> tuple:
         return mutant["file"], mutant["line"], mutant["operator"], mutant["after"]
 
-    if {identity(mutant) for mutant in mutants["mutants"]} & {identity(mutant) for mutant in held_out["mutants"]}:
-        raise ValueError(f"{MUTANTS_HELD_OUT} shares a mutant with {MUTANTS}; it is not held out")
+    samples = ((MUTANTS, mutants), (MUTANTS_HELD_OUT, held_out), (MUTANTS_FRESH, fresh))
+    for index, (source, run) in enumerate(samples):
+        for other_source, other in samples[index + 1:]:
+            if {identity(mutant) for mutant in run["mutants"]} & {identity(mutant) for mutant in other["mutants"]}:
+                raise ValueError(f"{other_source} shares a mutant with {source}; the samples must be disjoint")
 
     # A note that belongs to no surviving mutant has outlived what it describes.
     alive = {
         survivor_key(mutant)
-        for run in (mutants, held_out)
+        for run in (mutants, held_out, fresh)
         for mutant in run["mutants"]
         if mutant["verdict"] == "not caught"
     }
@@ -761,7 +769,7 @@ def add_mutants(put: Put, mutants: dict, held_out: dict) -> None:
     for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
         put(f"mutants.before.{key}", int(value), MUTANTS_BEFORE)
 
-    # Both samples are positions in the list of places, so they are drawn anew whenever that list changes. How
+    # All samples are positions in the list of places, so they are drawn anew whenever that list changes. How
     # many of the places tried now were also tried a round ago is counted here and not guessed. A place is matched
     # by file, kind of change and the text of the line; identical lines can match each other, so these are upper
     # bounds.
@@ -776,7 +784,7 @@ def add_mutants(put: Put, mutants: dict, held_out: dict) -> None:
     def place(mutant: dict) -> tuple:
         return mutant["file"], mutant["operator"], mutant["before"].strip()
 
-    for prefix, run in (("mutants", mutants), ("mutants.held_out", held_out)):
+    for prefix, run in (("mutants", mutants), ("mutants.held_out", held_out), ("mutants.fresh", fresh)):
         for name in ("first", "held_out", "held_out_not_caught"):
             known = {tuple(item) for item in previous[name]}
             count = sum(1 for mutant in run["mutants"] if place(mutant) in known)
@@ -816,7 +824,9 @@ def collect() -> dict[str, dict]:
         NONX_SERIAL_LOG.read_text(encoding="utf-8").splitlines(),
     )
     add_model(put, gates.load("model.json"))
-    add_mutants(put, gates.load("mutants.json"), gates.load("mutants-held-out.json"))
+    add_mutants(
+        put, gates.load("mutants.json"), gates.load("mutants-held-out.json"), gates.load("mutants-fresh.json"),
+    )
     return claims
 
 

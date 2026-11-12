@@ -125,8 +125,8 @@ def model_table(model: dict) -> str:
     return claims.table(["Measure", *[f"`{scenario['name']}`" for scenario in scenarios]], rows)
 
 
-def mutants_table(first: dict, held_out: dict) -> str:
-    """Both samples side by side: mutant N of each comes from stretch N of the same ordered list of places."""
+def mutants_table(first: dict, held_out: dict, fresh: dict) -> str:
+    """The samples side by side: mutant N of each comes from stretch N of the same ordered list of places."""
 
     def place(mutant: dict) -> str:
         change = mutant["operator"].replace("|", "\\|")
@@ -138,10 +138,10 @@ def mutants_table(first: dict, held_out: dict) -> str:
         return f"{mutant['how']}, {mutant['by']}"
 
     return claims.table(
-        ["Stretch", "First sample", "Outcome", "Held-out sample", "Outcome"],
+        ["Stretch", "First sample", "Outcome", "Second sample", "Outcome", "Fresh sample", "Outcome"],
         [
-            [one["number"], place(one), outcome(one), place(other), outcome(other)]
-            for one, other in zip(first["mutants"], held_out["mutants"], strict=True)
+            [one["number"], place(one), outcome(one), place(two), outcome(two), place(three), outcome(three)]
+            for one, two, three in zip(first["mutants"], held_out["mutants"], fresh["mutants"], strict=True)
         ],
     )
 
@@ -193,10 +193,12 @@ def main() -> int:
     parts.append("## The model run, scenario by scenario\n\n" + model_table(gates.load("model.json")))
     parts.append(
         "## Every sampled mutant\n\n"
-        "Both samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
+        "All three samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
         "caught and by which run of the model: `tables` are the directed tests, `explore` is an exploration. "
         "NOT CAUGHT marks a survivor, and each survivor is explained in the design document above.\n\n"
-        + mutants_table(gates.load("mutants.json"), gates.load("mutants-held-out.json"))
+        + mutants_table(
+            gates.load("mutants.json"), gates.load("mutants-held-out.json"), gates.load("mutants-fresh.json"),
+        )
     )
     text = "\n\n".join(parts) + "\n"
     OUTPUT.write_text(text, encoding="utf-8", newline="\n")

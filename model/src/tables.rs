@@ -11,7 +11,7 @@ use crate::arch::{self, KERNEL_MAP};
 use crate::mem::{frame_of, user_range, FOREIGN, NX, RW, US};
 use crate::task::{link, Cap, State, CPU_WINDOW_TICKS, IDLE, NONE, ORIGINAL};
 use crate::world::{
-    elf_headers, Spawn, World, BUFFER, CHILD_FRAMES, FAULT_BADGE, IMAGE_SIZE, LARGE, ROOT_FRAMES, SMALL,
+    elf_headers, Spawn, World, BUFFER, CHILD_FRAMES, FAULT_BADGE, IMAGE_SIZE, LARGE, ROOT_FRAMES, SMALL, TICK,
 };
 use crate::{get32, put32};
 use abi::nr;
@@ -269,6 +269,23 @@ fn clock_and_timeouts(tally: &mut Tally) {
     w.pass(20_000);
     let slept = asleep.is_none() && still && woke_with(&w, 0, 0);
     tally.check("a task that sleeps 30 ms is asleep after 20 ms and awake after 40 ms", slept);
+
+    // The deadline is set by hand, so that one tick falls a microsecond short of it and the
+    // next one exactly on it.
+    let asleep = w.sleep(0, 1000);
+    arch::with(|machine| machine.advance(TICK));
+    let now = arch::with(|machine| machine.micros());
+    w.k.tasks[0].deadline = now + 1;
+    w.interrupt(0);
+    let early = w.k.tasks[0].state == State::Sleep;
+    arch::with(|machine| machine.advance(TICK));
+    let now = arch::with(|machine| machine.micros());
+    w.k.tasks[0].deadline = now;
+    w.interrupt(0);
+    tally.check(
+        "a sleeper is left asleep a microsecond before its deadline, and woken by the tick that falls exactly on it",
+        asleep.is_none() && early && woke_with(&w, 0, 0),
+    );
 
     let created = w.ep_create(0);
     let waiting = w.call(0, 6, NO_CAP, 50);
@@ -670,6 +687,30 @@ fn reports(tally: &mut Tally) {
         "after another exception the message names no address, whatever the last page fault left behind",
         told && get32(&notice, 0) == L_FAULT && words == [13, 0, eip, 0],
     );
+
+    // What a task used, told with the news of its end. The task that never listens is ended
+    // first, so that the next one is alone on the processor while the root task sleeps.
+    w.fault(plain, 0x10);
+    let Ok(third) = w.spawn_task(0, &listening) else {
+        tally.check("a third task starts", false);
+        return;
+    };
+    w.time(third);
+    w.sleep(0, 50);
+    w.pass(60_000);
+    let (calls, ticks) = (w.k.tasks[third].syscalls, w.k.tasks[third].cpu_ticks);
+    w.fault(third, 0xDEAD_B000);
+    let told = w.syscall(0, nr::RECV, [6, BUFFER, FOREVER, 0]) == Some(0);
+    let mut used = [0; MSG_HEADER + 8];
+    w.peek(0, BUFFER, &mut used);
+    println!("  note  the task that ended had made {calls} system call(s) and run for {ticks} timer tick(s)");
+    tally.check(
+        "the message also carries the system calls the task made and, after them, the timer ticks it ran for",
+        told && ticks > 0
+            && ticks != calls
+            && get32(&used, MSG_HEADER) == calls
+            && get32(&used, MSG_HEADER + 4) == ticks,
+    );
     tally.sound(&mut w, "the state afterwards is sound");
 }
 
@@ -939,10 +980,12 @@ fn counts(tally: &mut Tally) {
         "a system call that is refused is counted once",
         refused.is_some_and(|result| result < 0) && w.k.stats.syscalls == calls.wrapping_add(2),
     );
+    let spawns = w.k.stats.spawns;
     let Ok(child) = w.spawn_task(0, &Spawn::PLAIN) else {
         tally.check("a task starts", false);
         return;
     };
+    tally.check("a task that is started is counted once", w.k.stats.spawns == spawns.wrapping_add(1));
     let faults = w.k.stats.faults;
     w.fault(child, 0x10);
     tally.check("a page fault of a task is counted once", w.k.stats.faults == faults.wrapping_add(1));
@@ -969,6 +1012,139 @@ fn counts(tally: &mut Tally) {
              at {expected} thousandths of it: {ran}"
         ),
         asleep && ended && ran == expected,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+// ---- Places that a changed kernel got through unnoticed in round 4 ----------------------------
+
+/// A sender that waits with a capability to hand over, and loses the grant right meanwhile.
+fn grant_taken_from_a_waiting_sender(tally: &mut Tally) {
+    tally.section("A waiting sender that loses the right to hand a capability over");
+    for revoked in [false, true] {
+        let mut w = World::boot(SMALL, true);
+        let made = w.ep_create(0);
+        let Cap::Endpoint { ep, .. } = held(&w, made) else {
+            tally.check("the root task holds an endpoint", false);
+            return;
+        };
+        let plain = slot_of(w.derive(0, 6, R_SEND, 0, 0));
+        let granting = slot_of(w.derive(0, 6, R_SEND | R_GRANT, 0, 0));
+        let offered = slot_of(w.derive(0, 6, R_SEND, 0, 0));
+        let (Some(plain), Some(granting), Some(offered)) = (plain, granting, offered) else {
+            tally.check("three capabilities are derived", false);
+            return;
+        };
+        let Ok(client) = w.spawn_task(0, &Spawn::PLAIN.with_caps(&[plain, granting, offered])) else {
+            tally.check("a client starts", false);
+            return;
+        };
+        let blocked = w.call(client, 1, 2, FOREVER).is_none() && w.k.tasks[client].state == State::Send(ep);
+        let taken = !revoked || w.revoke(0, granting) == Some(0);
+        let still = w.k.tasks[client].state == State::Send(ep);
+        let lost = w.k.tasks[client].caps[1] == Cap::Null;
+        let before = w.caps();
+        let received = w.recv(0, 6, 0);
+        if revoked {
+            tally.check(
+                "a sender whose granting capability is revoked while it waits stays in the queue,                  for it still holds a plain one",
+                blocked && taken && still && lost,
+            );
+            tally.check(
+                "when its turn comes it is refused (E_PERM); the receiver gets no message and no capability",
+                woke_with(&w, client, E_PERM) && received == Some(E_TIMEOUT) && w.caps() == before,
+            );
+        } else {
+            tally.check(
+                "a sender that keeps its granting capability hands the offered one over with its message",
+                blocked && taken && still && !lost && received == Some(0) && w.caps() == before + 1
+                    && matches!(w.k.tasks[client].state, State::Reply(_)),
+            );
+        }
+        tally.sound(&mut w, "the state afterwards is sound");
+    }
+}
+
+/// Device memory held in two pieces: each capability covers its own frames and no frame more.
+fn device_memory_ends_where_it_ends(tally: &mut Tally) {
+    tally.section("Where a piece of device memory ends");
+    let mut w = World::boot(SMALL, true);
+    let Cap::Memory { page: screen, .. } = w.k.tasks[0].caps[4] else {
+        tally.check("the root task holds the screen's memory", false);
+        return;
+    };
+    let lower = slot_of(w.derive(0, 4, 0, 1, 1));
+    let upper = slot_of(w.derive(0, 4, 1, 1, 1));
+    let (Some(lower), Some(upper)) = (lower, upper) else {
+        tally.check("two one-page pieces are derived", false);
+        return;
+    };
+    let Ok(child) = w.spawn_task(0, &Spawn::PLAIN.with_caps(&[lower, upper])) else {
+        tally.check("a task starts with both pieces", false);
+        return;
+    };
+    let task = &w.k.tasks[child];
+    tally.check(
+        "a task with the first two pages holds the last byte of the second, and nothing of the page after it",
+        task.has_memory((screen + 2) * PAGE - 1, true) && !task.has_memory((screen + 2) * PAGE, false),
+    );
+    let pd = w.k.tasks[child].pd;
+    let mapped = w.map_mem(child, 1, DEVICE_VA, 0, 1 | MAP_WRITE) == Some(0);
+    let placed = w.k.mem.lookup(pd, DEVICE_VA).map(frame_of) == Some((screen + 1) * PAGE);
+    tally.check("the second piece maps the second page", mapped && placed);
+    let dropped = w.drop_cap(child, 1) == Some(0);
+    tally.check(
+        "when that piece is dropped its page is unmapped, though the task still holds the page before it",
+        dropped && w.k.mem.lookup(pd, DEVICE_VA).is_none() && w.k.tasks[child].has_memory(screen * PAGE, true),
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// Segments that do not begin at the first page, or not at the start of a page.
+fn segments_off_the_first_page(tally: &mut Tally) {
+    tally.section("Programs whose segment is not at the start of the first page");
+    const INSIDE: u32 = 0x11;
+    let mut w = World::boot(SMALL, true);
+    let mapped = w.map(0, HEAP, 1, true) == Some(0);
+
+    let mut second = vec![0; IMAGE_SIZE as usize];
+    elf_headers(&mut second, IMAGE_SIZE, IMAGE_SIZE);
+    put32(&mut second, 24, USER_BASE + PAGE + 84);
+    put32(&mut second, 52 + 8, USER_BASE + PAGE);
+    put32(&mut second, 52 + 12, USER_BASE + PAGE);
+    let placed = mapped && w.poke(0, HEAP + 0x100, &second);
+    let started = slot_of(w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, IMAGE_SIZE));
+    let Some(slot) = started else {
+        tally.check("a program whose segment is on the second page starts", false);
+        return;
+    };
+    let child = w.child(0, slot);
+    let pd = w.k.tasks[child].pd;
+    let mut loaded = vec![0; IMAGE_SIZE as usize];
+    let read = w.peek(child, USER_BASE + PAGE, &mut loaded);
+    tally.check(
+        "a program whose segment is on the second page is loaded there, and the first page stays unmapped",
+        placed && w.k.mem.lookup(pd, USER_BASE).is_none() && read && loaded == second,
+    );
+    tally.check("it is charged the same frames as any small program", w.k.tasks[child].charged == CHILD_FRAMES);
+
+    let mut inside = vec![0; IMAGE_SIZE as usize];
+    elf_headers(&mut inside, IMAGE_SIZE, IMAGE_SIZE);
+    put32(&mut inside, 52 + 8, USER_BASE + INSIDE);
+    put32(&mut inside, 52 + 12, USER_BASE + INSIDE);
+    let placed = mapped && w.poke(0, HEAP + 0x100, &inside);
+    let started = slot_of(w.spawn_from(0, &Spawn::PLAIN, HEAP + 0x100, IMAGE_SIZE));
+    let Some(slot) = started else {
+        tally.check("a program whose segment starts inside a page starts", false);
+        return;
+    };
+    let child = w.child(0, slot);
+    let mut page = vec![0xFF; (INSIDE + IMAGE_SIZE) as usize];
+    let read = w.peek(child, USER_BASE, &mut page);
+    let (gap, body) = page.split_at(INSIDE as usize);
+    tally.check(
+        "a segment that starts inside a page is loaded at its address, and the bytes before it are zero",
+        placed && read && gap.iter().all(|&byte| byte == 0) && body == inside.as_slice(),
     );
     tally.sound(&mut w, "the state afterwards is sound");
 }
@@ -1193,6 +1369,9 @@ pub fn run() -> bool {
     derived_powers(&mut tally);
     refused_programs(&mut tally);
     counts(&mut tally);
+    grant_taken_from_a_waiting_sender(&mut tally);
+    device_memory_ends_where_it_ends(&mut tally);
+    segments_off_the_first_page(&mut tally);
     checker_sensitivity(&mut tally);
     let total = tally.passed + tally.failed;
     println!("MODEL tables: {} {}/{total}", if tally.failed == 0 { "PASS" } else { "FAIL" }, tally.passed);
