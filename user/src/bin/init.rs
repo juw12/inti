@@ -149,7 +149,7 @@ fn need<T>(result: Result<T, i32>, what: &str) -> T {
 /// that writer, and `init` hands it each line as a request. From the moment the console
 /// has ended or has missed a ping, until a new one runs or the old one answers again,
 /// `init` writes through the kernel log instead. A console that stops answering without
-/// being noticed yet costs `init` one wait of `REPORT_WAIT_MS`, once (see `rt::io`).
+/// being noticed yet costs `init` one wait of `REPORT_WAIT_MS`, once (see `rt::client`).
 fn report_through_console(console: u32, answering: bool) {
     if answering {
         set_output(Sink::Report { console, log: LOG });

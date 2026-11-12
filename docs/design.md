@@ -19,21 +19,21 @@ ring 0   kernel: memory, tasks, messages, capabilities, interrupts
 
 | Kernel source file | Lines of code |
 |---|---|
-| `kernel/src/arch.rs` | 321 |
-| `kernel/src/check.rs` | 268 |
+| `kernel/src/arch.rs` | 326 |
+| `kernel/src/check.rs` | 272 |
 | `kernel/src/elf.rs` | 96 |
 | `kernel/src/frame.rs` | 58 |
 | `kernel/src/ipc.rs` | 189 |
 | `kernel/src/main.rs` | 155 |
 | `kernel/src/mem.rs` | 426 |
-| `kernel/src/sys.rs` | 414 |
-| `kernel/src/task.rs` | 589 |
+| `kernel/src/sys.rs` | 422 |
+| `kernel/src/task.rs` | 646 |
 | `abi/src/archive.rs` | 26 |
-| `abi/src/lib.rs` | 212 |
+| `abi/src/lib.rs` | 218 |
 | `abi/src/mem.rs` | 99 |
-| total | 2,853 |
+| total | 2,933 |
 
-The gate limit for the kernel is 4,000 lines, counted without blank lines and comments. The boot sector is another 127 lines and user space 4,622.
+The gate limit for the kernel is 4,000 lines, counted without blank lines and comments. The boot sector is another 127 lines and user space 4,869.
 
 ## Boot
 
@@ -43,21 +43,21 @@ The kernel (`kernel/src/main.rs`) sets up its descriptor tables, the interrupt c
 
 ```log
 Inti 0.1.0 kernel
-kernel: 552 KiB kernel and archive, 62 MiB for user space
+kernel: 560 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 15555 pages
-Inti 0.1.0 shell ready at t=18433 us
+init: started shell with 11 capabilities, 15553 pages
+Inti 0.1.0 shell ready at t=18801 us
 Type help for the list of commands, or tour for a guided tour.
 ```
 
-The prompt appeared 18.4 ms after the kernel started, by the system's own clock, and 335 ms after the test script started the emulator.
+The prompt appeared 18.8 ms after the kernel started, by the system's own clock, and 182 ms after the test script started the emulator.
 
 | Part of the disk image | Bytes |
 |---|---|
 | boot sector | 512 |
-| kernel | 69,856 |
+| kernel | 70,272 |
 | `bench` | 12,288 |
 | `console` | 12,288 |
 | `fs` | 8,192 |
@@ -65,7 +65,7 @@ The prompt appeared 18.4 ms after the kernel started, by the system's own clock,
 | `hello` | 8,192 |
 | `init` | 16,384 |
 | `rogue` | 12,288 |
-| `selftest` | 69,632 |
+| `selftest` | 77,824 |
 | `shell` | 28,672 |
 | `tchild` | 12,288 |
 | `readme.txt` | 1,007 |
@@ -81,11 +81,27 @@ The prompt appeared 18.4 ms after the kernel started, by the system's own clock,
 
 ## Tasks
 
-A task is an address space, one thread of execution, a table of capabilities and three quotas: memory, tasks and endpoints. Scheduling is round-robin, and a timer interrupt every 10 ms pre-empts a task that does not yield. Tasks form a tree: a task that ends takes its children with it, and its parent receives a message from the kernel that says how it ended (its exit code, or the processor exception and the address). An exception in ring 3 only ever ends the task that caused it.
+A task is an address space, one thread of execution, a table of capabilities, three quotas (memory, tasks and endpoints) and a share of the processor. Scheduling is round-robin among the ready tasks that are within their share, and a timer interrupt every 10 ms pre-empts a task that does not yield. Tasks form a tree: a task that ends takes its children with it, and its parent receives a message from the kernel that says how it ended (its exit code, or the processor exception and the address). An exception in ring 3 only ever ends the task that caused it.
 
 Every quota is lent, never created. A parent gives a child part of its own memory, task and endpoint quota when it starts it, and gets all of it back when the child has ended and the parent has taken the notice. Starting a task costs one unit of task quota and creating an endpoint one unit of endpoint quota; a task that has none left is refused with `E_NOSLOT`. An endpoint is paid for by the task that created it until its last capability is gone, and by that task's parent if the creator ends first. The quotas of all living tasks add up to the sizes of the two kernel tables (32 tasks, 64 endpoints), so a program can use up its own share and nothing else. `init` lends the shell part of its quota and keeps the rest, which is what it restarts the servers with.
 
-The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 1.0001 of real time while idle and 0.9992 during the fuzz run.
+A share of the processor is a percentage from one to 100. A task gets its parent's share or a smaller one when it is started (word 26 of the `spawn` request; zero means the parent's), and nothing raises it afterwards. At every switch the kernel reads the processor's cycle counter and charges the cycles to the task that ran and to every task above it in the tree, so a task's count covers everything it started: starting children, or starting them again and again, does not escape the count. Time is cut into windows of 100 timer interrupts, one second. A task is over its share when it, or a task above it, has used its percentage of the previous window's cycles in the current window, and the scheduler picks such a task only when no ready task is within its share. A share is therefore a promise to everybody else and not a ceiling: it never leaves the processor idle, and a group that is over its share still runs when nobody else wants to. `init` gives the shell and everything started from it 80%, so the servers and `init` itself come first once the shell's programs have had that much of a second.
+
+In QEMU the self-test starts three tasks that never yield, once with a share of 20% and once with no share of their own, and counts its own work beside them. It kept 65% of its speed beside the held group and 24% beside the free one; the kernel charged the groups 35% and 75% of a second. The run after all the injected faults gave 62% and 23%, with 34% and 75% charged. The held group is charged more than its 20% by design, not by error: the self-test runs under the shell, and once the shell's tree has used its 80% of a window every task in it is over a share, none is preferred, and the four tasks split what is left of the second evenly again.
+
+```log
+  ok   a child gets its parent's share of the processor or a smaller one, never a larger
+       beside three spinning tasks this program kept 65% of its speed when they
+       shared 20% of the processor, and 24% when they had no share of their own;
+       the kernel charged the group 35% and 75% of a second
+       rounds alone in half a second: 67792, 65179 and 64774; in two
+       seconds beside the groups: 178249 and 66280
+  ok   three spinning tasks with a 20% share leave the rest of the processor to others
+```
+
+What a share does not do: a server's work for a client is charged to the server, not to the client (no donation across a call); no share is enforced in the first second after boot, because there is no previous window to measure against; time the kernel spends in a system call is charged to the caller; a task can overrun by up to one timer period (10 ms) per window before the kernel looks again; and the usage that `sysinfo` reports is that of the last full window, in thousandths, not of the current one.
+
+The clock is channel 2 of the 8254 timer, running free. It has a resolution of 838 ns and wraps every 54.9 ms; the kernel extends it to a count of microseconds since boot. Checked against the host's clock during the test run, it ran at 0.9992 of real time while idle and 0.9202 during the fuzz run.
 
 ## Capabilities
 
@@ -106,7 +122,7 @@ The rules:
 - A task starts with the capabilities its parent chose to copy into it, at most 16, and nothing else. `init` starts with all of them.
 - `cap_derive` copies a capability with the same rights and range, or less: fewer rights, a smaller range of ports, fewer interrupt lines, fewer pages, read-only instead of writable. Nothing widens a capability. Every copy remembers which capability it was made from.
 - A holder of the grant right can stamp a badge on a copy, once. The kernel puts the badge of the capability that was used into every message, so a server knows which client is calling without trusting what the client says about itself.
-- `cap_revoke` takes back every copy that was made of a capability, and every copy of those copies, in every task, while the holders keep running. What a holder had only through such a copy goes with it: a task waiting on the endpoint is woken with `E_NOCAP`, device memory is unmapped, an interrupt line is unbound. The capability that was revoked from stays. `cap_drop` is different: it gives up one capability and leaves its copies alone, linked one step further up, so they can still be revoked from there.
+- `cap_revoke` takes back every copy that was made of a capability, and every copy of those copies, in every task, while the holders keep running. What a holder had only through such a copy goes with it: a task waiting on the endpoint is woken with `E_NOCAP`, device memory is unmapped, an interrupt line is unbound. The capability that was revoked from stays. That is enough for a server to take back one client's access and leave the others': it derives one capability per client from its endpoint (`cap_derive`, each with its own badge), hands each client a copy of its own, and later revokes from the derived capability of the client it wants to cut off. The self-test does exactly this with two clients and then lets the first one in again. `cap_drop` is different: it gives up one capability and leaves its copies alone, linked one step further up, so they can still be revoked from there.
 - A capability can travel in a message, under the grant rule described under Messages. The copy that arrives is linked to the sender's, so delegation never puts a capability out of reach of revocation.
 - No system call takes a global name. There are no process ids, no paths and no physical addresses in the interface: what a task was not given, it cannot even mention.
 - The ports of the interrupt controllers, the timer and the speaker gate stay with the kernel. It refuses them even to a task whose capability covers them.
@@ -165,9 +181,11 @@ This is the complete kernel interface: 22 calls through interrupt vector `0x80`.
 
 ## Drivers and servers
 
-- **`console`** drives the screen, the keyboard and the serial port. It holds its request endpoint, the serial ports `0x3F8` to `0x3FF`, the keyboard data port `0x60`, the cursor ports `0x3D4` and `0x3D5`, two interrupt lines and one page of screen memory. It does not hold the keyboard controller's command port `0x64`, which can reset the machine.
+- **`console`** drives the screen, the keyboard and the serial port. It holds its request endpoint, the serial ports `0x3F8` to `0x3FF`, the keyboard data port `0x60`, the cursor ports `0x3D4` and `0x3D5`, two interrupt lines and one page of screen memory. It does not hold the keyboard controller's command port `0x64`, which can reset the machine; after start-up no task does, `init` included, and the self-test walks every task's capabilities to check it.
 - **`fs`** serves the files of the boot archive. It holds its request endpoint and the archive as read-only memory. It keeps no state between requests, so a restart loses nothing.
 - **`shell`** is the command line. A program it starts gets one capability, the right to send text to the console, and a small memory quota. The test programs (`selftest`, `fuzz`, `bench`) get a few more, listed at the top of their source files.
+
+The serial line has one writer at a time. While a console driver is running and answering, `init` does not write its reports through the kernel log; it hands each line to the console as a request (`CON_REPORT`, which goes to the serial port only and is accepted only from the supervisor's badge), with a limit of 100 ms and no retry. When there is no console, or it does not answer, `init` writes through the kernel log as before. The kernel itself writes to the serial port at boot, on a panic and when it starts user space again, and for a task that holds the log capability and asks (the self-test writes one line that way to test the call).
 
 Each server gets a memory quota of 64 pages.
 
@@ -182,11 +200,11 @@ Each server gets a memory quota of 64 pages.
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 6.6 ms | 6.3 to 8.2 ms | 11 ms | 2.3 ms |
-| file server crashes (page fault) | 5 | 3.1 ms | 2.5 to 3.2 ms | 6 ms | 1.4 ms |
-| console driver hangs (stops answering) | 5 | 758 ms | 737 to 798 ms | 762 ms | 1.7 ms |
-| file server hangs (stops answering) | 5 | 752 ms | 731 to 789 ms | 755 ms | 1.0 ms |
-| file server hangs right after a restart | 3 | 1205 ms | 1187 to 1265 ms | 1208 ms | 1.0 ms |
+| console driver crashes (page fault) | 5 | 5.3 ms | 4.1 to 9.5 ms | 9 ms | 1.9 ms |
+| file server crashes (page fault) | 5 | 2.3 ms | 1.9 to 22.5 ms | 4 ms | 1.1 ms |
+| console driver hangs (stops answering) | 5 | 753 ms | 660 to 763 ms | 758 ms | 1.4 ms |
+| file server hangs (stops answering) | 5 | 754 ms | 674 to 785 ms | 777 ms | 0.7 ms |
+| file server hangs right after a restart | 3 | 1191 ms | 1171 to 1203 ms | 1193 ms | 1.2 ms |
 
 "Until the service answers again" is measured by the shell on the system's clock, from just before it injects the fault to the first answer from the new copy. "Host stopwatch" is the same interval timed by the test script from outside, including the serial line. "Supervisor restart" is the time `init` reports between noticing the end and having started the new copy.
 
@@ -196,22 +214,22 @@ A hang, as the serial port recorded it:
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 451 us (restart 6)
-RECOVERY: fs hang -> answering again after 733712 us
+init: fs restarted after 14016 us (restart 6)
+RECOVERY: fs hang -> answering again after 674009 us
 ```
 
-Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of 5 runs, and that the shell and a file listing answer afterwards. The file server answered again after 50.6 ms and the console driver after 626 ms (medians):
+Two failures at once. `double` makes the console driver hang and then, while `init` is waiting for that driver to answer a ping, makes the file server crash. `init` gets the notice of the crash between two slices of its wait, says so, restarts the file server and goes on waiting for the console driver until its time is up. The test script requires these lines in this order in each of 5 runs, and that the shell and a file listing answer afterwards. The file server answered again after 39.6 ms and the console driver after 633 ms (medians):
 
 ```log
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 2372 us (restart 17)
+init: fs restarted after 1699 us (restart 17)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
-init: console restarted after 564 us (restart 11)
 [console restarted]
-DOUBLE FAILURE: fs answering again after 50666 us, console after 823812 us
+init: console restarted after 1147 us (restart 11)
+DOUBLE FAILURE: fs answering again after 29327 us, console after 615294 us
 ```
 
 A crash loop. The third and fourth quick ends in a row were delayed by 100 ms and 200 ms:
@@ -220,26 +238,26 @@ A crash loop. The third and fourth quick ends in a row were delayed by 100 ms an
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 3 times in a row; next restart in 100 ms
-init: fs restarted after 120508 us (restart 27)
-RECOVERY: fs crash -> answering again after 122082 us
+init: fs restarted after 112792 us (restart 27)
+RECOVERY: fs crash -> answering again after 115146 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 4 times in a row; next restart in 200 ms
-init: fs restarted after 232808 us (restart 28)
-RECOVERY: fs crash -> answering again after 234488 us
+init: fs restarted after 241374 us (restart 28)
+RECOVERY: fs crash -> answering again after 243113 us
 ```
 
-The supervisor crashing. The kernel had user space running again 18 ms later on the host's stopwatch:
+The supervisor crashing. The kernel had user space running again 22 ms later on the host's stopwatch:
 
 ```log
 inti> crash init
 Crashing the root task. The kernel will start user space again.
-kernel: the root task ended (cause 0xe); restarting user space at t=111746282 us
+kernel: the root task ended (cause 0xe); restarting user space at t=149732120 us
+[user space restarted]
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 15555 pages
-[user space restarted]
-Inti 0.1.0 shell ready at t=111756903 us
+init: started shell with 11 capabilities, 15553 pages
+Inti 0.1.0 shell ready at t=149746371 us
 Type help for the list of commands, or tour for a guided tour.
 ```
 
@@ -248,8 +266,8 @@ What the shell's `svc` command showed at the end of the test run:
 ```log
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up           17  killed                    487 us
-fs        up           28  page fault                232808 us
+console   up           17  killed                    365 us
+fs        up           28  page fault                241374 us
 shell     up            0  -
 ```
 
@@ -283,15 +301,16 @@ shell     up            0  -
 24. A task that waits for a message still owns the writable buffer it named, so the kernel can deliver into it later.
 25. A page table maps at least one page: one that maps nothing has been given back.
 26. A capability for memory, an interrupt line or I/O ports lies within what the kernel handed out at boot.
+27. A task's share of the processor is between one percent and 100% and never above the share of the task that started it.
 
 After the whole test run, with every injected fault and the fuzz run behind it, the checker still reported that all rules hold:
 
 ```log
 inti> uptime
-up 202.474 s, 20247 timer interrupts
-4 tasks, 4 endpoints, 1801838 system calls, 256238 task switches
-20450 device interrupts, 909 faults contained
-5744 tasks started, 0 kernel anomalies
+up 263.605 s, 24285 timer interrupts
+4 tasks, 4 endpoints, 2697319 system calls, 259390 task switches
+24507 device interrupts, 840 faults contained
+5965 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 ```
 
@@ -301,46 +320,47 @@ Everything runs in QEMU from one script, `tools/test.py`, which talks to the she
 
 | Check | Result | Measured |
 |---|---|---|
-| boots from its own boot sector to the shell prompt within 20 s | pass | 335 ms after QEMU started |
+| boots from its own boot sector to the shell prompt within 20 s | pass | 182 ms after QEMU started |
 | the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |
-| selftest after boot | pass | SELFTEST: PASS 90/90 |
+| selftest after boot | pass | SELFTEST: PASS 94/94 |
 | the selftest's line written through the Log capability is in the kernel log | pass |  |
-| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 50/50 attempts denied |
+| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 51/51 attempts denied |
 | rogue all: the kernel invariants hold afterwards | pass |  |
-| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 49/49 attempts denied, 1 skipped |
+| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 50/50 attempts denied, 1 skipped |
 | the system is still up after the hostile program (ls answers) | pass |  |
-| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 6571 us, worst 8238 us |
-| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 3053 us, worst 3246 us |
-| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 758176 us, worst 797745 us |
-| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 751960 us, worst 789189 us |
-| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1205276 us, worst 1264773 us |
-| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 50598 us, console 626121 us |
-| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8335 ms |
+| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 5295 us, worst 9533 us |
+| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 2257 us, worst 22477 us |
+| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 752828 us, worst 763377 us |
+| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 754144 us, worst 785493 us |
+| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1190709 us, worst 1202967 us |
+| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 39600 us, console 632946 us |
+| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8236 ms |
 | a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |
-| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 18 ms later (host time) |
+| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 22 ms later (host time) |
 | fuzz: the report is complete | pass |  |
-| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1002983 random system calls from 2078 tasks in 76621 ms; FUZZ: 4212 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
+| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1002269 random system calls from 2123 tasks in 94441 ms; FUZZ: 4287 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |
 | bench runs to the end | pass | 6 results |
-| selftest after all faults | pass | SELFTEST: PASS 90/90 |
+| selftest after all faults | pass | SELFTEST: PASS 94/94 |
 | keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |
-| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 1.0001 |
-| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 1801838 system calls, 909 faults contained, 5744 tasks started |
+| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 0.9992 |
+| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2697319 system calls, 840 faults contained, 5965 tasks started |
 | shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |
 | no kernel panic anywhere in the serial log | pass |  |
 | without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |
-| without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed | pass | SELFTEST: PASS 87/87, 3 skipped |
-| without the no-execute bit: the hostile program reports each execute attempt as not denied and every other attempt as denied | pass | ROGUE: 47/50 attempts denied |
+| without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed | pass | SELFTEST: PASS 91/91, 3 skipped |
+| without the no-execute bit: the hostile program reports each execute attempt as not denied and every other attempt as denied | pass | ROGUE: 48/51 attempts denied |
 | without the no-execute bit: the kernel invariants hold after the hostile program | pass |  |
 | without the no-execute bit: the system is still up (ls answers) | pass |  |
 | without the no-execute bit: no kernel panic anywhere in the serial log | pass |  |
 
-- **`selftest`** is an ordinary program that checks 90 promises of the kernel from user space: arguments, capabilities, messages, revocation, delegation, memory, tasks and faults, quotas, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
-- **`rogue`** is the hostile program described in [weaknesses and sources](weaknesses.md). Its 50 attempts are 29 through the system call interface, each tried with every one of its capability slots where a slot is needed, and 21 directly on the hardware, one fresh task per attempt.
+- **`selftest`** is an ordinary program that checks 94 promises of the kernel from user space: arguments, capabilities, messages, revocation, delegation, memory, tasks and faults, quotas, shares of the processor, who holds which hardware, time and files. It runs after boot and again after all the injected faults. The complete list is its output, below.
+- **`rogue`** is the hostile program described in [weaknesses and sources](weaknesses.md). Its 51 attempts are 30 through the system call interface, each tried with every one of its capability slots where a slot is needed, and 21 directly on the hardware, one fresh task per attempt.
 - **`fuzz`** keeps 4 child tasks running, each making random and almost-right system calls for up to 400 ms before it is replaced. Every 25 ms the fuzzer asks the kernel to check its rules, and at the end it checks that no task, endpoint, frame or quota went missing. `cap_revoke` is among the random calls, some of the messages name a capability to hand over, and each child works within a quota of tasks and endpoints lent by the fuzzer, part of which it lends to children of its own. The count of calls is a lower bound: it leaves out the calls a child makes to set itself up and to report, and all calls of the children's own children.
 - **Fault injection.** The shell can ask a server to crash or hang, and the supervisor to crash. The test script does each one 5 times, checks that the shell still answers and that a file can still be read, and records the times. `double`, the two failures at once shown above, is run 5 times as well.
-- **Without the no-execute bit.** The script boots the same image once more with the processor model `qemu32`. The kernel then says in its boot log that W^X is not enforced. The self-test passes its other 87 checks and reports the 3 execute checks as skipped, `rogue all` reports 47 of 50 attempts denied and names the 3 that were not, the kernel's rules still hold and nothing panics.
-- **The guided tour.** `tour` runs 5 steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took 8.3 s in QEMU and 8.99 s in the browser check, which fails if the tour takes a minute or longer.
-- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless), types 7 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `tour`, `uptime`) and checks each result. All 7 passed; the prompt appeared after 2.74 s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
+- **Without the no-execute bit.** The script boots the same image once more with the processor model `qemu32`. The kernel then says in its boot log that W^X is not enforced. The self-test passes its other 91 checks and reports the 3 execute checks as skipped, `rogue all` reports 48 of 51 attempts denied and names the 3 that were not, the kernel's rules still hold and nothing panics.
+- **The guided tour.** `tour` runs 5 steps in one go: the hostile program, a driver crash, a server hang, the two failures at once and the kernel's counters. The script requires every step and the closing line. The tour took 8.2 s in QEMU and 8.78 s in the browser check, which fails if the tour takes a minute or longer.
+- **The browser.** `tools/web_check.py` boots the same disk image in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless), types 7 commands (`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `tour`, `uptime`) and checks each result. All 6 passed; the prompt appeared after 0.9 s. The self-test passes there with nothing skipped, and the hostile program's attempts to run code from its stack, its data and memory it mapped are denied there too.
+- **Two checks changed in this version.** The check "only `init` holds a capability for the reset port `0x64`" became "no task, `init` included, holds a capability for the reset port `0x64`", because `init` now drops it; the new check also requires that its walk finds at least six port capabilities, so it cannot pass by finding none. The share measurement used to compare against one half-second baseline. In one run the host stalled during that baseline, it came out about eight times too small, and the check failed with speeds several times higher than running alone while the kernel's own charge figures were normal. The self-test now takes three baselines (before, between and after the two measurements), uses the largest and prints all the raw counts. The thresholds are the same as before. A larger reference makes "kept enough speed beside the held group" harder to pass and "lost speed beside the free group" easier, and it adds about a second to each run.
 - **The gates.** `python build.py gates` does all of the above from a clean tree and then runs `tools/check_claims.py` over these documents.
 - **The model.** `python build.py model` runs the kernel's own source on the build machine against a simulated processor, with directed tests and a bounded exploration of its states, and `python build.py mutants` measures whether those checks notice a kernel that was broken on purpose. Both are described under [the model](#the-model). Neither is a gate.
 
@@ -367,8 +387,9 @@ Each line is one promise of the kernel, checked from user space.
 selftest: this line was written through the Log capability
   ok   the Log capability writes to the kernel log
   ok   the Info capability describes tasks and their capabilities
-  ok   only init holds a capability for the reset port 0x64
+  ok   no task, init included, holds a capability for the reset port 0x64
   ok   the drivers refuse to crash or hang for an ordinary program
+  ok   every port, interrupt line and page of device memory that any task holds was handed out by name
   ok   recv can poll, and can give up after a time limit
   ok   a call that nobody receives times out and leaves nothing queued
   ok   a call to an endpoint that nobody can receive from gives E_DEAD
@@ -386,6 +407,7 @@ selftest: this line was written through the Log capability
   ok   revoking reaches another task: its copy and what it mapped through it
   ok   revoking wakes the tasks that waited through the copies
   ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a server takes back one client's access and leaves the other's
   ok   a capability goes along with a call when both ends hold the grant right
   ok   without the grant right at both ends nothing is handed over
   ok   the sender takes back what it sent
@@ -432,13 +454,20 @@ selftest: this line was written through the Log capability
   ok   an endpoint outlives the task that made it, and its parent pays for it
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
+  ok   a child gets its parent's share of the processor or a smaller one, never a larger
+       beside three spinning tasks this program kept 65% of its speed when they
+       shared 20% of the processor, and 24% when they had no share of their own;
+       the kernel charged the group 35% and 75% of a second
+       rounds alone in half a second: 67792, 65179 and 64774; in two
+       seconds beside the groups: 178249 and 66280
+  ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
   ok   files are read through the file server
   ok   the kernel's invariants hold at the end
   ok   the kernel met nothing unexpected
   ok   no task, endpoint, page frame or quota was lost
-SELFTEST: PASS 90/90
+SELFTEST: PASS 94/94
 ```
 
 What the browser run shows about W^X: the kernel's boot line, then the execute checks of the self-test and the execute attempts of the hostile program:
@@ -453,13 +482,13 @@ inti> selftest
   ok   a program cannot run code from its data
   ok   a program cannot run code from memory it mapped
 ...
-SELFTEST: PASS 90/90
+SELFTEST: FAIL 93/94
 inti> rogue
 ...
-48. run code from its stack                    denied: page fault
-49. run code from its data                     denied: page fault
-50. run code from memory it just mapped        denied: page fault
-ROGUE: 49/49 attempts denied, 1 skipped
+49. run code from its stack                    denied: page fault
+50. run code from its data                     denied: page fault
+51. run code from memory it just mapped        denied: page fault
+ROGUE: 50/50 attempts denied, 1 skipped
 ...
 ```
 
@@ -469,17 +498,19 @@ The boot without the no-execute bit, shortened to the telling lines:
 ...
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
 ...
+inti> selftest
+...
   skip a program cannot run code from its stack
   skip a program cannot run code from its data
   skip a program cannot run code from memory it mapped
 ...
-SELFTEST: PASS 87/87, 3 skipped (no no-execute bit)
+SELFTEST: PASS 91/91, 3 skipped (no no-execute bit)
 inti> rogue all
 ...
-48. run code from its stack                    NOT DENIED: no no-execute bit
-49. run code from its data                     NOT DENIED: no no-execute bit
-50. run code from memory it just mapped        NOT DENIED: no no-execute bit
-ROGUE: 47/50 attempts denied
+49. run code from its stack                    NOT DENIED: no no-execute bit
+50. run code from its data                     NOT DENIED: no no-execute bit
+51. run code from memory it just mapped        NOT DENIED: no no-execute bit
+ROGUE: 48/51 attempts denied
 This processor has no no-execute bit, so a program can run code from its data.
 kernel invariants: all hold
 ...
@@ -489,20 +520,20 @@ What the kernel's basic operations cost in this emulator. These figures describe
 
 | Operation | Time |
 |---|---|
-| system call entry and return | 1,140 ns |
-| read the clock | 1,844 ns |
-| IPC call and reply | 35,739 ns |
-| start, run and reap a task | 728,460 ns |
-| map and unmap one page | 45,393 ns |
-| check every kernel invariant | 5,044,350 ns |
+| system call entry and return | 783 ns |
+| read the clock | 1,321 ns |
+| IPC call and reply | 26,649 ns |
+| start, run and reap a task | 644,920 ns |
+| map and unmap one page | 30,990 ns |
+| check every kernel invariant | 3,201,500 ns |
 
 ## The model
 
-QEMU runs the whole system, but only along the paths that the test programs take, and a failure in the middle of a system call is hard to arrange from user space. So the kernel is also run a second way. `model/` compiles 7 of the kernel's 9 source files, unchanged, as a program for the build machine: `check.rs`, `elf.rs`, `frame.rs`, `ipc.rs`, `mem.rs`, `sys.rs`, `task.rs`, which hold 2,040 of the kernel's 2,516 lines. The other 2, `arch.rs` and `main.rs`, talk to the processor. The model replaces them with a simulated machine that keeps physical memory in an array, walks page tables by the rules of PAE paging and records what the kernel asks of the processor. A system call is a call of the kernel's own entry point with a trap frame. `python build.py model` builds and runs it and writes `evidence/model.json`; the last run, of 2026-11-11T15:55:20+00:00, took 86 s.
+QEMU runs the whole system, but only along the paths that the test programs take, and a failure in the middle of a system call is hard to arrange from user space. So the kernel is also run a second way. `model/` compiles 7 of the kernel's 9 source files, unchanged, as a program for the build machine: `check.rs`, `elf.rs`, `frame.rs`, `ipc.rs`, `mem.rs`, `sys.rs`, `task.rs`, which hold 2,109 of the kernel's 2,590 lines. The other 2, `arch.rs` and `main.rs`, talk to the processor. The model replaces them with a simulated machine that keeps physical memory in an array, walks page tables by the rules of PAE paging and records what the kernel asks of the processor. A system call is a call of the kernel's own entry point with a trap frame. `python build.py model` builds and runs it and writes `evidence/model.json`; the last run, of 2026-11-12T05:47:28+00:00, took 114 s.
 
 This is a bounded check of small configurations and not a proof. It is not one of the gates either: the rubric and its gates were frozen before the model existed. Its numbers reach these documents the way all the others do, through `evidence/claims.json`. Every result of the model and of the mutation check below also records a fingerprint of the source files of the kernel, the interface crate and the model. `tools/check_claims.py`, which is one of the gates, refuses a result whose fingerprint is not that of the files as they are, so after a change to any of them the figures have to be measured again before a document may quote them.
 
-**Directed tests.** 154 tests put the kernel into situations that a program in QEMU cannot reach or cannot observe: the task table and the endpoint table full, memory running out part of the way through a system call, a capability revoked while it is in use, the root task dying while others wait. The "table full" branches are reached by forging a quota, because the rule that quotas balance keeps honest programs away from them. 154 of the 154 pass. Among them, 41 corruptions are planted in the kernel's state one at a time and the checker has to report each one under the number of the rule that describes it, so that a corruption which some other rule happens to notice does not count; it reports 41. 3 more are forged capabilities that the checker has no means to tell from honest ones: a capability for every I/O port, one for the kernel log and a handle on a task that is not a child. The test requires that they go unnoticed, and 3 of 3 do, so that the checker's blind spots are written down and cannot grow without a test failing.
+**Directed tests.** 173 tests put the kernel into situations that a program in QEMU cannot reach or cannot observe: the task table and the endpoint table full, memory running out part of the way through a system call, a capability revoked while it is in use, the root task dying while others wait. The "table full" branches are reached by forging a quota, because the rule that quotas balance keeps honest programs away from them. 173 of the 173 pass. Among them, 44 corruptions are planted in the kernel's state one at a time and the checker has to report each one under the number of the rule that describes it, so that a corruption which some other rule happens to notice does not count; it reports 44. 3 more are forged capabilities that the checker has no means to tell from honest ones: a capability for every I/O port, one for the kernel log and a handle on a task that is not a child. The test requires that they go unnoticed, and 3 of 3 do, so that the checker's blind spots are written down and cannot grow without a test failing.
 
 **What the first run found.** The first run failed: 103 of 108 tests passed, and the checker reported 36 of 40 planted corruptions. Its raw log is kept as `evidence/model-before-fixes.log`. These are its failures:
 
@@ -526,9 +557,9 @@ One suspicion did not hold up: that device memory could be revoked from under th
 The same tests today:
 
 ```modellog
-MODEL seeds: 41 of 41 planted corruptions reported by the kernel's checker
+MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker
 MODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed
-MODEL tables: PASS 154/154
+MODEL tables: PASS 173/173
 MODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds
 MODEL: PASS
 ```
@@ -597,10 +628,10 @@ The tool had a defect of its own. It works in a copy of the sources, and the cop
 **What the model does not show.**
 
 - It is bounded. Each scenario has a few tasks and endpoints, a small number of capabilities and a fixed depth, and "explored to the end" means only that no step of the menu led to a new state within those bounds. Only `irq` got that far.
-- The machine is simulated. `arch.rs` and `main.rs`, 476 lines with the code that talks to the processor and the devices and the kernel's start-up code, are not part of the model, and neither is the boot sector. They are tested only in the emulators.
+- The machine is simulated. `arch.rs` and `main.rs`, 481 lines with the code that talks to the processor and the devices and the kernel's start-up code, are not part of the model, and neither is the boot sector. They are tested only in the emulators.
 - The model is a 64-bit program and the kernel a 32-bit one. Code that depends on the width of `usize` can behave differently, and the memory routines that the interface crate provides for the 32-bit build are the build machine's own in the model.
 - Time is abstract. A timeout expires because the explorer says so and not because a clock ran, and any task that is ready may run next, which is more than the real scheduler allows. The order of scheduling and the clock are outside the exploration, and the delay before a root task that died soon after its start is started again is covered by a directed test only.
-- States are merged by a hashed summary of tasks, capabilities, endpoints, waits, mappings and quotas. The contents of user pages, message tokens and counters are left out, so two states that differ only there count as one, and a hash collision would hide a state.
+- States are merged by a hashed summary of tasks, capabilities, endpoints, waits, mappings, quotas and share limits. What a task has used of its share and the order among ready tasks are not part of the summary, and in the exploration every share is 100%, so the exploration says nothing about scheduling under a share; the directed tests of the model do that. The contents of user pages, message tokens and counters are left out, so two states that differ only there count as one, and a hash collision would hide a state.
 - The root task never drops the capabilities it was booted with, and in three of the scenarios its steps are restricted to keep the number of states small.
 - The oracles lean on the kernel's own checker, which is itself under test. The planted corruptions and the mutants that fall in the checker's file are the evidence that it notices things, and its known blind spots are named above.
 - The mutation check is two samples of 60 out of 886 places and uses simple changes, one at a time. The share caught in the first sample was raised by tests aimed at it. The held-out share is the one to read, and no share would make the kernel correct.
@@ -608,12 +639,12 @@ The tool had a defect of its own. It works in a copy of the sources, and the cop
 
 ## What has to be trusted
 
-- **The kernel**: 2,853 lines with 41 `unsafe` blocks, each with a written justification that the gate script insists on. Across the whole repository there are 83.
+- **The kernel**: 2,933 lines with 42 `unsafe` blocks, each with a written justification that the gate script insists on. Across the whole repository there are 84.
 - **The boot sector**, which runs before any protection exists.
-- **`init`**, which starts with every capability and decides who gets what.
+- **`init`**, which starts with every capability and decides who gets what. After start-up it keeps what it hands to the servers when it restarts them and two port ranges that power the machine off (`0x604` to `0x605` and `0xB004` to `0xB005`); it drops its capabilities for all ports, all interrupt lines and the screen memory.
 - **The console driver**, but only for what it carries: it sees every keystroke and all output. It cannot touch another task's memory.
 - **The Rust compiler and its core library**, and the machine underneath, which here has always been an emulator.
-- **The model**, for everything it shows: its simulated machine and its oracles are 2,907 lines by the same author as the kernel, and a mistake there can hide a mistake in the kernel. The mutation check measures how much they notice, not whether they are right.
+- **The model**, for everything it shows: its simulated machine and its oracles are 3,042 lines by the same author as the kernel, and a mistake there can hide a mistake in the kernel. The mutation check measures how much they notice, not whether they are right.
 
 Not trusted: the file server, the shell's child programs and anything else started with a narrowed set of capabilities.
 
@@ -629,13 +660,13 @@ Security:
 
 - No formal verification. The kernel is tested, fuzzed, self-checking and explored on a host to a small depth; that is evidence, not proof. [The model](#the-model) lists what the exploration leaves out.
 - W^X depends on the processor's no-execute bit and has only been shown in two emulators: QEMU, which must be started with `qemu32,+nx` because its default 32-bit model lacks the bit, and v86. It has never been tried on a real processor. Without the bit the kernel still runs and prints that W^X is not enforced, and a program can then run code from its stack, its data and memory it mapped; the test run boots that way once, and the hostile program's 3 execute attempts are reported as not denied. W^X stops injected code, not the reuse of code that is already in a program, and there is no address-space randomisation: programs are loaded at fixed addresses.
-- No IOMMU support: a task holding I/O ports for a device that can access memory directly could subvert the kernel. Only `init` holds the full port range.
-- Revocation is coarse. `cap_revoke` takes back all copies of a capability at once, not a chosen one, and dropping a capability does not revoke its copies.
+- No IOMMU support: a task holding I/O ports for a device that can access memory directly could subvert the kernel. After start-up no task holds the full port range, `init` included, but nothing but `init`'s own code makes it give that range up.
+- Revocation follows the copies, not the holders. `cap_revoke` takes back everything that was copied from one capability, so a server that wants to cut off one client must have derived a capability for that client beforehand; clients that were handed copies of the same capability go together. Dropping a capability does not revoke its copies. (Earlier versions of this page said a chosen copy could not be taken back. That was wrong: the kernel has not changed, the per-client pattern above always worked, and there is now a self-test for it.)
 - Revocation does not reach back in time. A call that the server has already taken is carried through after the caller's capability is revoked, and its reply can still carry a capability. A task that waits through a revoked capability keeps waiting if another of its capabilities still reaches the same endpoint.
 - A server that holds the grant right has to drop the capabilities it does not want, or a client with the grant right could fill its table. In the shipped system no client of the servers holds the grant right.
 - The kernel writes a message into the buffer of a blocked task long after it checked that buffer. That late write is safe only if the buffer is still the task's own writable memory. The checker has a rule for exactly this, and the argument behind it has four parts: a blocked task is not running, so it cannot unmap its own pages; an ended task gets no delivery; no system call changes a page's protection; and device memory, the only memory a revocation can take from a waiting task, is refused as a message buffer, also in part. The self-test checks the last part directly, with a device page taken from a task while it waits, and checks that a reply still reaches a caller whose capability was revoked in between. This is a tested argument, not a proof.
 - `init` is trusted with everything. The shell holds the Info capability, the test capabilities it passes on, and a capability to ask `init` for a shutdown or an injected fault.
-- A parent cannot change a child's quotas after starting it, and processor time is not charged to anyone.
+- A parent cannot change a child's quotas or its share of the processor after starting it.
 - The kernel's own "table full" paths for tasks and endpoints are executed only on the host model, where a test forges a quota to reach them, and never in QEMU. User space cannot reach them while the rule that quotas balance holds, and that rule is checked throughout every fuzz and self-test run. If one were ever reached, the kernel would count it as an anomaly, which breaks the rule that the kernel has never met a state it considered impossible. A full capability table, by contrast, is reached and tested.
 
 Robustness:
@@ -643,8 +674,8 @@ Robustness:
 - A hang is detected only by the ping. The shell itself is not monitored for hangs.
 - While `init` waits for a ping to be answered it handles other failures only between slices of 50 ms. Servers are pinged one after the other, so two that hang at the same moment are noticed one after the other. Only one combination of two failures is tested: the console driver hanging while the file server crashes.
 - A client whose request was in flight when the server died sends it again, so a console write can be duplicated. A half-typed line and anything typed ahead are lost when the console driver restarts.
-- The kernel is not pre-emptible, and the scheduler has no processor quotas: a task cannot starve the kernel, but it can take its full share of the processor. Revoking a capability and checking the invariants are scans of fixed-size tables that run to their end inside the kernel.
-- The kernel log and the console driver share one serial port, so in the raw log a line from the kernel can land in the middle of a line from the shell.
+- The kernel is not pre-emptible. Shares of the processor are coarse: one-second windows, no enforcement in the first second, an overrun of up to one timer period per window, no donation of a client's share to the server that works for it, and no ceiling, so a program held to a share still takes every cycle that nobody else asks for. They have been measured only in QEMU, under load from the host, on one processor. Revoking a capability and checking the invariants are scans of fixed-size tables that run to their end inside the kernel.
+- The kernel log and the console driver share one serial port. `init` now reports through the console while it answers, which removed the cut lines seen in earlier logs, but two cases remain: if a report takes longer than 100 ms because the console is slow and not dead, `init` falls back to the kernel log and the line can appear twice or land inside another; and a kernel panic or a restart of user space writes at once, wherever the console's line happens to be.
 
 Evidence:
 

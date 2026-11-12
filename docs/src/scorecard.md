@@ -44,8 +44,8 @@ Reading this table fairly:
 
 - **Hardware and software.** No real hardware, no network, no persistent storage, no applications, one processor.
 - **Assurance.** No formal verification, one author, one day. The exploration of the kernel on a host covers small configurations to a small depth and proves nothing beyond them. seL4's proofs are in a different class.
-- **Security mechanisms.** W^X is enforced only on processors with the no-execute bit and has only been shown in emulators; there is no address-space randomisation and no IOMMU. Revocation takes back all copies of a capability or none, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
-- **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; the scheduler has no processor quotas, so a program can take its full share of the processor.
+- **Security mechanisms.** W^X is enforced only on processors with the no-execute bit and has only been shown in emulators; there is no address-space randomisation and no IOMMU. Revocation takes back everything copied from one capability, so cutting off one client needs a capability derived for that client beforehand, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
+- **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; shares of the processor are enforced in one-second windows, are no ceiling, are not passed from a client to the server working for it, and have been measured only in QEMU.
 - **Performance.** Never measured outside an emulator, so nothing is claimed.
 
 The full list is in [How Inti works](design.md), under "Limitations".

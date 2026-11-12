@@ -20,28 +20,28 @@ The measurements are from the gate run of 2026-11-12 in QEMU 11.1.0 (TCG, no har
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 6.6 ms | 6.3 to 8.2 ms | 11 ms | 2.3 ms |
-| file server crashes (page fault) | 5 | 3.1 ms | 2.5 to 3.2 ms | 6 ms | 1.4 ms |
-| console driver hangs (stops answering) | 5 | 758 ms | 737 to 798 ms | 762 ms | 1.7 ms |
-| file server hangs (stops answering) | 5 | 752 ms | 731 to 789 ms | 755 ms | 1.0 ms |
-| file server hangs right after a restart | 3 | 1205 ms | 1187 to 1265 ms | 1208 ms | 1.0 ms |
+| console driver crashes (page fault) | 5 | 5.3 ms | 4.1 to 9.5 ms | 9 ms | 1.9 ms |
+| file server crashes (page fault) | 5 | 2.3 ms | 1.9 to 22.5 ms | 4 ms | 1.1 ms |
+| console driver hangs (stops answering) | 5 | 753 ms | 660 to 763 ms | 758 ms | 1.4 ms |
+| file server hangs (stops answering) | 5 | 754 ms | 674 to 785 ms | 777 ms | 0.7 ms |
+| file server hangs right after a restart | 3 | 1191 ms | 1171 to 1203 ms | 1193 ms | 1.2 ms |
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 50.6 ms and the console driver after 626 ms. The log is in [How Inti works](design.md).
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 39.6 ms and the console driver after 633 ms. The log is in [How Inti works](design.md).
 
 ```log
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 955 us (restart 1)
-RECOVERY: fs crash -> answering again after 2481 us
+init: fs restarted after 12270 us (restart 1)
+RECOVERY: fs crash -> answering again after 22477 us
 ```
 
 ```log
 inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
-init: console restarted after 667 us (restart 6)
 [console restarted]
-RECOVERY: console hang -> answering again after 736788 us
+init: console restarted after 440 us (restart 6)
+RECOVERY: console hang -> answering again after 659823 us
 ```
 
 The same two faults in the browser demo, where the emulator is slower:
@@ -49,14 +49,14 @@ The same two faults in the browser demo, where the emulator is slower:
 ```weblog
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x40002096
-init: console restarted after 1200 us (restart 1)
+init: console restarted after 1800 us (restart 1)
 [console restarted]
-RECOVERY: console crash -> answering again after 4100 us
+RECOVERY: console crash -> answering again after 10700 us
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 1000 us (restart 1)
-RECOVERY: fs hang -> answering again after 719286 us
+init: fs restarted after 1701 us (restart 1)
+RECOVERY: fs hang -> answering again after 595108 us
 ```
 
 **What Inti does not solve.**
@@ -74,37 +74,37 @@ RECOVERY: fs hang -> answering again after 719286 us
 - Around 70% of Chromium's high-severity security bugs are memory-unsafety problems ([The Chromium Projects, "Memory safety"](https://www.chromium.org/Home/chromium-security/memory-safety)).
 - The Linux kernel has started to accept Rust code for this reason ([kernel.org, "Rust"](https://docs.kernel.org/rust/index.html)).
 
-**What Inti does.** The kernel is written in Rust and does not link the `alloc` crate: it has no heap, and all of its state is one value made of fixed-size tables. Hardware access needs `unsafe` (port I/O, page tables, the switch between tasks); there are 41 such blocks in the kernel and its interface crate, each with a comment that says why it is sound, and the gate script fails if one is missing. Arithmetic overflow checks stay on in the release build. The kernel never dereferences an address a program gave it. On top of that, a checker inside the kernel recounts everything the kernel owns against 26 rules whenever a program with the right capability asks.
+**What Inti does.** The kernel is written in Rust and does not link the `alloc` crate: it has no heap, and all of its state is one value made of fixed-size tables. Hardware access needs `unsafe` (port I/O, page tables, the switch between tasks); there are 42 such blocks in the kernel and its interface crate, each with a comment that says why it is sound, and the gate script fails if one is missing. Arithmetic overflow checks stay on in the release build. The kernel never dereferences an address a program gave it. On top of that, a checker inside the kernel recounts everything the kernel owns against 27 rules whenever a program with the right capability asks.
 
 **What was measured.** The fuzzer keeps 4 throw-away programs running, each making random and almost-right system calls, and asks the kernel to check its rules every 25 ms.
 
 ```log
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 114395615.
-   10%  100918 calls, 212 tasks ended, 414 checks
+Fuzzing the kernel with 1000000 random system calls, seed 152387503.
+   10%  100554 calls, 186 tasks ended, 385 checks
 ...
-  100%  1001720 calls, 2077 tasks ended, 4210 checks
-FUZZ: 1002983 random system calls from 2078 tasks in 76621 ms
-FUZZ: 4212 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 581 exited, 1083 were stopped, 414 hit a CPU exception
+  100%  1000657 calls, 2120 tasks ended, 4283 checks
+FUZZ: 1002269 random system calls from 2123 tasks in 94441 ms
+FUZZ: 4287 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 562 exited, 1190 were stopped, 371 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14392 /   14392    io_in           14276 /    2153
-  exit              451 /     451    io_out          14368 /    2189
-  call            14598 /    2275    irq_bind        14353 /     843
-  recv            14525 /     318    irq_ack         14326 /     531
-  reply           14804 /      38    spawn           14598 /     967
-  ep_create       14531 /    6081    task_kill       14578 /      48
-  cap_derive      14478 /    2419    sleep           14436 /   14436
-  cap_drop        13921 /    3463    time            14657 /   14657
-  map             14537 /    2514    log             14506 /       0
-  unmap           14467 /    3976    sysinfo         14728 /    2274
-  map_mem         14396 /    1594    cap_revoke      14502 /    6005
+  yield           14263 /   14263    io_in           14403 /    2017
+  exit              444 /     444    io_out          14565 /    2116
+  call            14427 /    2228    irq_bind        14454 /     918
+  recv            14558 /     361    irq_ack         14456 /     655
+  reply           14344 /      56    spawn           14507 /    1041
+  ep_create       14444 /    6092    task_kill       14380 /      47
+  cap_derive      14464 /    2494    sleep           14132 /   14132
+  cap_drop        14008 /    3629    time            14354 /   14354
+  map             14326 /    2421    log             14500 /       0
+  unmap           14391 /    3873    sysinfo         14555 /    2034
+  map_mem         14204 /    1546    cap_revoke      14245 /    5954
 FUZZ: PASS
 ```
 
 **What Inti does not solve.**
 
-- Rust's guarantees end where `unsafe` begins. The 41 blocks were written and reviewed by one author; they are not verified.
+- Rust's guarantees end where `unsafe` begins. The 42 blocks were written and reviewed by one author; they are not verified.
 - Memory safety does not rule out logic errors. The checker and the fuzzer found none in this run, which is evidence and not proof. seL4 has machine-checked proofs of functional correctness ([seL4 FAQ](https://sel4.systems/About/FAQ.html)); Inti has nothing of that kind.
 - The checks on the build machine have holes, and some are known by name. A tool plants small defects in the kernel one at a time and counts how many the model notices. In a sample of 60 for which no test was written, the model caught 45 and missed 15, and 9 of those it missed change what the kernel does. They are listed under "The mutation check" in [How Inti works](design.md) and are open work. None of the planted defects was run in QEMU.
 - The fuzzer is random, not guided by coverage, and its programs hold no capability for the kernel log, so that one call is fuzzed only up to its capability check.
@@ -119,7 +119,7 @@ FUZZ: PASS
 
 **What Inti does.** There is nothing a program can reach by naming it. Every system call starts from a slot in the caller's own capability table, a new program starts with exactly the capabilities its parent copied into it, and a capability can be copied with fewer rights or a smaller range but never more. A capability can also arrive in a message, but only when the sending and the receiving end of that conversation both carry the grant right, and whoever handed a capability out can take back every copy of it while the holders keep running. Memory, tasks and endpoints are lent the same way, as quotas that a parent gives its child. A program started from the shell gets one capability: the right to send text to the console.
 
-**What was measured.** `rogue all` starts a hostile program with that one capability. It makes 50 attempts: 29 through the system call interface and 21 directly on the hardware. The kernel refuses 26 with an error code, the console driver refuses 2, the processor ignores 1 and stops the program on the other 21. Among the attempts: creating an endpoint without endpoint quota, giving a child more task quota than it has, handing a capability to the console driver, and revoking capabilities it does not hold. Among the attempts on the hardware are running code from the program's stack, from its data and from memory it has just mapped; with the no-execute bit the processor stops each one with a page fault. Afterwards the kernel's rules still hold.
+**What was measured.** `rogue all` starts a hostile program with that one capability. It makes 51 attempts: 30 through the system call interface and 21 directly on the hardware. The kernel refuses 27 with an error code, the console driver refuses 2, the processor ignores 1 and stops the program on the other 21. Among the attempts: creating an endpoint without endpoint quota, giving a child more task quota than it has, handing a capability to the console driver, and revoking capabilities it does not hold. Among the attempts on the hardware are running code from the program's stack, from its data and from memory it has just mapped; with the no-execute bit the processor stops each one with a page fault. Afterwards the kernel's rules still hold.
 
 ```log
 inti> rogue all
@@ -150,32 +150,33 @@ Attempts that need a capability are made with each of the 32 slots.
 23. give a child a capability it does not hold denied: E_NOCAP
 24. create an endpoint with no endpoint quota  denied: E_NOSLOT
 25. give a child more task quota than it has   denied: E_NOSLOT
-26. hand a capability to the console driver    denied: E_PERM
-27. revoke capabilities it does not hold       denied: E_NOCAP
-28. call system calls that do not exist        denied: E_NOSYS
-29. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
-30. disable interrupts (cli)                   denied: general protection fault
-31. halt the processor (hlt)                   denied: general protection fault
-32. read the keyboard port directly (in)       denied: general protection fault
-33. reset the machine directly (out 0x64)      denied: general protection fault
-34. read kernel memory                         denied: page fault
-35. write kernel memory                        denied: page fault
-36. jump into kernel code                      denied: page fault
-37. load the kernel's data segment             denied: general protection fault
-38. raise the timer interrupt (int 0x20)       denied: general protection fault
-39. replace the page tables (mov cr3)          denied: general protection fault
-40. turn off paging and protection (mov cr0)   denied: general protection fault
-41. replace the interrupt table (lidt)         denied: general protection fault
-42. far jump to the kernel's code segment      denied: general protection fault
-43. overwrite its own code                     denied: page fault
-44. overflow its stack                         denied: page fault
-45. return to ring 0 with a forged iret frame  denied: general protection fault
-46. write a model-specific register (wrmsr)    denied: general protection fault
-47. enter the kernel through sysenter          denied: general protection fault
-48. run code from its stack                    denied: page fault
-49. run code from its data                     denied: page fault
-50. run code from memory it just mapped        denied: page fault
-ROGUE: 50/50 attempts denied
+26. give a child a larger processor share      denied: E_PERM
+27. hand a capability to the console driver    denied: E_PERM
+28. revoke capabilities it does not hold       denied: E_NOCAP
+29. call system calls that do not exist        denied: E_NOSYS
+30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+31. disable interrupts (cli)                   denied: general protection fault
+32. halt the processor (hlt)                   denied: general protection fault
+33. read the keyboard port directly (in)       denied: general protection fault
+34. reset the machine directly (out 0x64)      denied: general protection fault
+35. read kernel memory                         denied: page fault
+36. write kernel memory                        denied: page fault
+37. jump into kernel code                      denied: page fault
+38. load the kernel's data segment             denied: general protection fault
+39. raise the timer interrupt (int 0x20)       denied: general protection fault
+40. replace the page tables (mov cr3)          denied: general protection fault
+41. turn off paging and protection (mov cr0)   denied: general protection fault
+42. replace the interrupt table (lidt)         denied: general protection fault
+43. far jump to the kernel's code segment      denied: general protection fault
+44. overwrite its own code                     denied: page fault
+45. overflow its stack                         denied: page fault
+46. return to ring 0 with a forged iret frame  denied: general protection fault
+47. write a model-specific register (wrmsr)    denied: general protection fault
+48. enter the kernel through sysenter          denied: general protection fault
+49. run code from its stack                    denied: page fault
+50. run code from its data                     denied: page fault
+51. run code from memory it just mapped        denied: page fault
+ROGUE: 51/51 attempts denied
 kernel invariants: all hold
 ```
 
@@ -186,18 +187,18 @@ inti> rogue
 Starting a hostile program that holds one capability: console output.
 Attempts that need a capability are made with each of the 32 slots.
 ...
-45. return to ring 0 with a forged iret frame  skipped
+46. return to ring 0 with a forged iret frame  skipped
 ...
-ROGUE: 49/49 attempts denied, 1 skipped
+ROGUE: 50/50 attempts denied, 1 skipped
 The skipped attempt stops the v86 browser emulator; "rogue all" runs it.
 kernel invariants: all hold
 ```
 
 **What Inti does not solve.**
 
-- Delegation and revocation are simple. A capability travels in a message only between ends that both hold the grant right, and `cap_revoke` takes back all copies of a capability at once, not a chosen one. A call that a server has already taken is carried through even if the caller's capability is revoked meanwhile.
-- The supervisor is trusted: `init` starts with every capability. The shell is more powerful than an ordinary program too: it holds the capability to read kernel information, the test capabilities it passes to the test programs, and a capability to ask `init` for a shutdown or an injected fault.
-- Memory, tasks and endpoints are charged to quotas, so a hostile program can use up its own share and nothing else. Processor time is not charged: a program can take its full share of the processor.
+- Delegation and revocation are simple. A capability travels in a message only between ends that both hold the grant right, and `cap_revoke` takes back everything that was copied from one capability. A server can cut off one client and keep the others only if it derived a capability for each of them beforehand, which the self-test now does; clients that hold copies of the same capability go together. (This page used to say a chosen copy could not be taken back. That was wrong, and the kernel has not changed.) A call that a server has already taken is carried through even if the caller's capability is revoked meanwhile.
+- The supervisor is trusted: `init` starts with every capability. After start-up it drops the ones for all ports, all interrupt lines and the screen, and the self-test checks that no task holds the reset port, but only `init`'s own code makes it give them up. The shell is more powerful than an ordinary program too: it holds the capability to read kernel information, the test capabilities it passes to the test programs, and a capability to ask `init` for a shutdown or an injected fault.
+- Memory, tasks and endpoints are charged to quotas, so a hostile program can use up its own share and nothing else. Processor time is charged too, as a percentage that a task inherits or narrows, but coarsely: the windows are a second long, a share is a promise to the others and no ceiling, a server's work is not charged to the client it works for, and the measurement was made only in QEMU.
 - The list of attempts is long but it is a list. It shows that these attempts fail, not that no attempt can succeed.
 
 ## The sources, checked

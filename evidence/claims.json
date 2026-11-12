@@ -12,7 +12,7 @@
   "source": "evidence/test.json"
  },
  "test.duration_s": {
-  "value": 208,
+  "value": 283,
   "source": "evidence/test.json"
  },
  "test.checks_total": {
@@ -32,31 +32,31 @@
   "source": "evidence/test.json"
  },
  "boot.host_ms": {
-  "value": 335,
+  "value": 182,
   "source": "evidence/test.json"
  },
  "boot.guest_ms": {
-  "value": 18.4,
+  "value": 18.8,
   "source": "evidence/test.json"
  },
  "selftest.checks": {
-  "value": 90,
+  "value": 94,
   "source": "evidence/test.json"
  },
  "selftest.after_faults": {
-  "value": 90,
+  "value": 94,
   "source": "evidence/test.json"
  },
  "rogue.all_denied": {
-  "value": 50,
+  "value": 51,
   "source": "evidence/test.json"
  },
  "rogue.all_total": {
-  "value": 50,
+  "value": 51,
   "source": "evidence/test.json"
  },
  "rogue.default_denied": {
-  "value": 49,
+  "value": 50,
   "source": "evidence/test.json"
  },
  "rogue.default_skipped": {
@@ -64,7 +64,7 @@
   "source": "evidence/test.json"
  },
  "rogue.by_kernel": {
-  "value": 26,
+  "value": 27,
   "source": "evidence/test.json"
  },
  "rogue.by_cpu": {
@@ -80,19 +80,19 @@
   "source": "evidence/test.json"
  },
  "rogue.software": {
-  "value": 29,
+  "value": 30,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.median_ms": {
-  "value": 6.6,
+  "value": 5.3,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.min_ms": {
-  "value": 6.3,
+  "value": 4.1,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.max_ms": {
-  "value": 8.2,
+  "value": 9.5,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.runs": {
@@ -100,23 +100,23 @@
   "source": "evidence/test.json"
  },
  "recovery.console_crash.host_median_ms": {
-  "value": 11,
+  "value": 9,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.respawn_median_ms": {
-  "value": 2.3,
+  "value": 1.9,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.median_ms": {
-  "value": 3.1,
+  "value": 2.3,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.min_ms": {
-  "value": 2.5,
+  "value": 1.9,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.max_ms": {
-  "value": 3.2,
+  "value": 22.5,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.runs": {
@@ -124,23 +124,23 @@
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.host_median_ms": {
-  "value": 6,
+  "value": 4,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.respawn_median_ms": {
-  "value": 1.4,
+  "value": 1.1,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.median_ms": {
-  "value": 758,
+  "value": 753,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.min_ms": {
-  "value": 737,
+  "value": 660,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.max_ms": {
-  "value": 798,
+  "value": 763,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.runs": {
@@ -148,23 +148,23 @@
   "source": "evidence/test.json"
  },
  "recovery.console_hang.host_median_ms": {
-  "value": 762,
+  "value": 758,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.respawn_median_ms": {
-  "value": 1.7,
+  "value": 1.4,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.median_ms": {
-  "value": 752,
+  "value": 754,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.min_ms": {
-  "value": 731,
+  "value": 674,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.max_ms": {
-  "value": 789,
+  "value": 785,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.runs": {
@@ -172,23 +172,23 @@
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.host_median_ms": {
-  "value": 755,
+  "value": 777,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.respawn_median_ms": {
-  "value": 1.0,
+  "value": 0.7,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.median_ms": {
-  "value": 1205,
+  "value": 1191,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.min_ms": {
-  "value": 1187,
+  "value": 1171,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.max_ms": {
-  "value": 1265,
+  "value": 1203,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.runs": {
@@ -196,11 +196,11 @@
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.host_median_ms": {
-  "value": 1208,
+  "value": 1193,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.respawn_median_ms": {
-  "value": 1.0,
+  "value": 1.2,
   "source": "evidence/test.json"
  },
  "backoff.third_ms": {
@@ -212,31 +212,31 @@
   "source": "evidence/test.json"
  },
  "init_crash.host_ms": {
-  "value": 18,
+  "value": 22,
   "source": "evidence/test.json"
  },
  "double.fs_ms": {
-  "value": 50.6,
-  "source": "evidence/test.json"
- },
- "double.fs_min_ms": {
   "value": 39.6,
   "source": "evidence/test.json"
  },
+ "double.fs_min_ms": {
+  "value": 29.3,
+  "source": "evidence/test.json"
+ },
  "double.fs_max_ms": {
-  "value": 61.6,
+  "value": 51.6,
   "source": "evidence/test.json"
  },
  "double.console_ms": {
-  "value": 626,
+  "value": 633,
   "source": "evidence/test.json"
  },
  "double.console_min_ms": {
-  "value": 625,
+  "value": 614,
   "source": "evidence/test.json"
  },
  "double.console_max_ms": {
-  "value": 824,
+  "value": 644,
   "source": "evidence/test.json"
  },
  "double.runs": {
@@ -248,11 +248,11 @@
   "source": "evidence/test.json"
  },
  "tour.seconds": {
-  "value": 8.3,
+  "value": 8.2,
   "source": "evidence/test.json"
  },
  "nonx.selftest_passed": {
-  "value": 87,
+  "value": 91,
   "source": "evidence/test.json"
  },
  "nonx.selftest_skipped": {
@@ -260,11 +260,11 @@
   "source": "evidence/test.json"
  },
  "nonx.rogue_denied": {
-  "value": 47,
+  "value": 48,
   "source": "evidence/test.json"
  },
  "nonx.rogue_total": {
-  "value": 50,
+  "value": 51,
   "source": "evidence/test.json"
  },
  "nonx.rogue_not_denied": {
@@ -280,7 +280,7 @@
   "source": "evidence/test.json"
  },
  "fuzz.calls": {
-  "value": 1002983,
+  "value": 1002269,
   "source": "evidence/test.json"
  },
  "fuzz.requested": {
@@ -288,15 +288,15 @@
   "source": "evidence/test.json"
  },
  "fuzz.tasks": {
-  "value": 2078,
+  "value": 2123,
   "source": "evidence/test.json"
  },
  "fuzz.calls_per_second": {
-  "value": 13090,
+  "value": 10613,
   "source": "evidence/test.json"
  },
  "fuzz.checks": {
-  "value": 4212,
+  "value": 4287,
   "source": "evidence/test.json"
  },
  "fuzz.violations": {
@@ -312,83 +312,83 @@
   "source": "evidence/test.json"
  },
  "fuzz.exited": {
-  "value": 581,
+  "value": 562,
   "source": "evidence/test.json"
  },
  "fuzz.stopped": {
-  "value": 1083,
+  "value": 1190,
   "source": "evidence/test.json"
  },
  "fuzz.exceptions": {
-  "value": 414,
+  "value": 371,
   "source": "evidence/test.json"
  },
  "fuzz.seed": {
-  "value": 114395615,
+  "value": 152387503,
   "source": "evidence/test.json"
  },
  "fuzz.seconds": {
-  "value": 76.6,
+  "value": 94.4,
   "source": "evidence/test.json"
  },
  "bench.syscall_ns": {
-  "value": 1140,
+  "value": 783,
   "source": "evidence/test.json"
  },
  "bench.syscall_us": {
-  "value": 1.1,
+  "value": 0.8,
   "source": "evidence/test.json"
  },
  "bench.clock_ns": {
-  "value": 1844,
+  "value": 1321,
   "source": "evidence/test.json"
  },
  "bench.clock_us": {
-  "value": 1.8,
+  "value": 1.3,
   "source": "evidence/test.json"
  },
  "bench.ipc_ns": {
-  "value": 35739,
+  "value": 26649,
   "source": "evidence/test.json"
  },
  "bench.ipc_us": {
-  "value": 35.7,
+  "value": 26.6,
   "source": "evidence/test.json"
  },
  "bench.spawn_ns": {
-  "value": 728460,
+  "value": 644920,
   "source": "evidence/test.json"
  },
  "bench.spawn_us": {
-  "value": 728,
+  "value": 645,
   "source": "evidence/test.json"
  },
  "bench.map_ns": {
-  "value": 45393,
+  "value": 30990,
   "source": "evidence/test.json"
  },
  "bench.map_us": {
-  "value": 45.4,
+  "value": 31.0,
   "source": "evidence/test.json"
  },
  "bench.check_ns": {
-  "value": 5044350,
+  "value": 3201500,
   "source": "evidence/test.json"
  },
  "bench.check_us": {
-  "value": 5044,
+  "value": 3202,
   "source": "evidence/test.json"
  },
  "clock.idle_ratio": {
-  "value": 1.0001,
-  "source": "evidence/test.json"
- },
- "clock.fuzz_ratio": {
   "value": 0.9992,
   "source": "evidence/test.json"
  },
+ "clock.fuzz_ratio": {
+  "value": 0.9202,
+  "source": "evidence/test.json"
+ },
  "counters.timer_interrupts": {
-  "value": 20247,
+  "value": 24285,
   "source": "evidence/test.json"
  },
  "counters.tasks": {
@@ -400,23 +400,23 @@
   "source": "evidence/test.json"
  },
  "counters.system_calls": {
-  "value": 1801838,
+  "value": 2697319,
   "source": "evidence/test.json"
  },
  "counters.task_switches": {
-  "value": 256238,
+  "value": 259390,
   "source": "evidence/test.json"
  },
  "counters.device_interrupts": {
-  "value": 20450,
+  "value": 24507,
   "source": "evidence/test.json"
  },
  "counters.faults_contained": {
-  "value": 909,
+  "value": 840,
   "source": "evidence/test.json"
  },
  "counters.tasks_started": {
-  "value": 5744,
+  "value": 5965,
   "source": "evidence/test.json"
  },
  "counters.kernel_anomalies": {
@@ -424,7 +424,7 @@
   "source": "evidence/test.json"
  },
  "web.boot_seconds": {
-  "value": 2.74,
+  "value": 0.9,
   "source": "evidence/web.json"
  },
  "web.emulator": {
@@ -432,7 +432,7 @@
   "source": "evidence/web.json"
  },
  "web.browser": {
-  "value": "chromium 157.0.4341.42 (headless)",
+  "value": "chromium 157.0.4341.46 (headless)",
   "source": "evidence/web.json"
  },
  "web.commands": {
@@ -440,7 +440,7 @@
   "source": "evidence/web.json"
  },
  "web.commands_ok": {
-  "value": 7,
+  "value": 6,
   "source": "evidence/web.json"
  },
  "web.command_list": {
@@ -448,11 +448,11 @@
   "source": "evidence/web.json"
  },
  "web.tour_seconds": {
-  "value": 8.99,
+  "value": 8.78,
   "source": "evidence/web.json"
  },
  "gates.passed": {
-  "value": 9,
+  "value": 2,
   "source": "evidence/gates.json"
  },
  "gates.total": {
@@ -468,7 +468,7 @@
   "source": "evidence/gates.json"
  },
  "gates.build_seconds": {
-  "value": 42,
+  "value": 15,
   "source": "evidence/gates.json"
  },
  "gates.rustc": {
@@ -480,11 +480,11 @@
   "source": "evidence/gates.json"
  },
  "gates.qemu_tries": {
-  "value": 1,
+  "value": 3,
   "source": "evidence/gates.json"
  },
  "gates.browser_tries": {
-  "value": 1,
+  "value": 3,
   "source": "evidence/gates.json"
  },
  "size.boot_sector_bytes": {
@@ -492,19 +492,19 @@
   "source": "evidence/gates.json"
  },
  "size.kernel_bytes": {
-  "value": 69856,
+  "value": 70272,
   "source": "evidence/gates.json"
  },
  "size.kernel_kib": {
-  "value": 68.2,
+  "value": 68.6,
   "source": "evidence/gates.json"
  },
  "size.archive_kib": {
-  "value": 193.3,
+  "value": 201.3,
   "source": "evidence/gates.json"
  },
  "size.payload_kib": {
-  "value": 261.6,
+  "value": 270.0,
   "source": "evidence/gates.json"
  },
  "size.image_mib": {
@@ -607,6 +607,26 @@
   "value": 1,
   "source": "kernel/src/task.rs"
  },
+ "shares.window_ticks": {
+  "value": 100,
+  "source": "kernel/src/task.rs"
+ },
+ "shares.shell": {
+  "value": 80,
+  "source": "user/src/bin/init.rs"
+ },
+ "shares.full": {
+  "value": 100,
+  "source": "kernel/src/task.rs"
+ },
+ "shares.spawn_word": {
+  "value": 26,
+  "source": "kernel/src/sys.rs"
+ },
+ "console.report_ms": {
+  "value": 100,
+  "source": "user/src/client.rs"
+ },
  "fuzz.kid_life_ms": {
   "value": 400,
   "source": "user/src/bin/fuzz.rs"
@@ -652,7 +672,7 @@
   "source": "kernel/src/arch.rs"
  },
  "count.invariant_rules": {
-  "value": 26,
+  "value": 27,
   "source": "kernel/src/check.rs"
  },
  "count.syscalls": {
@@ -668,23 +688,23 @@
   "source": "kernel/src"
  },
  "count.unsafe_total": {
-  "value": 83,
+  "value": 84,
   "source": "kernel/src, abi/src, boot/src, user/src"
  },
  "count.unsafe_kernel": {
-  "value": 41,
+  "value": 42,
   "source": "kernel/src, abi/src"
  },
  "loc.kernel": {
-  "value": 2516,
+  "value": 2590,
   "source": "kernel/src"
  },
  "loc.abi": {
-  "value": 337,
+  "value": 343,
   "source": "abi/src"
  },
  "loc.kernel_total": {
-  "value": 2853,
+  "value": 2933,
   "source": "kernel/src, abi/src"
  },
  "loc.limit": {
@@ -696,35 +716,35 @@
   "source": "boot/src"
  },
  "loc.user": {
-  "value": 4622,
+  "value": 4869,
   "source": "user/src"
  },
  "loc.tools": {
-  "value": 3086,
+  "value": 3108,
   "source": "build.py, tools/*.py"
  },
  "table.gates": {
-  "value": "| Gate | Requirement | Result | Measured |\n|---|---|---|---|\n| G1 | One command builds the disk image from a clean tree | pass | clean build in 42 s wrote build/inti.img (2,097,152 bytes) |\n| G2 | Boots from its own boot sector to a shell prompt in QEMU within 20 s | pass | shell prompt 335 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel |\n| G3 | The self-test inside the system passes with at least 30 checks | pass | SELFTEST: PASS 90/90 after boot and 90/90 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx) |\n| G4 | Each supervised service is crashed and hung, restarted automatically, and timed | pass | console crash 6.6 ms, fs crash 3.1 ms, console hang 758.2 ms, fs hang 752.0 ms, fs crash during a console hang: fs 50.6 ms and console 626.1 ms (median of 5 runs each, guest clock); the shell answered after every run |\n| G5 | Every attempt of the hostile program without capabilities is denied | pass | 50/50 attempts denied (including port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers |\n| G6 | At least 1,000,000 random system calls: no kernel panic, no invariant violated | pass | 1,002,983 random system calls from 2,078 tasks, 4,212 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log |\n| G7 | No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code | pass | no alloc crate in the kernel; 83 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,853 lines of kernel code (limit 4,000) |\n| G8 | The same disk image boots to the shell prompt in a web browser | pass | shell prompt after 2.74 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.42 (headless); 7 commands answered; byte-for-byte the image of the QEMU test |\n| G9 | Every number in the documents comes from a script or carries a source | pass | tools/check_claims.py passes: claims recomputed, documents re-rendered and compared |",
+  "value": "| Gate | Requirement | Result | Measured |\n|---|---|---|---|\n| G1 | One command builds the disk image from a clean tree | pass | clean build in 15 s wrote build/inti.img (2,097,152 bytes) |\n| G2 | Boots from its own boot sector to a shell prompt in QEMU within 20 s | FAIL | evidence/test.json was not measured on the current build/inti.img |\n| G3 | The self-test inside the system passes with at least 30 checks | FAIL | evidence/test.json was not measured on the current build/inti.img |\n| G4 | Each supervised service is crashed and hung, restarted automatically, and timed | FAIL | evidence/test.json was not measured on the current build/inti.img |\n| G5 | Every attempt of the hostile program without capabilities is denied | FAIL | evidence/test.json was not measured on the current build/inti.img |\n| G6 | At least 1,000,000 random system calls: no kernel panic, no invariant violated | FAIL | evidence/test.json was not measured on the current build/inti.img |\n| G7 | No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code | pass | no alloc crate in the kernel; 84 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,929 lines of kernel code (limit 4,000) |\n| G8 | The same disk image boots to the shell prompt in a web browser | FAIL | evidence/web.json does not show the current image booting: selftest |\n| G9 | Every number in the documents comes from a script or carries a source | FAIL | tools/check_claims.py reports problems |",
   "source": "evidence/gates.json"
  },
  "table.checks": {
-  "value": "| Check | Result | Measured |\n|---|---|---|\n| boots from its own boot sector to the shell prompt within 20 s | pass | 335 ms after QEMU started |\n| the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |\n| selftest after boot | pass | SELFTEST: PASS 90/90 |\n| the selftest's line written through the Log capability is in the kernel log | pass |  |\n| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 50/50 attempts denied |\n| rogue all: the kernel invariants hold afterwards | pass |  |\n| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 49/49 attempts denied, 1 skipped |\n| the system is still up after the hostile program (ls answers) | pass |  |\n| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 6571 us, worst 8238 us |\n| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 3053 us, worst 3246 us |\n| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 758176 us, worst 797745 us |\n| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 751960 us, worst 789189 us |\n| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1205276 us, worst 1264773 us |\n| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 50598 us, console 626121 us |\n| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8335 ms |\n| a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |\n| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 18 ms later (host time) |\n| fuzz: the report is complete | pass |  |\n| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1002983 random system calls from 2078 tasks in 76621 ms; FUZZ: 4212 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |\n| bench runs to the end | pass | 6 results |\n| selftest after all faults | pass | SELFTEST: PASS 90/90 |\n| keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |\n| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 1.0001 |\n| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 1801838 system calls, 909 faults contained, 5744 tasks started |\n| shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |\n| no kernel panic anywhere in the serial log | pass |  |\n| without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |\n| without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed | pass | SELFTEST: PASS 87/87, 3 skipped |\n| without the no-execute bit: the hostile program reports each execute attempt as not denied and every other attempt as denied | pass | ROGUE: 47/50 attempts denied |\n| without the no-execute bit: the kernel invariants hold after the hostile program | pass |  |\n| without the no-execute bit: the system is still up (ls answers) | pass |  |\n| without the no-execute bit: no kernel panic anywhere in the serial log | pass |  |",
+  "value": "| Check | Result | Measured |\n|---|---|---|\n| boots from its own boot sector to the shell prompt within 20 s | pass | 182 ms after QEMU started |\n| the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |\n| selftest after boot | pass | SELFTEST: PASS 94/94 |\n| the selftest's line written through the Log capability is in the kernel log | pass |  |\n| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 51/51 attempts denied |\n| rogue all: the kernel invariants hold afterwards | pass |  |\n| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 50/50 attempts denied, 1 skipped |\n| the system is still up after the hostile program (ls answers) | pass |  |\n| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 5295 us, worst 9533 us |\n| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 2257 us, worst 22477 us |\n| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 752828 us, worst 763377 us |\n| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 754144 us, worst 785493 us |\n| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1190709 us, worst 1202967 us |\n| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 39600 us, console 632946 us |\n| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 8236 ms |\n| a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |\n| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 22 ms later (host time) |\n| fuzz: the report is complete | pass |  |\n| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1002269 random system calls from 2123 tasks in 94441 ms; FUZZ: 4287 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |\n| bench runs to the end | pass | 6 results |\n| selftest after all faults | pass | SELFTEST: PASS 94/94 |\n| keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |\n| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 0.9992 |\n| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2697319 system calls, 840 faults contained, 5965 tasks started |\n| shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |\n| no kernel panic anywhere in the serial log | pass |  |\n| without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |\n| without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed | pass | SELFTEST: PASS 91/91, 3 skipped |\n| without the no-execute bit: the hostile program reports each execute attempt as not denied and every other attempt as denied | pass | ROGUE: 48/51 attempts denied |\n| without the no-execute bit: the kernel invariants hold after the hostile program | pass |  |\n| without the no-execute bit: the system is still up (ls answers) | pass |  |\n| without the no-execute bit: no kernel panic anywhere in the serial log | pass |  |",
   "source": "evidence/test.json"
  },
  "table.recovery": {
-  "value": "| Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |\n|---|---|---|---|---|---|\n| console driver crashes (page fault) | 5 | 6.6 ms | 6.3 to 8.2 ms | 11 ms | 2.3 ms |\n| file server crashes (page fault) | 5 | 3.1 ms | 2.5 to 3.2 ms | 6 ms | 1.4 ms |\n| console driver hangs (stops answering) | 5 | 758 ms | 737 to 798 ms | 762 ms | 1.7 ms |\n| file server hangs (stops answering) | 5 | 752 ms | 731 to 789 ms | 755 ms | 1.0 ms |\n| file server hangs right after a restart | 3 | 1205 ms | 1187 to 1265 ms | 1208 ms | 1.0 ms |",
+  "value": "| Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |\n|---|---|---|---|---|---|\n| console driver crashes (page fault) | 5 | 5.3 ms | 4.1 to 9.5 ms | 9 ms | 1.9 ms |\n| file server crashes (page fault) | 5 | 2.3 ms | 1.9 to 22.5 ms | 4 ms | 1.1 ms |\n| console driver hangs (stops answering) | 5 | 753 ms | 660 to 763 ms | 758 ms | 1.4 ms |\n| file server hangs (stops answering) | 5 | 754 ms | 674 to 785 ms | 777 ms | 0.7 ms |\n| file server hangs right after a restart | 3 | 1191 ms | 1171 to 1203 ms | 1193 ms | 1.2 ms |",
   "source": "evidence/test.json"
  },
  "table.bench": {
-  "value": "| Operation | Time |\n|---|---|\n| system call entry and return | 1,140 ns |\n| read the clock | 1,844 ns |\n| IPC call and reply | 35,739 ns |\n| start, run and reap a task | 728,460 ns |\n| map and unmap one page | 45,393 ns |\n| check every kernel invariant | 5,044,350 ns |",
+  "value": "| Operation | Time |\n|---|---|\n| system call entry and return | 783 ns |\n| read the clock | 1,321 ns |\n| IPC call and reply | 26,649 ns |\n| start, run and reap a task | 644,920 ns |\n| map and unmap one page | 30,990 ns |\n| check every kernel invariant | 3,201,500 ns |",
   "source": "evidence/test.json"
  },
  "table.sizes": {
-  "value": "| Part of the disk image | Bytes |\n|---|---|\n| boot sector | 512 |\n| kernel | 69,856 |\n| `bench` | 12,288 |\n| `console` | 12,288 |\n| `fs` | 8,192 |\n| `fuzz` | 16,384 |\n| `hello` | 8,192 |\n| `init` | 16,384 |\n| `rogue` | 12,288 |\n| `selftest` | 69,632 |\n| `shell` | 28,672 |\n| `tchild` | 12,288 |\n| `readme.txt` | 1,007 |\n| disk image, padded | 2,097,152 |",
+  "value": "| Part of the disk image | Bytes |\n|---|---|\n| boot sector | 512 |\n| kernel | 70,272 |\n| `bench` | 12,288 |\n| `console` | 12,288 |\n| `fs` | 8,192 |\n| `fuzz` | 16,384 |\n| `hello` | 8,192 |\n| `init` | 16,384 |\n| `rogue` | 12,288 |\n| `selftest` | 77,824 |\n| `shell` | 28,672 |\n| `tchild` | 12,288 |\n| `readme.txt` | 1,007 |\n| disk image, padded | 2,097,152 |",
   "source": "evidence/gates.json"
  },
  "table.loc": {
-  "value": "| Kernel source file | Lines of code |\n|---|---|\n| `kernel/src/arch.rs` | 321 |\n| `kernel/src/check.rs` | 268 |\n| `kernel/src/elf.rs` | 96 |\n| `kernel/src/frame.rs` | 58 |\n| `kernel/src/ipc.rs` | 189 |\n| `kernel/src/main.rs` | 155 |\n| `kernel/src/mem.rs` | 426 |\n| `kernel/src/sys.rs` | 414 |\n| `kernel/src/task.rs` | 589 |\n| `abi/src/archive.rs` | 26 |\n| `abi/src/lib.rs` | 212 |\n| `abi/src/mem.rs` | 99 |\n| total | 2,853 |",
+  "value": "| Kernel source file | Lines of code |\n|---|---|\n| `kernel/src/arch.rs` | 326 |\n| `kernel/src/check.rs` | 272 |\n| `kernel/src/elf.rs` | 96 |\n| `kernel/src/frame.rs` | 58 |\n| `kernel/src/ipc.rs` | 189 |\n| `kernel/src/main.rs` | 155 |\n| `kernel/src/mem.rs` | 426 |\n| `kernel/src/sys.rs` | 422 |\n| `kernel/src/task.rs` | 646 |\n| `abi/src/archive.rs` | 26 |\n| `abi/src/lib.rs` | 218 |\n| `abi/src/mem.rs` | 99 |\n| total | 2,933 |",
   "source": "kernel/src, abi/src"
  },
  "table.syscalls": {
@@ -760,95 +780,139 @@
   "source": "evidence/sources.json"
  },
  "log.boot": {
-  "value": "Inti 0.1.0 kernel\nkernel: 552 KiB kernel and archive, 62 MiB for user space\nkernel: PAE paging, W^X enforced (the processor has the no-execute bit)\ninit: started console with 6 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started shell with 11 capabilities, 15555 pages\nInti 0.1.0 shell ready at t=18433 us\nType help for the list of commands, or tour for a guided tour.",
+  "value": "Inti 0.1.0 kernel\nkernel: 560 KiB kernel and archive, 62 MiB for user space\nkernel: PAE paging, W^X enforced (the processor has the no-execute bit)\ninit: started console with 6 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started shell with 11 capabilities, 15553 pages\nInti 0.1.0 shell ready at t=18801 us\nType help for the list of commands, or tour for a guided tour.",
   "source": "evidence/test_serial.log"
  },
  "log.selftest": {
-  "value": "inti> selftest\nEach line is one promise of the kernel, checked from user space.\n  ok   the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  ok   system call numbers that do not exist give E_NOSYS\n  ok   a message buffer outside the caller's memory gives E_FAULT\n  ok   a message buffer the caller cannot write gives E_FAULT\n  ok   a message buffer is checked up to its last byte\n  ok   log checks the length and the address of the text\n  ok   sysinfo checks where it writes and what it is asked\n  ok   spawn checks the addresses of the image and of its arguments\n  ok   an empty or impossible capability slot gives E_NOCAP\n  ok   a capability of the wrong kind gives E_NOCAP\n  ok   a copy of a capability has the same rights or fewer\n  ok   a badge is set once, and only by a holder of the grant right\n  ok   a dropped capability is gone\n  ok   an I/O port capability reaches its ports and no others\n  ok   an interrupt capability reaches its lines and no others\n  ok   an interrupt line is released when its endpoint goes away\nselftest: this line was written through the Log capability\n  ok   the Log capability writes to the kernel log\n  ok   the Info capability describes tasks and their capabilities\n  ok   only init holds a capability for the reset port 0x64\n  ok   the drivers refuse to crash or hang for an ordinary program\n  ok   recv can poll, and can give up after a time limit\n  ok   a call that nobody receives times out and leaves nothing queued\n  ok   a call to an endpoint that nobody can receive from gives E_DEAD\n  ok   an endpoint has one receiver at a time\n  ok   a call carries its label, words and badge; a reply carries no badge\n  ok   a program cannot send the kernel's labels or an oversized message\n  ok   a 256-byte message crosses a page boundary in both directions\n  ok   a server can end in an orderly way, and its clients are told\n  ok   a reply needs the token of the call, and the token works once\n  ok   callers are served in the order in which they called\n  ok   a caller is told when the server dies with its request\n  ok   a caller that is killed while it waits leaves nothing queued\n  ok   a reply to a caller that was killed gives E_INVAL\n  ok   revoking a capability takes back its copies and theirs, and nothing else\n  ok   revoking reaches another task: its copy and what it mapped through it\n  ok   revoking wakes the tasks that waited through the copies\n  ok   revoking an interrupt capability frees the line its holder had bound\n  ok   a capability goes along with a call when both ends hold the grant right\n  ok   without the grant right at both ends nothing is handed over\n  ok   the sender takes back what it sent\n  ok   a reply carries a capability back, still linked to where it came from\n  ok   a waiting task that loses the grant right takes no more capabilities\n  ok   a capability is not handed to a task whose table is full\n  ok   memory of a device is refused as a message buffer, also in part\n  ok   a device page taken from a waiting task was never its message buffer\n  ok   a reply reaches a caller whose capability was revoked in between\n  ok   map gives zeroed pages that can be written\n  ok   a map that fails part-way changes nothing\n  ok   map and unmap accept only whole pages inside user space\n  ok   unmap gives every page frame back\n  ok   a task cannot take more memory than its quota\n  ok   shared memory keeps the rights and the bounds of its capability\n  ok   a copy of a memory capability covers the same pages or fewer\n  ok   a program cannot run code from its stack\n  ok   a program cannot run code from its data\n  ok   a program cannot run code from memory it mapped\n  ok   the exit code of a child reaches its parent\n  ok   a panic ends the program that panicked\n  ok   reading address 4 is a page fault at address 4\n  ok   a program cannot write to its own code\n  ok   a program cannot read kernel memory\n  ok   a program cannot write kernel memory\n  ok   a program cannot jump into the kernel\n  ok   a stack overflow ends the program with a page fault\n  ok   a division by zero ends the program\n  ok   an invalid instruction ends the program\n  ok   a program cannot switch interrupts off\n  ok   a program cannot halt the processor\n  ok   a program cannot use I/O ports without a capability\n  ok   floating-point instructions are refused\n  ok   fourteen children ended, twelve by a fault, and left nothing behind\n  ok   a task that never yields is pre-empted and can be killed, once\n  ok   the children of a task end with it\n  ok   the memory of a child comes out of its parent's quota and goes back\n  ok   damaged program images are refused and leave nothing behind\n  ok   an image with writable code, or with two segments on one page, is refused\n  ok   starting a child fails cleanly at every point where memory can run out\n  ok   the same image, repaired, starts and runs\n  ok   a full capability table gives E_NOSLOT and recovers\n  ok   a child gets the share of the quotas that its parent lends, and no more\n  ok   an endpoint outlives the task that made it, and its parent pays for it\n  ok   endpoints are created only within a quota, and the quota comes back\n  ok   tasks are started only within a quota, and the quota comes back\n  ok   sleep lasts as long as asked, and not much longer\n  ok   the clock never goes backwards\n  ok   files are read through the file server\n  ok   the kernel's invariants hold at the end\n  ok   the kernel met nothing unexpected\n  ok   no task, endpoint, page frame or quota was lost\nSELFTEST: PASS 90/90",
+  "value": "inti> selftest\nEach line is one promise of the kernel, checked from user space.\n  ok   the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  ok   system call numbers that do not exist give E_NOSYS\n  ok   a message buffer outside the caller's memory gives E_FAULT\n  ok   a message buffer the caller cannot write gives E_FAULT\n  ok   a message buffer is checked up to its last byte\n  ok   log checks the length and the address of the text\n  ok   sysinfo checks where it writes and what it is asked\n  ok   spawn checks the addresses of the image and of its arguments\n  ok   an empty or impossible capability slot gives E_NOCAP\n  ok   a capability of the wrong kind gives E_NOCAP\n  ok   a copy of a capability has the same rights or fewer\n  ok   a badge is set once, and only by a holder of the grant right\n  ok   a dropped capability is gone\n  ok   an I/O port capability reaches its ports and no others\n  ok   an interrupt capability reaches its lines and no others\n  ok   an interrupt line is released when its endpoint goes away\nselftest: this line was written through the Log capability\n  ok   the Log capability writes to the kernel log\n  ok   the Info capability describes tasks and their capabilities\n  ok   no task, init included, holds a capability for the reset port 0x64\n  ok   the drivers refuse to crash or hang for an ordinary program\n  ok   every port, interrupt line and page of device memory that any task holds was handed out by name\n  ok   recv can poll, and can give up after a time limit\n  ok   a call that nobody receives times out and leaves nothing queued\n  ok   a call to an endpoint that nobody can receive from gives E_DEAD\n  ok   an endpoint has one receiver at a time\n  ok   a call carries its label, words and badge; a reply carries no badge\n  ok   a program cannot send the kernel's labels or an oversized message\n  ok   a 256-byte message crosses a page boundary in both directions\n  ok   a server can end in an orderly way, and its clients are told\n  ok   a reply needs the token of the call, and the token works once\n  ok   callers are served in the order in which they called\n  ok   a caller is told when the server dies with its request\n  ok   a caller that is killed while it waits leaves nothing queued\n  ok   a reply to a caller that was killed gives E_INVAL\n  ok   revoking a capability takes back its copies and theirs, and nothing else\n  ok   revoking reaches another task: its copy and what it mapped through it\n  ok   revoking wakes the tasks that waited through the copies\n  ok   revoking an interrupt capability frees the line its holder had bound\n  ok   a server takes back one client's access and leaves the other's\n  ok   a capability goes along with a call when both ends hold the grant right\n  ok   without the grant right at both ends nothing is handed over\n  ok   the sender takes back what it sent\n  ok   a reply carries a capability back, still linked to where it came from\n  ok   a waiting task that loses the grant right takes no more capabilities\n  ok   a capability is not handed to a task whose table is full\n  ok   memory of a device is refused as a message buffer, also in part\n  ok   a device page taken from a waiting task was never its message buffer\n  ok   a reply reaches a caller whose capability was revoked in between\n  ok   map gives zeroed pages that can be written\n  ok   a map that fails part-way changes nothing\n  ok   map and unmap accept only whole pages inside user space\n  ok   unmap gives every page frame back\n  ok   a task cannot take more memory than its quota\n  ok   shared memory keeps the rights and the bounds of its capability\n  ok   a copy of a memory capability covers the same pages or fewer\n  ok   a program cannot run code from its stack\n  ok   a program cannot run code from its data\n  ok   a program cannot run code from memory it mapped\n  ok   the exit code of a child reaches its parent\n  ok   a panic ends the program that panicked\n  ok   reading address 4 is a page fault at address 4\n  ok   a program cannot write to its own code\n  ok   a program cannot read kernel memory\n  ok   a program cannot write kernel memory\n  ok   a program cannot jump into the kernel\n  ok   a stack overflow ends the program with a page fault\n  ok   a division by zero ends the program\n  ok   an invalid instruction ends the program\n  ok   a program cannot switch interrupts off\n  ok   a program cannot halt the processor\n  ok   a program cannot use I/O ports without a capability\n  ok   floating-point instructions are refused\n  ok   fourteen children ended, twelve by a fault, and left nothing behind\n  ok   a task that never yields is pre-empted and can be killed, once\n  ok   the children of a task end with it\n  ok   the memory of a child comes out of its parent's quota and goes back\n  ok   damaged program images are refused and leave nothing behind\n  ok   an image with writable code, or with two segments on one page, is refused\n  ok   starting a child fails cleanly at every point where memory can run out\n  ok   the same image, repaired, starts and runs\n  ok   a full capability table gives E_NOSLOT and recovers\n  ok   a child gets the share of the quotas that its parent lends, and no more\n  ok   an endpoint outlives the task that made it, and its parent pays for it\n  ok   endpoints are created only within a quota, and the quota comes back\n  ok   tasks are started only within a quota, and the quota comes back\n  ok   a child gets its parent's share of the processor or a smaller one, never a larger\n       beside three spinning tasks this program kept 65% of its speed when they\n       shared 20% of the processor, and 24% when they had no share of their own;\n       the kernel charged the group 35% and 75% of a second\n       rounds alone in half a second: 67792, 65179 and 64774; in two\n       seconds beside the groups: 178249 and 66280\n  ok   three spinning tasks with a 20% share leave the rest of the processor to others\n  ok   sleep lasts as long as asked, and not much longer\n  ok   the clock never goes backwards\n  ok   files are read through the file server\n  ok   the kernel's invariants hold at the end\n  ok   the kernel met nothing unexpected\n  ok   no task, endpoint, page frame or quota was lost\nSELFTEST: PASS 94/94",
   "source": "evidence/test_serial.log"
  },
  "log.selftest_short": {
-  "value": "inti> selftest\nEach line is one promise of the kernel, checked from user space.\n  ok   the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  ok   system call numbers that do not exist give E_NOSYS\n  ok   a message buffer outside the caller's memory gives E_FAULT\n...\n  ok   the kernel met nothing unexpected\n  ok   no task, endpoint, page frame or quota was lost\nSELFTEST: PASS 90/90",
+  "value": "inti> selftest\nEach line is one promise of the kernel, checked from user space.\n  ok   the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  ok   system call numbers that do not exist give E_NOSYS\n  ok   a message buffer outside the caller's memory gives E_FAULT\n...\n  ok   the kernel met nothing unexpected\n  ok   no task, endpoint, page frame or quota was lost\nSELFTEST: PASS 94/94",
+  "source": "evidence/test_serial.log"
+ },
+ "shares.boot.limit": {
+  "value": 20,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.boot.kept_held": {
+  "value": 65,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.boot.kept_free": {
+  "value": 24,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.boot.charged_held": {
+  "value": 35,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.boot.charged_free": {
+  "value": 75,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.faults.limit": {
+  "value": 20,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.faults.kept_held": {
+  "value": 62,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.faults.kept_free": {
+  "value": 23,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.faults.charged_held": {
+  "value": 34,
+  "source": "evidence/test_serial.log"
+ },
+ "shares.faults.charged_free": {
+  "value": 75,
+  "source": "evidence/test_serial.log"
+ },
+ "log.shares": {
+  "value": "  ok   a child gets its parent's share of the processor or a smaller one, never a larger\n       beside three spinning tasks this program kept 65% of its speed when they\n       shared 20% of the processor, and 24% when they had no share of their own;\n       the kernel charged the group 35% and 75% of a second\n       rounds alone in half a second: 67792, 65179 and 64774; in two\n       seconds beside the groups: 178249 and 66280\n  ok   three spinning tasks with a 20% share leave the rest of the processor to others",
   "source": "evidence/test_serial.log"
  },
  "log.rogue": {
-  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n 6. read kernel and task information           denied: E_NOCAP\n 7. write to the kernel log                    denied: E_NOCAP\n 8. use capability number 1000000              denied: E_NOCAP\n 9. add the receive right to its console cap   denied: E_PERM\n10. receive other programs' console requests   denied: E_PERM\n11. answer others' calls with forged tokens    denied: E_INVAL\n12. re-badge its console cap as the shell's    denied: E_PERM\n13. ask the console driver to crash            denied: refused by the driver\n14. ask the console driver to hang             denied: refused by the driver\n15. have the kernel write into kernel memory   denied: E_FAULT\n16. pass a message pointer that wraps around   denied: E_FAULT\n17. start a task from kernel memory            denied: E_FAULT\n18. map pages over kernel and video memory     denied: E_INVAL\n19. unmap kernel pages                         denied: E_INVAL\n20. take more memory than its quota            denied: E_NOMEM\n21. start a task from a garbage image          denied: E_INVAL\n22. give a child more memory than it has       denied: E_NOMEM\n23. give a child a capability it does not hold denied: E_NOCAP\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. hand a capability to the console driver    denied: E_PERM\n27. revoke capabilities it does not hold       denied: E_NOCAP\n28. call system calls that do not exist        denied: E_NOSYS\n29. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU\n30. disable interrupts (cli)                   denied: general protection fault\n31. halt the processor (hlt)                   denied: general protection fault\n32. read the keyboard port directly (in)       denied: general protection fault\n33. reset the machine directly (out 0x64)      denied: general protection fault\n34. read kernel memory                         denied: page fault\n35. write kernel memory                        denied: page fault\n36. jump into kernel code                      denied: page fault\n37. load the kernel's data segment             denied: general protection fault\n38. raise the timer interrupt (int 0x20)       denied: general protection fault\n39. replace the page tables (mov cr3)          denied: general protection fault\n40. turn off paging and protection (mov cr0)   denied: general protection fault\n41. replace the interrupt table (lidt)         denied: general protection fault\n42. far jump to the kernel's code segment      denied: general protection fault\n43. overwrite its own code                     denied: page fault\n44. overflow its stack                         denied: page fault\n45. return to ring 0 with a forged iret frame  denied: general protection fault\n46. write a model-specific register (wrmsr)    denied: general protection fault\n47. enter the kernel through sysenter          denied: general protection fault\n48. run code from its stack                    denied: page fault\n49. run code from its data                     denied: page fault\n50. run code from memory it just mapped        denied: page fault\nROGUE: 50/50 attempts denied\nkernel invariants: all hold",
+  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n 6. read kernel and task information           denied: E_NOCAP\n 7. write to the kernel log                    denied: E_NOCAP\n 8. use capability number 1000000              denied: E_NOCAP\n 9. add the receive right to its console cap   denied: E_PERM\n10. receive other programs' console requests   denied: E_PERM\n11. answer others' calls with forged tokens    denied: E_INVAL\n12. re-badge its console cap as the shell's    denied: E_PERM\n13. ask the console driver to crash            denied: refused by the driver\n14. ask the console driver to hang             denied: refused by the driver\n15. have the kernel write into kernel memory   denied: E_FAULT\n16. pass a message pointer that wraps around   denied: E_FAULT\n17. start a task from kernel memory            denied: E_FAULT\n18. map pages over kernel and video memory     denied: E_INVAL\n19. unmap kernel pages                         denied: E_INVAL\n20. take more memory than its quota            denied: E_NOMEM\n21. start a task from a garbage image          denied: E_INVAL\n22. give a child more memory than it has       denied: E_NOMEM\n23. give a child a capability it does not hold denied: E_NOCAP\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. give a child a larger processor share      denied: E_PERM\n27. hand a capability to the console driver    denied: E_PERM\n28. revoke capabilities it does not hold       denied: E_NOCAP\n29. call system calls that do not exist        denied: E_NOSYS\n30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU\n31. disable interrupts (cli)                   denied: general protection fault\n32. halt the processor (hlt)                   denied: general protection fault\n33. read the keyboard port directly (in)       denied: general protection fault\n34. reset the machine directly (out 0x64)      denied: general protection fault\n35. read kernel memory                         denied: page fault\n36. write kernel memory                        denied: page fault\n37. jump into kernel code                      denied: page fault\n38. load the kernel's data segment             denied: general protection fault\n39. raise the timer interrupt (int 0x20)       denied: general protection fault\n40. replace the page tables (mov cr3)          denied: general protection fault\n41. turn off paging and protection (mov cr0)   denied: general protection fault\n42. replace the interrupt table (lidt)         denied: general protection fault\n43. far jump to the kernel's code segment      denied: general protection fault\n44. overwrite its own code                     denied: page fault\n45. overflow its stack                         denied: page fault\n46. return to ring 0 with a forged iret frame  denied: general protection fault\n47. write a model-specific register (wrmsr)    denied: general protection fault\n48. enter the kernel through sysenter          denied: general protection fault\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 51/51 attempts denied\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "log.rogue_short": {
-  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n...\n 9. add the receive right to its console cap   denied: E_PERM\n...\n11. answer others' calls with forged tokens    denied: E_INVAL\n...\n15. have the kernel write into kernel memory   denied: E_FAULT\n...\n20. take more memory than its quota            denied: E_NOMEM\n...\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. hand a capability to the console driver    denied: E_PERM\n27. revoke capabilities it does not hold       denied: E_NOCAP\n...\n30. disable interrupts (cli)                   denied: general protection fault\n...\n34. read kernel memory                         denied: page fault\n35. write kernel memory                        denied: page fault\n...\n39. replace the page tables (mov cr3)          denied: general protection fault\n...\n45. return to ring 0 with a forged iret frame  denied: general protection fault\n...\n48. run code from its stack                    denied: page fault\n49. run code from its data                     denied: page fault\n50. run code from memory it just mapped        denied: page fault\nROGUE: 50/50 attempts denied\nkernel invariants: all hold",
+  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n...\n 9. add the receive right to its console cap   denied: E_PERM\n...\n11. answer others' calls with forged tokens    denied: E_INVAL\n...\n15. have the kernel write into kernel memory   denied: E_FAULT\n...\n20. take more memory than its quota            denied: E_NOMEM\n...\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. give a child a larger processor share      denied: E_PERM\n27. hand a capability to the console driver    denied: E_PERM\n28. revoke capabilities it does not hold       denied: E_NOCAP\n...\n31. disable interrupts (cli)                   denied: general protection fault\n...\n35. read kernel memory                         denied: page fault\n36. write kernel memory                        denied: page fault\n...\n40. replace the page tables (mov cr3)          denied: general protection fault\n...\n46. return to ring 0 with a forged iret frame  denied: general protection fault\n...\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 51/51 attempts denied\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "log.rogue_default": {
-  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\n45. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 49/49 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
+  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\n46. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "log.crash_console": {
-  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x40002096\ninit: console restarted after 2590 us (restart 1)\n[console restarted]\nRECOVERY: console crash -> answering again after 8238 us",
+  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x400020d6\n[console restarted]\ninit: console restarted after 2955 us (restart 1)\nRECOVERY: console crash -> answering again after 9533 us",
   "source": "evidence/test_serial.log"
  },
  "log.crash_fs": {
-  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs restarted after 955 us (restart 1)\nRECOVERY: fs crash -> answering again after 2481 us",
+  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs restarted after 12270 us (restart 1)\nRECOVERY: fs crash -> answering again after 22477 us",
   "source": "evidence/test_serial.log"
  },
  "log.hang_console": {
-  "value": "inti> hang console\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\ninit: console restarted after 667 us (restart 6)\n[console restarted]\nRECOVERY: console hang -> answering again after 736788 us",
+  "value": "inti> hang console\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 440 us (restart 6)\nRECOVERY: console hang -> answering again after 659823 us",
   "source": "evidence/test_serial.log"
  },
  "log.hang_fs": {
-  "value": "inti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 451 us (restart 6)\nRECOVERY: fs hang -> answering again after 733712 us",
+  "value": "inti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 14016 us (restart 6)\nRECOVERY: fs hang -> answering again after 674009 us",
   "source": "evidence/test_serial.log"
  },
  "log.double": {
-  "value": "inti> double\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 2372 us (restart 17)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\ninit: console restarted after 564 us (restart 11)\n[console restarted]\nDOUBLE FAILURE: fs answering again after 50666 us, console after 823812 us",
+  "value": "inti> double\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 1699 us (restart 17)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 1147 us (restart 11)\nDOUBLE FAILURE: fs answering again after 29327 us, console after 615294 us",
   "source": "evidence/test_serial.log"
  },
  "log.tour": {
-  "value": "inti> tour\n\nTOUR 1/5: A hostile program tries to break out; watch what it is denied.\n  (the command for this step: rogue)\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\nROGUE: 49/49 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold\n\nTOUR 2/5: The screen driver crashes and is restarted like any program.\n  (the command for this step: crash console)\ninit: console crashed: page fault at address 0x10, eip 0x40002096\ninit: console restarted after 2053 us (restart 16)\n[console restarted]\nRECOVERY: console crash -> answering again after 6278 us\n\nTOUR 3/5: The file server stops answering; the supervisor replaces it.\n  (the command for this step: hang fs)\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 425 us (restart 22)\nRECOVERY: fs hang -> answering again after 763836 us\n\nTOUR 4/5: Two at once: the screen driver hangs, the file server crashes.\n  (the command for this step: double)\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 1552 us (restart 23)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\ninit: console restarted after 487 us (restart 17)\n[console restarted]\nDOUBLE FAILURE: fs answering again after 49627 us, console after 624885 us\n\nTOUR 5/5: The kernel reports its counters and checks its own tables.\n  (the command for this step: uptime)\nup 106.067 s, 10606 timer interrupts\n4 tasks, 4 endpoints, 97638 system calls, 15804 task switches\n10755 device interrupts, 96 faults contained\n185 tasks started, 0 kernel anomalies\nkernel invariants: all hold\n\nTOUR: done. Nothing was rebooted; this is the shell that started the tour.",
+  "value": "inti> tour\n\nTOUR 1/5: A hostile program tries to break out; watch what it is denied.\n  (the command for this step: rogue)\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold\n\nTOUR 2/5: The screen driver crashes and is restarted like any program.\n  (the command for this step: crash console)\ninit: console crashed: page fault at address 0x10, eip 0x400020d6\n[console restarted]\ninit: console restarted after 2376 us (restart 16)\nRECOVERY: console crash -> answering again after 8613 us\n\nTOUR 3/5: The file server stops answering; the supervisor replaces it.\n  (the command for this step: hang fs)\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 470 us (restart 22)\nRECOVERY: fs hang -> answering again after 621700 us\n\nTOUR 4/5: Two at once: the screen driver hangs, the file server crashes.\n  (the command for this step: double)\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 1144 us (restart 23)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 365 us (restart 17)\nDOUBLE FAILURE: fs answering again after 67649 us, console after 663311 us\n\nTOUR 5/5: The kernel reports its counters and checks its own tables.\n  (the command for this step: uptime)\nup 144.049 s, 13857 timer interrupts\n4 tasks, 4 endpoints, 552326 system calls, 18209 task switches\n14026 device interrupts, 96 faults contained\n196 tasks started, 0 kernel anomalies\nkernel invariants: all hold\n\nTOUR: done. Nothing was rebooted; this is the shell that started the tour.",
   "source": "evidence/test_serial.log"
  },
  "log.backoff": {
-  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs ended 3 times in a row; next restart in 100 ms\ninit: fs restarted after 120508 us (restart 27)\nRECOVERY: fs crash -> answering again after 122082 us\ninti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs ended 4 times in a row; next restart in 200 ms\ninit: fs restarted after 232808 us (restart 28)\nRECOVERY: fs crash -> answering again after 234488 us",
+  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs ended 3 times in a row; next restart in 100 ms\ninit: fs restarted after 112792 us (restart 27)\nRECOVERY: fs crash -> answering again after 115146 us\ninti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs ended 4 times in a row; next restart in 200 ms\ninit: fs restarted after 241374 us (restart 28)\nRECOVERY: fs crash -> answering again after 243113 us",
   "source": "evidence/test_serial.log"
  },
  "log.svc": {
-  "value": "inti> svc\nservice   state  restarts  last end                  last restart took\nconsole   up           17  killed                    487 us\nfs        up           28  page fault                232808 us\nshell     up            0  -",
+  "value": "inti> svc\nservice   state  restarts  last end                  last restart took\nconsole   up           17  killed                    365 us\nfs        up           28  page fault                241374 us\nshell     up            0  -",
   "source": "evidence/test_serial.log"
  },
  "log.crash_init": {
-  "value": "inti> crash init\nCrashing the root task. The kernel will start user space again.\nkernel: the root task ended (cause 0xe); restarting user space at t=111746282 us\ninit: started console with 6 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started shell with 11 capabilities, 15555 pages\n[user space restarted]\nInti 0.1.0 shell ready at t=111756903 us\nType help for the list of commands, or tour for a guided tour.",
+  "value": "inti> crash init\nCrashing the root task. The kernel will start user space again.\nkernel: the root task ended (cause 0xe); restarting user space at t=149732120 us\n[user space restarted]\ninit: started console with 6 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started shell with 11 capabilities, 15553 pages\nInti 0.1.0 shell ready at t=149746371 us\nType help for the list of commands, or tour for a guided tour.",
   "source": "evidence/test_serial.log"
  },
  "log.fuzz": {
-  "value": "inti> fuzz 1000000\nFuzzing the kernel with 1000000 random system calls, seed 114395615.\n   10%  100918 calls, 212 tasks ended, 414 checks\n...\n  100%  1001720 calls, 2077 tasks ended, 4210 checks\nFUZZ: 1002983 random system calls from 2078 tasks in 76621 ms\nFUZZ: 4212 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks\nFUZZ: tasks ended: 581 exited, 1083 were stopped, 414 hit a CPU exception\nCalls the tasks reported before they ended (tried / accepted by the kernel):\n  yield           14392 /   14392    io_in           14276 /    2153\n  exit              451 /     451    io_out          14368 /    2189\n  call            14598 /    2275    irq_bind        14353 /     843\n  recv            14525 /     318    irq_ack         14326 /     531\n  reply           14804 /      38    spawn           14598 /     967\n  ep_create       14531 /    6081    task_kill       14578 /      48\n  cap_derive      14478 /    2419    sleep           14436 /   14436\n  cap_drop        13921 /    3463    time            14657 /   14657\n  map             14537 /    2514    log             14506 /       0\n  unmap           14467 /    3976    sysinfo         14728 /    2274\n  map_mem         14396 /    1594    cap_revoke      14502 /    6005\nFUZZ: PASS",
+  "value": "inti> fuzz 1000000\nFuzzing the kernel with 1000000 random system calls, seed 152387503.\n   10%  100554 calls, 186 tasks ended, 385 checks\n...\n  100%  1000657 calls, 2120 tasks ended, 4283 checks\nFUZZ: 1002269 random system calls from 2123 tasks in 94441 ms\nFUZZ: 4287 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks\nFUZZ: tasks ended: 562 exited, 1190 were stopped, 371 hit a CPU exception\nCalls the tasks reported before they ended (tried / accepted by the kernel):\n  yield           14263 /   14263    io_in           14403 /    2017\n  exit              444 /     444    io_out          14565 /    2116\n  call            14427 /    2228    irq_bind        14454 /     918\n  recv            14558 /     361    irq_ack         14456 /     655\n  reply           14344 /      56    spawn           14507 /    1041\n  ep_create       14444 /    6092    task_kill       14380 /      47\n  cap_derive      14464 /    2494    sleep           14132 /   14132\n  cap_drop        14008 /    3629    time            14354 /   14354\n  map             14326 /    2421    log             14500 /       0\n  unmap           14391 /    3873    sysinfo         14555 /    2034\n  map_mem         14204 /    1546    cap_revoke      14245 /    5954\nFUZZ: PASS",
   "source": "evidence/test_serial.log"
  },
  "log.bench": {
-  "value": "inti> bench\nTimes are read from the guest's clock. Under an emulator they mostly\ndescribe the emulator; compare them with each other, not with real hardware.\nBENCH: system call entry and return: 1140 ns\nBENCH: read the clock: 1844 ns\nBENCH: IPC call and reply: 35739 ns\nBENCH: start, run and reap a task: 728460 ns\nBENCH: map and unmap one page: 45393 ns\nBENCH: check every kernel invariant: 5044350 ns\nBENCH: done",
+  "value": "inti> bench\nTimes are read from the guest's clock. Under an emulator they mostly\ndescribe the emulator; compare them with each other, not with real hardware.\nBENCH: system call entry and return: 783 ns\nBENCH: read the clock: 1321 ns\nBENCH: IPC call and reply: 26649 ns\nBENCH: start, run and reap a task: 644920 ns\nBENCH: map and unmap one page: 30990 ns\nBENCH: check every kernel invariant: 3201500 ns\nBENCH: done",
   "source": "evidence/test_serial.log"
  },
  "log.uptime": {
-  "value": "inti> uptime\nup 202.474 s, 20247 timer interrupts\n4 tasks, 4 endpoints, 1801838 system calls, 256238 task switches\n20450 device interrupts, 909 faults contained\n5744 tasks started, 0 kernel anomalies\nkernel invariants: all hold",
+  "value": "inti> uptime\nup 263.605 s, 24285 timer interrupts\n4 tasks, 4 endpoints, 2697319 system calls, 259390 task switches\n24507 device interrupts, 840 faults contained\n5965 tasks started, 0 kernel anomalies\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "weblog.rogue": {
-  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\n45. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 49/49 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
+  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\n46. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
   "source": "evidence/web.json"
  },
  "weblog.faults": {
-  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x40002096\ninit: console restarted after 1200 us (restart 1)\n[console restarted]\nRECOVERY: console crash -> answering again after 4100 us\ninti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 1000 us (restart 1)\nRECOVERY: fs hang -> answering again after 719286 us",
+  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x40002096\ninit: console restarted after 1800 us (restart 1)\n[console restarted]\nRECOVERY: console crash -> answering again after 10700 us\ninti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 1701 us (restart 1)\nRECOVERY: fs hang -> answering again after 595108 us",
   "source": "evidence/web.json"
  },
  "weblog.wx": {
-  "value": "...\nkernel: PAE paging, W^X enforced (the processor has the no-execute bit)\n...\ninti> selftest\n...\n  ok   a program cannot run code from its stack\n  ok   a program cannot run code from its data\n  ok   a program cannot run code from memory it mapped\n...\nSELFTEST: PASS 90/90\ninti> rogue\n...\n48. run code from its stack                    denied: page fault\n49. run code from its data                     denied: page fault\n50. run code from memory it just mapped        denied: page fault\nROGUE: 49/49 attempts denied, 1 skipped\n...",
+  "value": "...\nkernel: PAE paging, W^X enforced (the processor has the no-execute bit)\n...\ninti> selftest\n...\n  ok   a program cannot run code from its stack\n  ok   a program cannot run code from its data\n  ok   a program cannot run code from memory it mapped\n...\nSELFTEST: FAIL 93/94\ninti> rogue\n...\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 50/50 attempts denied, 1 skipped\n...",
   "source": "evidence/web.json"
  },
  "nonxlog.summary": {
-  "value": "...\nkernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)\n...\n  skip a program cannot run code from its stack\n  skip a program cannot run code from its data\n  skip a program cannot run code from memory it mapped\n...\nSELFTEST: PASS 87/87, 3 skipped (no no-execute bit)\ninti> rogue all\n...\n48. run code from its stack                    NOT DENIED: no no-execute bit\n49. run code from its data                     NOT DENIED: no no-execute bit\n50. run code from memory it just mapped        NOT DENIED: no no-execute bit\nROGUE: 47/50 attempts denied\nThis processor has no no-execute bit, so a program can run code from its data.\nkernel invariants: all hold\n...",
+  "value": "...\nkernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)\n...\ninti> selftest\n...\n  skip a program cannot run code from its stack\n  skip a program cannot run code from its data\n  skip a program cannot run code from memory it mapped\n...\nSELFTEST: PASS 91/91, 3 skipped (no no-execute bit)\ninti> rogue all\n...\n49. run code from its stack                    NOT DENIED: no no-execute bit\n50. run code from its data                     NOT DENIED: no no-execute bit\n51. run code from memory it just mapped        NOT DENIED: no no-execute bit\nROGUE: 48/51 attempts denied\nThis processor has no no-execute bit, so a program can run code from its data.\nkernel invariants: all hold\n...",
   "source": "evidence/test_nonx_serial.log"
  },
  "model.date": {
-  "value": "2026-11-11T15:55:20+00:00",
+  "value": "2026-11-12T05:47:28+00:00",
   "source": "evidence/model.json"
  },
  "model.host": {
@@ -860,23 +924,23 @@
   "source": "evidence/model.json"
  },
  "model.duration_s": {
-  "value": 86,
+  "value": 114,
   "source": "evidence/model.json"
  },
  "model.tests": {
-  "value": 154,
+  "value": 173,
   "source": "evidence/model.json"
  },
  "model.tests_passed": {
-  "value": 154,
+  "value": 173,
   "source": "evidence/model.json"
  },
  "model.seeds": {
-  "value": 41,
+  "value": 44,
   "source": "evidence/model.json"
  },
  "model.seeds_found": {
-  "value": 41,
+  "value": 44,
   "source": "evidence/model.json"
  },
  "model.blind": {
@@ -976,7 +1040,7 @@
   "source": "evidence/model-before-fixes.log"
  },
  "modellog.result": {
-  "value": "MODEL seeds: 41 of 41 planted corruptions reported by the kernel's checker\nMODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed\nMODEL tables: PASS 154/154\nMODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds\nMODEL: PASS",
+  "value": "MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker\nMODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed\nMODEL tables: PASS 173/173\nMODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds\nMODEL: PASS",
   "source": "evidence/model.log"
  },
  "model.kernel_files": {
@@ -988,7 +1052,7 @@
   "source": "model/src/main.rs"
  },
  "model.kernel_lines": {
-  "value": 2040,
+  "value": 2109,
   "source": "model/src/main.rs"
  },
  "model.left_out_files": {
@@ -1000,11 +1064,11 @@
   "source": "model/src/main.rs"
  },
  "model.left_out_lines": {
-  "value": 476,
+  "value": 481,
   "source": "model/src/main.rs"
  },
  "loc.model": {
-  "value": 2907,
+  "value": 3042,
   "source": "model/src"
  },
  "mutants.sites": {

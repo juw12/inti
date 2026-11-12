@@ -297,6 +297,13 @@ def add_source(put: Put) -> None:
     put("supervisor.hang_worst_ms", constant(init, "PING_EVERY_US") // 1000 + constant(init, "PING_TIMEOUT_MS")
         + constant(init, "POLL_MS"), init)
     put("kernel.root_restart_gap_s", constant("kernel/src/task.rs", "ROOT_MIN_US") // 1_000_000, "kernel/src/task.rs")
+    put("shares.window_ticks", constant("kernel/src/task.rs", "CPU_WINDOW_TICKS"), "kernel/src/task.rs")
+    put("shares.shell", constant(init, "SHELL_SHARE"), init)
+    (full,) = pattern_numbers("kernel/src/task.rs", r"cpu_limit: (\d+),")
+    put("shares.full", full, "kernel/src/task.rs")
+    (spawn_word,) = pattern_numbers("kernel/src/sys.rs", r"let cpu_limit = match word\((\d+)\)")
+    put("shares.spawn_word", spawn_word, "kernel/src/sys.rs")
+    put("console.report_ms", constant("user/src/client.rs", "REPORT_WAIT_MS"), "user/src/client.rs")
     put("fuzz.kid_life_ms", constant(fuzz, "KID_LIFE_US") // 1000, fuzz)
     put("fuzz.check_every_ms", constant(fuzz, "CHECK_EVERY_US") // 1000, fuzz)
     put("fuzz.default_calls", constant(fuzz, "DEFAULT_CALLS"), fuzz)
@@ -395,6 +402,24 @@ def add_logs(put: Put, log: list[str], web: dict, nonx: list[str]) -> None:
     selftest = block(log, r"^inti> selftest$", r"^SELFTEST:")
     put_log("log.selftest", selftest)
     put_log("log.selftest_short", selftest[:6] + [ELLIPSIS] + selftest[-3:])
+
+    # The share measurement is printed by every self-test run: the first is after boot, the
+    # last after all the injected faults. The figures are whatever the log says.
+    measured = re.findall(
+        r"kept (\d+)% of its speed when they shared (\d+)% of the processor, and (\d+)% when they had "
+        r"no share of their own; the kernel charged the group (\d+)% and (\d+)% of a second",
+        " ".join(" ".join(log).split()),
+    )
+    if len(measured) < 2:
+        raise KeyError(f"{LOG}: the share measurement appears {len(measured)} times, expected at least 2")
+    for run, figures in (("boot", measured[0]), ("faults", measured[-1])):
+        kept_held, limit, kept_free, charged_held, charged_free = (int(figure) for figure in figures)
+        put(f"shares.{run}.limit", limit, LOG)
+        put(f"shares.{run}.kept_held", kept_held, LOG)
+        put(f"shares.{run}.kept_free", kept_free, LOG)
+        put(f"shares.{run}.charged_held", charged_held, LOG)
+        put(f"shares.{run}.charged_free", charged_free, LOG)
+    put_log("log.shares", block(log, r"^  ok   a child gets its parent's share", r"^  ok   three spinning tasks"))
 
     def sampled(line: str) -> bool:
         attempt = re.match(r"\s*(\d+)\. ", line)
