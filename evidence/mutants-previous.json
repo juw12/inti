@@ -1,0 +1,696 @@
+{
+  "from": "4f85f07",
+  "note": "The places tried in the round before, kept so that the overlap with the present samples can be counted. A place is matched by file, kind of change and the text of the line, so two identical lines can match each other and the counts are upper bounds.",
+  "sites": 886,
+  "first_summary": {
+    "compiled": 60,
+    "caught": 58,
+    "not_caught": 2
+  },
+  "held_out_summary": {
+    "compiled": 60,
+    "caught": 45,
+    "not_caught": 15
+  },
+  "first": [
+    [
+      "kernel/src/check.rs",
+      "condition inverted",
+      "if !alive {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "condition inverted",
+      "if self.mem.count_free() != self.mem.free {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "== becomes !=",
+      "if pte & P == 0 {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "+ becomes -",
+      "task_slots += task.task_quota as usize + (index != 0 && task.state != State::Free) as usize;"
+    ],
+    [
+      "kernel/src/check.rs",
+      "&& becomes ||",
+      "if waits && self.mem.check_user(task.pd, task.msg_ptr, MSG_SIZE, true).is_err() {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "condition inverted",
+      "} else if task.parent == NONE {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "!= becomes ==",
+      "if endpoint.waiter != NONE && waiter != Some(State::Recv(index as u8)) {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "|| becomes &&",
+      "if !alive(bind.task) || !receivable(bind.ep) {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "|| becomes &&",
+      "if cap == Cap::Null || from == t * CAP_SLOTS + slot || !narrowed || !self.rooted(from) {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "!= becomes ==",
+      "let stamped = badge == 0 && rights as u32 & R_GRANT != 0;"
+    ],
+    [
+      "kernel/src/check.rs",
+      "&& becomes ||",
+      "(Cap::Irq { mask }, Cap::Irq { mask: lines }) => lines != 0 && lines & !mask == 0,"
+    ],
+    [
+      "kernel/src/elf.rs",
+      "condition inverted",
+      "if end > len as u64 {"
+    ],
+    [
+      "kernel/src/elf.rs",
+      "- becomes +",
+      "self.map_anon(t, STACK_TOP - page * PAGE, US | RW)?;"
+    ],
+    [
+      "kernel/src/elf.rs",
+      "+ becomes -",
+      "let address = start + done;"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "assignment removed",
+      "task.seq = self.seq;"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "condition inverted",
+      "if self.tasks[client].state != State::Reply(me as u8) || self.tasks[client].token != token {"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "call removed",
+      "put32(buffer, LEN, len as u32);"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "condition inverted",
+      "if queued && next.is_none_or(|first| task.seq < self.tasks[first].seq) {"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "call removed",
+      "self.write_msg(receiver, &notice);"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "call removed",
+      "self.wake(waiter as usize, 0);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "&& becomes ||",
+      "const _: () = assert!(MAX_RAM <= 1 << 30 && USER_BASE >= 1 << 30);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "+ becomes -",
+      "let end = va as u64 + pages as u64 * PAGE as u64;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "+ becomes -",
+      "if boot_word(entry + 16) != 1 {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "assignment removed",
+      "self.total += 1;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "== becomes !=",
+      "frame % PAGE == 0 && (self.first..self.end).contains(&(frame / PAGE))"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "+ becomes -",
+      "unsafe { arch::phys(table + index as u32 * 8).cast::<u64>().read_volatile() }"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "call removed",
+      "core::ptr::copy_nonoverlapping(data.as_ptr(), target, data.len());"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "- becomes +",
+      "let piece = (len - done).min((PAGE - offset) as usize);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      ">= becomes >",
+      "if self.tasks[t].charged >= self.tasks[t].quota {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "condition inverted",
+      "if flags & FOREIGN != 0 {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "call removed",
+      "self.mem.write_entry(table, index, 0);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "!= becomes ==",
+      "if device && !self.tasks[t].has_memory(frame_of(pte), pte & RW != 0) {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "&& becomes ||",
+      "if pte & P != 0 && pte & FOREIGN == 0 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "== becomes !=",
+      "if task.gen == gen && task.state == State::Ready {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "== becomes !=",
+      "if self.tasks[me].ep_quota == 0 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "&& becomes ||",
+      "if b != 0 && b != badge && !stamp {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "!= becomes ==",
+      "let inside = b != 0 && a as u64 + b as u64 <= pages as u64;"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "&& becomes ||",
+      "if source && copies[t] & (1 << s) == 0 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "> becomes >=",
+      "if offset as u64 + count as u64 > pages as u64 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "|| becomes &&",
+      "if port < first as u32 || end > last as u64 || reserved {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "!= becomes ==",
+      "if slot != NO_CAP {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "call removed",
+      "self.destroy_space(child);"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "assignment removed",
+      "task.fault_ep = fault_ep;"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "assignment removed",
+      "self.tasks[me].deadline = self.deadline(ms);"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "call removed",
+      "put32(&mut out, 12 + index * 4, word);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "&& becomes ||",
+      "to == ep && held as u32 & rights == rights && badge.is_none_or(|wanted| wanted == stamp)"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.root_quota = self.mem.total;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "|| becomes &&",
+      "let better = best == IDLE || task.rank > self.tasks[best].rank;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "!= becomes ==",
+      "if task.pd != self.space {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "condition inverted",
+      "if ms == FOREVER {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "call removed",
+      "self.preempt(self.cur);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "condition inverted",
+      "if rights as u32 & R_RECV != 0 {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.eps[ep as usize].waiter = NONE;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "!= becomes ==",
+      "if self.irqs[irq].task != NONE && self.irqs[irq].ep as usize == ep {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "== becomes !=",
+      "let address = if vector == 14 { arch::read_cr2() } else { 0 };"
+    ],
+    [
+      "kernel/src/task.rs",
+      "condition inverted",
+      "if task.parent != NONE && doomed & (1 << task.parent) != 0 {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "condition inverted",
+      "if parent == NONE {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "call removed",
+      "self.drop_cap(t, slot);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].state = State::Zombie(ep);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "call removed",
+      "self.ready(0);"
+    ]
+  ],
+  "held_out": [
+    [
+      "kernel/src/check.rs",
+      "condition inverted",
+      "if !self.mem.managed(frame) {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "condition inverted",
+      "if charged > quota {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "assignment removed",
+      "frames += 1;"
+    ],
+    [
+      "kernel/src/check.rs",
+      "!= becomes ==",
+      "} else if !self.tasks[t].has_memory(frame_of(pte), pte & RW != 0) {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "assignment removed",
+      "recv_refs[ep as usize] += 1;"
+    ],
+    [
+      "kernel/src/check.rs",
+      "!= becomes ==",
+      "let quotas = task.quota != 0 || task.task_quota != 0 || task.ep_quota != 0;"
+    ],
+    [
+      "kernel/src/check.rs",
+      "|| becomes &&",
+      "if roots != 1 || !self.tasks[0].alive() || quota != self.root_quota as u64 {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "!= becomes ==",
+      "if task_slots != MAX_TASKS - 1 || ep_slots != MAX_ENDPOINTS {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "== becomes !=",
+      "if from == ORIGINAL as usize {"
+    ],
+    [
+      "kernel/src/check.rs",
+      "== becomes !=",
+      "pte & !known == 0 && pte & US != 0 && !writable_code && pte & NX == no_execute"
+    ],
+    [
+      "kernel/src/check.rs",
+      "== becomes !=",
+      "to == ep && kept != 0 && kept & !rights == 0 && (stamp == badge || stamped)"
+    ],
+    [
+      "kernel/src/check.rs",
+      "+ becomes -",
+      "let inside = start >= page && count != 0 && (start - page) as u64 + count as u64 <= pages as u64;"
+    ],
+    [
+      "kernel/src/elf.rs",
+      "== becomes !=",
+      "let sane = ident && kind == 2 && machine == 3 && entry_size == 32 && (1..=16).contains(&count);"
+    ],
+    [
+      "kernel/src/elf.rs",
+      "< becomes <=",
+      "if file_size > size || start < USER_BASE || end > IMAGE_END as u64 {"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "condition inverted",
+      "if self.eps[ep].recv_refs == 0 {"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "assignment removed",
+      "self.tasks[me].grant = grant;"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "call removed",
+      "self.wake(client, 0);"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "assignment removed",
+      "self.eps[ep].irq_pending = 0;"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "call removed",
+      "put32(&mut notice, BADGE, task.fault_badge);"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "assignment removed",
+      "self.tasks[sender].state = State::Reply(receiver as u8);"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "call removed",
+      "arch::irq_eoi(irq);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "- becomes +",
+      "(value + PAGE - 1) & !(PAGE - 1)"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "|| becomes &&",
+      "if va % PAGE != 0 || pages == 0 || va < USER_BASE || end > USER_END as u64 {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "assignment removed",
+      "self.kernel_pages = (kernel_end - kernel_start) / PAGE;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "== becomes !=",
+      "if address == 0 {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "assignment removed",
+      "self.free -= 1;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "&& becomes ||",
+      "assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) && inside);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "condition inverted",
+      "if !(USER_BASE..USER_END).contains(&va) {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "+ becomes -",
+      "let address = va + done as u32;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "== becomes !=",
+      "assert!((USER_BASE..USER_END).contains(&va) && va % PAGE == 0);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "call removed",
+      "self.free_for(t, table);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "condition inverted",
+      "if pd == self.space {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "== becomes !=",
+      "if pd == self.space {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "assignment removed",
+      "self.tasks[t].pd = 0;"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "assignment removed",
+      "self.tasks[me].frame.edx = arch::port_in(port, c);"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "== becomes !=",
+      "if a == 0 || a & !(rights as u32) != 0 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "< becomes <=",
+      "if a > b || a < first as u32 || b > last as u32 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "+ becomes -",
+      "Cap::Memory { page: page + a, pages: b, write: c != 0 }"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "+ becomes -",
+      "if let Err(code) = self.map_anon(me, va + done * PAGE, flags) {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "- becomes +",
+      "let end = port as u64 + width as u64 - 1;"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "&& becomes ||",
+      "if owner != NONE && owner as usize != me {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "> becomes >=",
+      "if quota > caller.quota - caller.charged {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "!= becomes ==",
+      "if cap != Cap::Null {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "condition inverted",
+      "if victim.gen != gen || !victim.alive() {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "condition inverted",
+      "if self.cap(me, slot)? != Cap::Info {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "&& becomes ||",
+      "const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "< becomes <=",
+      "frame >= page && frame - page < pages && (writable || !write)"
+    ],
+    [
+      "kernel/src/task.rs",
+      "!= becomes ==",
+      "let stay = self.cur != IDLE && !self.resched && self.tasks[self.cur].state == State::Ready;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "!= becomes ==",
+      "if best != self.cur && best != IDLE {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "task.rank = self.rank_high;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].deadline = u64::MAX;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].from[slot] = from;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.eps[ep].refs -= 1;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "&& becomes ||",
+      "let backed = task.has_irq(irq) && task.reaches(bind.ep, R_RECV, None);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "!= becomes ==",
+      "if bind.task != NONE {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "condition inverted",
+      "if doomed == before {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "&& becomes ||",
+      "if endpoint.owner != NONE && doomed & (1 << endpoint.owner) != 0 {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].state = State::Zombie(NONE);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].fault = fault;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[parent as usize].task_quota += 1;"
+    ]
+  ],
+  "held_out_not_caught": [
+    [
+      "kernel/src/ipc.rs",
+      "assignment removed",
+      "self.tasks[me].grant = grant;"
+    ],
+    [
+      "kernel/src/ipc.rs",
+      "assignment removed",
+      "self.eps[ep].irq_pending = 0;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "- becomes +",
+      "(value + PAGE - 1) & !(PAGE - 1)"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "assignment removed",
+      "self.kernel_pages = (kernel_end - kernel_start) / PAGE;"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "== becomes !=",
+      "if address == 0 {"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "&& becomes ||",
+      "assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) && inside);"
+    ],
+    [
+      "kernel/src/mem.rs",
+      "condition inverted",
+      "if pd == self.space {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "assignment removed",
+      "self.tasks[me].frame.edx = arch::port_in(port, c);"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "< becomes <=",
+      "if a > b || a < first as u32 || b > last as u32 {"
+    ],
+    [
+      "kernel/src/sys.rs",
+      "> becomes >=",
+      "if quota > caller.quota - caller.charged {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "&& becomes ||",
+      "const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);"
+    ],
+    [
+      "kernel/src/task.rs",
+      "< becomes <=",
+      "frame >= page && frame - page < pages && (writable || !write)"
+    ],
+    [
+      "kernel/src/task.rs",
+      "!= becomes ==",
+      "if best != self.cur && best != IDLE {"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].deadline = u64::MAX;"
+    ],
+    [
+      "kernel/src/task.rs",
+      "assignment removed",
+      "self.tasks[t].state = State::Zombie(NONE);"
+    ]
+  ]
+}

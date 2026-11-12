@@ -720,7 +720,7 @@
   "source": "user/src"
  },
  "loc.tools": {
-  "value": 3108,
+  "value": 3131,
   "source": "build.py, tools/*.py"
  },
  "table.gates": {
@@ -912,7 +912,7 @@
   "source": "evidence/test_nonx_serial.log"
  },
  "model.date": {
-  "value": "2026-11-12T05:47:28+00:00",
+  "value": "2026-11-12T06:38:07+00:00",
   "source": "evidence/model.json"
  },
  "model.host": {
@@ -924,15 +924,15 @@
   "source": "evidence/model.json"
  },
  "model.duration_s": {
-  "value": 114,
+  "value": 73,
   "source": "evidence/model.json"
  },
  "model.tests": {
-  "value": 173,
+  "value": 201,
   "source": "evidence/model.json"
  },
  "model.tests_passed": {
-  "value": 173,
+  "value": 201,
   "source": "evidence/model.json"
  },
  "model.seeds": {
@@ -1040,7 +1040,7 @@
   "source": "evidence/model-before-fixes.log"
  },
  "modellog.result": {
-  "value": "MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker\nMODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed\nMODEL tables: PASS 173/173\nMODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds\nMODEL: PASS",
+  "value": "MODEL seeds: 44 of 44 planted corruptions reported by the kernel's checker\nMODEL blind: 3 of 3 forged capabilities that the checker cannot tell from honest ones went unnoticed\nMODEL tables: PASS 201/201\nMODEL explore total: 5 scenarios, 52291 states, 258840 transitions, 0 violations, 13 of 49 ordered pairs of failure kinds\nMODEL: PASS",
   "source": "evidence/model.log"
  },
  "model.kernel_files": {
@@ -1068,11 +1068,11 @@
   "source": "model/src/main.rs"
  },
  "loc.model": {
-  "value": 3042,
+  "value": 3173,
   "source": "model/src"
  },
  "mutants.sites": {
-  "value": 886,
+  "value": 908,
   "source": "evidence/mutants.json"
  },
  "mutants.sample": {
@@ -1088,55 +1088,55 @@
   "source": "evidence/mutants.json"
  },
  "mutants.caught": {
-  "value": 58,
+  "value": 53,
   "source": "evidence/mutants.json"
  },
  "mutants.not_caught": {
-  "value": 2,
+  "value": 7,
   "source": "evidence/mutants.json"
  },
  "mutants.caught_by_failed_check": {
-  "value": 30,
+  "value": 38,
   "source": "evidence/mutants.json"
  },
  "mutants.caught_by_panic": {
-  "value": 26,
+  "value": 14,
   "source": "evidence/mutants.json"
  },
  "mutants.caught_by_time_limit": {
-  "value": 2,
+  "value": 1,
   "source": "evidence/mutants.json"
  },
  "mutants.caught_by_tables": {
-  "value": 56,
+  "value": 49,
   "source": "evidence/mutants.json"
  },
  "mutants.caught_by_exploration": {
-  "value": 2,
+  "value": 4,
   "source": "evidence/mutants.json"
  },
  "mutants.caught_percent": {
-  "value": 97,
+  "value": 88,
   "source": "evidence/mutants.json"
  },
  "table.mutants_not_caught": {
-  "value": "| Where | Change | Before | After | Why no check caught it |\n|---|---|---|---|---|\n| `kernel/src/mem.rs`, line 49 | && becomes \\|\\| | `const _: () = assert!(MAX_RAM <= 1 << 30 && USER_BASE >= 1 << 30);` | `const _: () = assert!(MAX_RAM <= 1 << 30 \\|\\| USER_BASE >= 1 << 30);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and both halves hold for the constants as they are, so the changed kernel is the same program. |\n| `kernel/src/task.rs`, line 545 | != becomes == | `if self.irqs[irq].task != NONE && self.irqs[irq].ep as usize == ep {` | `if self.irqs[irq].task == NONE && self.irqs[irq].ep as usize == ep {` | Makes no difference in any state the kernel can reach. An unbound line names no endpoint, so the changed loop never runs, and what it then leaves out is done by every caller: a dying task's lines are unbound before its capabilities are dropped, and after a drop or a revocation `release` unbinds what the task can no longer receive on. The loop is a second line of defence, kept on purpose. |",
+  "value": "| Where | Change | Before | After | Why no check caught it |\n|---|---|---|---|---|\n| `kernel/src/mem.rs`, line 57 | + becomes - | `const ROOT: usize = KERNEL_TABLES + 1;` | `const ROOT: usize = KERNEL_TABLES - 1;` | Outside what the model can see. The root of the kernel's own map would then be the last of the tables that map memory, not the table after them. The checker compares that map with the function that filled it, so the two agree with each other, and the model calls the kernel's functions directly and never runs the kernel through its page tables. In QEMU the kernel could not go on once paging is switched on; that is a judgment, since the mutants were not run there. |\n| `kernel/src/mem.rs`, line 196 | condition inverted | `if address == 0 {` | `if !(address == 0) {` | Outside what the model can see. The kernel's own half of every address space would then map page zero and nothing else. The model calls the kernel's functions directly and never runs the kernel through its page tables, and no check reads that half. In QEMU the kernel could not go on once paging is switched on; that is a judgment, since the mutants were not run there. |\n| `kernel/src/mem.rs`, line 253 | assignment removed | `self.hint = word;` | `(line removed)` | Makes no difference to anything that is promised. The line remembers where the last free frame was found, so that the next search starts there. Without it every search starts from the beginning and finds a free frame all the same; which free frame a task is handed is not promised, and no check may depend on it. |\n| `kernel/src/mem.rs`, line 296 | && becomes \\|\\| | `assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) && inside);` | `assert!(frame % PAGE == 0 \\|\\| (PAGE..MAX_RAM).contains(&frame) && inside);` | Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops the kernel. |\n| `kernel/src/mem.rs`, line 515 | call removed | `arch::write_cr3(pd); // drop stale translations and cached table addresses` | `(line removed)` | Outside what the model can see. After an unmapping the kernel reloads the address space so that the processor forgets the old translations. The changed kernel never reloads, and the simulated machine keeps no translations that could go stale. On a real processor a task could go on using a page it has given back. Whether the tests in QEMU notice was not tried. |\n| `kernel/src/task.rs`, line 372 | assignment removed | `self.resched = false;` | `(line removed)` | A hole in the checks. The flag that asks for a new choice of task is then never lowered, so the kernel chooses again at every entry and not only after an event that calls for it. The harness of the model marks the running task ready before every step, which raises the same flag, so the model cannot tell the two kernels apart. On the real kernel a task that is over its share would be switched away at the next entry instead of at the next scheduling event; what else differs was not worked out. |\n| `kernel/src/task.rs`, line 708 | assignment removed | `self.resched = true;` | `(line removed)` | Makes no difference that reading could find; it is a reading and not a proof. The line asks for a new choice of task after a kill. A running task that has just died is no longer ready, so the scheduler chooses again without being asked, and a task that the death wakes raises the flag itself when it is woken. |",
   "source": "evidence/mutants.json"
  },
  "mutants.judged_no_difference": {
-  "value": 2,
+  "value": 3,
   "source": "evidence/mutants.json, as judged in tools/claims.py"
  },
  "mutants.judged_outside_model": {
-  "value": 0,
+  "value": 3,
   "source": "evidence/mutants.json, as judged in tools/claims.py"
  },
  "mutants.judged_hole": {
-  "value": 0,
+  "value": 1,
   "source": "evidence/mutants.json, as judged in tools/claims.py"
  },
  "mutants.held_out.sites": {
-  "value": 886,
+  "value": 908,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.sample": {
@@ -1144,23 +1144,23 @@
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.compiled": {
-  "value": 60,
+  "value": 59,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.not_compiled": {
-  "value": 0,
+  "value": 1,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.caught": {
-  "value": 45,
+  "value": 50,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.not_caught": {
-  "value": 15,
+  "value": 9,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.caught_by_failed_check": {
-  "value": 27,
+  "value": 32,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.caught_by_panic": {
@@ -1172,31 +1172,31 @@
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.caught_by_tables": {
-  "value": 42,
+  "value": 46,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.caught_by_exploration": {
-  "value": 3,
+  "value": 4,
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.caught_percent": {
-  "value": 75,
+  "value": 85,
   "source": "evidence/mutants-held-out.json"
  },
  "table.mutants_held_out_not_caught": {
-  "value": "| Where | Change | Before | After | Why no check caught it |\n|---|---|---|---|---|\n| `kernel/src/ipc.rs`, line 75 | assignment removed | `self.tasks[me].grant = grant;` | `(line removed)` | A hole in the checks. With the line gone, whether a receiver may be handed a capability is left over from its own last call instead of coming from the capability it receives through. Every call and reply in the directed tests sends no capability, and the exploration takes a refused transfer for a call that failed and changed nothing. The self-test in QEMU does pass capabilities in messages; whether it catches this mutant was not tried. |\n| `kernel/src/ipc.rs`, line 154 | assignment removed | `self.eps[ep].irq_pending = 0;` | `(line removed)` | A hole in the checks. An interrupt that was reported then stays pending, so every later receive on that endpoint reports it again. No check asks that an interrupt is reported only once: the directed tests raise none, and the exploration, which does, has no rule about how often one arrives. |\n| `kernel/src/mem.rs`, line 60 | - becomes + | `(value + PAGE - 1) & !(PAGE - 1)` | `(value + PAGE + 1) & !(PAGE - 1)` | A hole in the checks, at one boundary. Rounding up to whole pages then goes wrong only for a size that is a whole number of pages or one byte short of it. The function is used only for the size of the boot archive, and the archive the model boots from is neither. |\n| `kernel/src/mem.rs`, line 154 | assignment removed | `self.kernel_pages = (kernel_end - kernel_start) / PAGE;` | `(line removed)` | A hole in the checks, in a reported figure only. The number of pages the kernel itself occupies is then never set. It appears in the statistics call and in the boot log; nothing decides by it, and no check compares it. |\n| `kernel/src/mem.rs`, line 196 | == becomes != | `if address == 0 {` | `if address != 0 {` | Outside what the model can see. The kernel's own half of every address space would then map page zero and nothing else. The model calls the kernel's functions directly and never runs the kernel through its page tables, and no check reads that half. In QEMU the kernel could not go on once paging is switched on; that is a judgment, since the mutants were not run there. |\n| `kernel/src/mem.rs`, line 296 | && becomes \\|\\| | `assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) && inside);` | `assert!(frame % PAGE == 0 \\|\\| (PAGE..MAX_RAM).contains(&frame) && inside);` | Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops the kernel. |\n| `kernel/src/mem.rs`, line 514 | condition inverted | `if pd == self.space {` | `if !(pd == self.space) {` | Outside what the model can see. After an unmapping the kernel reloads the address space so that the processor forgets the old translations. The function is only ever called for the calling task, whose address space is the loaded one, so the changed kernel simply never reloads, and the simulated machine keeps no translations that could go stale. On a real processor a task could go on using a page it has given back. Whether the tests in QEMU notice was not tried. |\n| `kernel/src/sys.rs`, line 86 | assignment removed | `self.tasks[me].frame.edx = arch::port_in(port, c);` | `(line removed)` | A hole in the checks. A read from an I/O port then leaves the caller's register as it was instead of returning the value read. No check looks at that value: the simulated port always reads as zero, and the helper the tests use returns only the status of the call. |\n| `kernel/src/sys.rs`, line 154 | < becomes <= | `if a > b \\|\\| a < first as u32 \\|\\| b > last as u32 {` | `if a > b \\|\\| a <= first as u32 \\|\\| b > last as u32 {` | A hole in the checks. A port capability that begins at the first port of its source can then no longer be derived. The directed tests derive one port capability, out of the middle of the capability for every port, and none that begins where its source begins. The changed kernel refuses more, not less. |\n| `kernel/src/sys.rs`, line 324 | > becomes >= | `if quota > caller.quota - caller.charged {` | `if quota >= caller.quota - caller.charged {` | A hole in the checks. A spawn that asks for exactly the memory quota its caller has left is then refused. No test asks for exactly that much. The changed kernel refuses more, not less. |\n| `kernel/src/task.rs`, line 29 | && becomes \\|\\| | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);` | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize \\|\\| NO_TASK == NONE as u32);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and all three of its parts hold for the constants as they are, so the changed kernel is the same program. |\n| `kernel/src/task.rs`, line 201 | < becomes <= | `frame >= page && frame - page < pages && (writable \\|\\| !write)` | `frame >= page && frame - page <= pages && (writable \\|\\| !write)` | A hole in the checks. The frame just past the range of a memory capability then counts as covered by it. The function decides which pages of device memory are unmapped after a capability is dropped or revoked, and the checker asks it the same question, so the checker is weakened in the same way. It would show only when a task loses a capability for device memory while it still holds one for the range just below, and no test does that. |\n| `kernel/src/task.rs`, line 356 | != becomes == | `if best != self.cur && best != IDLE {` | `if best == self.cur && best != IDLE {` | A hole in the checks, in a counter only. The number of task switches is then counted wrongly. It is reported by the statistics call; nothing decides by it, the summary of a state leaves counters out, and no check reads it. |\n| `kernel/src/task.rs`, line 423 | assignment removed | `self.tasks[t].deadline = u64::MAX;` | `(line removed)` | Makes no difference in any state the kernel can reach, as far as reading shows. The line resets the deadline of a task that is not waiting. Every path that ends a wait already sets the deadline to never and every path that begins one writes a new deadline, so the branch guards against a state that does not arise. |\n| `kernel/src/task.rs`, line 647 | assignment removed | `self.tasks[t].state = State::Zombie(NONE);` | `(line removed)` | Makes no difference that a check could see, as far as reading shows; this is the least certain of these judgments. The function writes the task's state again before it returns. In between, the only code that reads states is the waking of tasks queued on an endpoint whose last receiver is gone, and the most it could do is wake the dying task itself, whose state is then overwritten. |",
+  "value": "| Where | Change | Before | After | Why no check caught it |\n|---|---|---|---|---|\n| `kernel/src/elf.rs`, line 97 | - becomes + | `let mut page = start & !(PAGE - 1);` | `let mut page = start & !(PAGE + 1);` | A hole in the checks. The start of a program segment is then rounded down wrongly: two single bits are cleared instead of everything below a page. A segment that begins on an odd-numbered page gets one more page mapped below it, and a segment that begins inside a page is handed on with an address that is not a page boundary; what the kernel then does with it was not followed. That the programs the model loads have neither kind of segment is inferred from the result and was not checked in the test programs. |\n| `kernel/src/ipc.rs`, line 178 | call removed | `put32(&mut notice, MSG_HEADER + 4, task.cpu_ticks);` | `(line removed)` | A hole in the checks, in a reported figure only. The notice of a task's death then leaves out the processor time the task had used. Nothing decides by that word, and no check reads it. |\n| `kernel/src/mem.rs`, line 76 | < becomes <= | `assert!(index < ENTRIES);` | `assert!(index <= ENTRIES);` | Makes no difference while the kernel is right. The line is an assertion about an index that the kernel itself supplies. It holds in both versions, and no check hands it an index one past the end to see that it stops the kernel. |\n| `kernel/src/sys.rs`, line 378 | assignment removed | `self.stats.spawns = self.stats.spawns.wrapping_add(1);` | `(line removed)` | A hole in the checks, in a counter only. The count of tasks started then never rises. The tests added this round read the kernel's counts of system calls and of faults, and not this one. It is reported by the statistics call; nothing decides by it. |\n| `kernel/src/sys.rs`, line 417 | call removed | `arch::serial_put(byte);` | `(line removed)` | Outside what the model can see. The kernel's log call then writes nothing but carriage returns. The simulated serial port only counts the bytes it is given, and no check reads what was written. In QEMU every test reads the serial line, so it would very likely be noticed; that is a judgment, since the mutants were not run there. |\n| `kernel/src/task.rs`, line 31 | < becomes <= | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);` | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS <= NONE as usize && NO_TASK == NONE as u32);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and it holds for the constants as they are, so the changed kernel is the same program. |\n| `kernel/src/task.rs`, line 213 | < becomes <= | `frame >= page && frame - page < pages && (writable \\|\\| !write)` | `frame >= page && frame - page <= pages && (writable \\|\\| !write)` | A hole in the checks. The frame just past the range of a memory capability then counts as covered by it. The function decides which pages of device memory are unmapped after a capability is dropped or revoked, and the checker asks it the same question, so the checker is weakened in the same way. It would show only when a task loses a capability for device memory while it still holds one for the range just below, and no test does that. The same change got away a round ago and was not closed. |\n| `kernel/src/task.rs`, line 491 | > becomes >= | `if self.tasks[t].deadline > now {` | `if self.tasks[t].deadline >= now {` | A hole in the checks, at one boundary. A wait whose deadline falls exactly on the time of a timer tick then ends one tick late. That no test puts a deadline exactly on a tick is inferred from the result. |\n| `kernel/src/task.rs`, line 600 | assignment removed | `self.tasks[t].grant &= task.reaches(ep, R_SEND \\| R_GRANT, badge);` | `(line removed)` | A hole in the checks, and not a small one. A task that waits to send, and loses the grant right while it waits but keeps the right to send, then still hands its capability over when the message is delivered. The line above it, for a waiting receiver, is the same rule on the other side. No test takes the grant right from a waiting sender whose message carries a capability. Whether the self-test in QEMU catches it was not tried. |",
   "source": "evidence/mutants-held-out.json"
  },
  "mutants.held_out.judged_no_difference": {
-  "value": 4,
-  "source": "evidence/mutants-held-out.json, as judged in tools/claims.py"
- },
- "mutants.held_out.judged_outside_model": {
   "value": 2,
   "source": "evidence/mutants-held-out.json, as judged in tools/claims.py"
  },
+ "mutants.held_out.judged_outside_model": {
+  "value": 1,
+  "source": "evidence/mutants-held-out.json, as judged in tools/claims.py"
+ },
  "mutants.held_out.judged_hole": {
-  "value": 9,
+  "value": 6,
   "source": "evidence/mutants-held-out.json, as judged in tools/claims.py"
  },
  "mutants.before.caught": {
@@ -1210,5 +1210,61 @@
  "mutants.before.not_caught": {
   "value": 14,
   "source": "evidence/mutants-before-tests.log"
+ },
+ "mutants.previous.sites": {
+  "value": 886,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.previous.first.compiled": {
+  "value": 60,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.previous.first.caught": {
+  "value": 58,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.previous.first.not_caught": {
+  "value": 2,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.previous.held_out.compiled": {
+  "value": 60,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.previous.held_out.caught": {
+  "value": 45,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.previous.held_out.not_caught": {
+  "value": 15,
+  "source": "evidence/mutants-previous.json"
+ },
+ "mutants.from_previous_first": {
+  "value": 8,
+  "source": "evidence/mutants-previous.json against the present sample"
+ },
+ "mutants.from_previous_held_out": {
+  "value": 2,
+  "source": "evidence/mutants-previous.json against the present sample"
+ },
+ "mutants.from_previous_held_out_not_caught": {
+  "value": 1,
+  "source": "evidence/mutants-previous.json against the present sample"
+ },
+ "mutants.held_out.from_previous_first": {
+  "value": 5,
+  "source": "evidence/mutants-previous.json against the present sample"
+ },
+ "mutants.held_out.from_previous_held_out": {
+  "value": 6,
+  "source": "evidence/mutants-previous.json against the present sample"
+ },
+ "mutants.held_out.from_previous_held_out_not_caught": {
+  "value": 1,
+  "source": "evidence/mutants-previous.json against the present sample"
+ },
+ "mutants.new_places": {
+  "value": 50,
+  "source": "evidence/mutants-previous.json against the present sample"
  }
 }

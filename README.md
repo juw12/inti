@@ -45,7 +45,7 @@ None of these ideas is new: MINIX 3 restarts user-mode drivers, seL4 is a capabi
 | G8 | The same disk image boots to the shell prompt in a web browser | FAIL | evidence/web.json does not show the current image booting: selftest |
 | G9 | Every number in the documents comes from a script or carries a source | FAIL | tools/check_claims.py reports problems |
 
-Two more checks run on the build machine, outside QEMU, and are not gates. `python build.py model` runs the kernel's own source against a simulated machine: 173 of 173 directed tests pass, the kernel's checker reports 44 of 44 corruptions planted in its state, and a bounded exploration of 52,291 states and 258,840 steps meets 0 violations. `python build.py mutants` then breaks the kernel on purpose, one small change at a time, in 60 places taken at even spacing. The first run caught 46 of 60 broken kernels. After directed tests were written for what had got away, the same places give 58 of 60, which says how well those tests were aimed. A second sample of 60 places, which no test was written against, gives 45 of 60, and that is the figure to read. [How Inti works](docs/design.md#the-model) lists every broken kernel that got through, with the reason. The first run of the directed tests found one defect in the kernel and four gaps in its checker. They are fixed, and the failing run is kept in `evidence/model-before-fixes.log`. All of this is testing of small configurations to a small depth. It is not a proof.
+Two more checks run on the build machine, outside QEMU, and are not gates. `python build.py model` runs the kernel's own source against a simulated machine: 201 of 201 directed tests pass, the kernel's checker reports 44 of 44 corruptions planted in its state, and a bounded exploration of 52,291 states and 258,840 steps meets 0 violations. `python build.py mutants` then breaks the kernel on purpose, one small change at a time, in 60 places taken at even spacing. The places are redrawn whenever the kernel's source changes, and 50 of this round's 60 were new. The first run on them caught 46 of 60 broken kernels. After directed tests were written for what had got away, the same places give 53 of 60, which says how well those tests were aimed. A second sample of 60 places, which no test was written against this round, gives 50 of 59, and that is the figure to read; 5 of its places had tests aimed at them a round earlier. [How Inti works](docs/design.md#the-model) lists every broken kernel that got through, with the reason. The first run of the directed tests found one defect in the kernel and four gaps in its checker. They are fixed, and the failing run is kept in `evidence/model-before-fixes.log`. All of this is testing of small configurations to a small depth. It is not a proof.
 
 All timings are emulator timings. They show that a restart is quick compared with a reboot; they say nothing about real hardware, which Inti has never run on.
 
@@ -132,7 +132,7 @@ python build.py test     # run every test in QEMU
 python build.py gates    # every check, from a clean build
 python build.py model    # the kernel's source on this machine: directed tests, bounded exploration
 python build.py mutants  # break the kernel on purpose and see which checks notice
-python build.py mutants --held-out  # the same in a second sample of places, which no test was aimed at
+python build.py mutants --held-out  # the same in a second sample of places, which no test was aimed at this round
 ```
 
 The model and the mutation check need a Rust toolchain for the build machine itself; on Windows `build.py` uses the GNU one. They are not part of `gates`. The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used rustc 1.99.1 (58cf8f9c3 2026-10-13), Python 3.13.2 and QEMU 11.1.0 (TCG, no hardware virtualisation); its test run took 283 s.
@@ -165,8 +165,8 @@ No number in these documents is typed by hand unless a source link stands next t
 | `kernel/` | the kernel (2,590 lines) |
 | `abi/` | the interface that the kernel and the programs share (343 lines) |
 | `user/` | the runtime library, the supervisor, the drivers, the shell and the test programs (4,869 lines) |
-| `model/` | the kernel's source compiled for the build machine, with directed tests and a bounded explorer (3,042 lines) |
-| `build.py`, `tools/` | the build, test, gate and document scripts (3,108 lines of Python) |
+| `model/` | the kernel's source compiled for the build machine, with directed tests and a bounded explorer (3,173 lines) |
+| `build.py`, `tools/` | the build, test, gate and document scripts (3,131 lines of Python) |
 | `evidence/` | the raw logs and every measured number of the last gate run, the last model run and the last mutation run |
 | `docs/` | the browser demo, these documents and their templates |
 | `rubric.md`, `refine_log.md` | the criteria this project was built against, and the log of the run that built it |

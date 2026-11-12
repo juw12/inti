@@ -49,6 +49,7 @@ MODEL_MAIN = "model/src/main.rs"
 MUTANTS = "evidence/mutants.json"
 MUTANTS_BEFORE = "evidence/mutants-before-tests.log"
 MUTANTS_HELD_OUT = "evidence/mutants-held-out.json"
+MUTANTS_PREVIOUS = "evidence/mutants-previous.json"
 
 FAULTS = {
     "console_crash": "console driver crashes (page fault)",
@@ -586,98 +587,98 @@ JUDGMENTS = {
 }
 
 SURVIVORS: dict[str, str] = {
-    "kernel/src/mem.rs:49:&& becomes ||": (
-        "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
-        "and both halves hold for the constants as they are, so the changed kernel is the same program."
+    "kernel/src/mem.rs:57:+ becomes -": (
+        "Outside what the model can see. The root of the kernel's own map would then be the last of the tables "
+        "that map memory, not the table after them. The checker compares that map with the function that filled "
+        "it, so the two agree with each other, and the model calls the kernel's functions directly and never runs "
+        "the kernel through its page tables. In QEMU the kernel could not go on once paging is switched on; that "
+        "is a judgment, since the mutants were not run there."
     ),
-    "kernel/src/task.rs:545:!= becomes ==": (
-        "Makes no difference in any state the kernel can reach. An unbound line names no endpoint, so the changed "
-        "loop never runs, and what it then leaves out is done by every caller: a dying task's lines are unbound "
-        "before its capabilities are dropped, and after a drop or a revocation `release` unbinds what the task "
-        "can no longer receive on. The loop is a second line of defence, kept on purpose."
-    ),
-    # The held-out sample. No test was written against any of these.
-    "kernel/src/ipc.rs:75:assignment removed": (
-        "A hole in the checks. With the line gone, whether a receiver may be handed a capability is left over from "
-        "its own last call instead of coming from the capability it receives through. Every call and reply in the "
-        "directed tests sends no capability, and the exploration takes a refused transfer for a call that failed "
-        "and changed nothing. The self-test in QEMU does pass capabilities in messages; whether it catches this "
-        "mutant was not tried."
-    ),
-    "kernel/src/ipc.rs:154:assignment removed": (
-        "A hole in the checks. An interrupt that was reported then stays pending, so every later receive on that "
-        "endpoint reports it again. No check asks that an interrupt is reported only once: the directed tests "
-        "raise none, and the exploration, which does, has no rule about how often one arrives."
-    ),
-    "kernel/src/mem.rs:60:- becomes +": (
-        "A hole in the checks, at one boundary. Rounding up to whole pages then goes wrong only for a size that "
-        "is a whole number of pages or one byte short of it. The function is used only for the size of the boot "
-        "archive, and the archive the model boots from is neither."
-    ),
-    "kernel/src/mem.rs:154:assignment removed": (
-        "A hole in the checks, in a reported figure only. The number of pages the kernel itself occupies is then "
-        "never set. It appears in the statistics call and in the boot log; nothing decides by it, and no check "
-        "compares it."
-    ),
-    "kernel/src/mem.rs:196:== becomes !=": (
+    "kernel/src/mem.rs:196:condition inverted": (
         "Outside what the model can see. The kernel's own half of every address space would then map page zero "
         "and nothing else. The model calls the kernel's functions directly and never runs the kernel through its "
         "page tables, and no check reads that half. In QEMU the kernel could not go on once paging is switched "
         "on; that is a judgment, since the mutants were not run there."
+    ),
+    "kernel/src/mem.rs:253:assignment removed": (
+        "Makes no difference to anything that is promised. The line remembers where the last free frame was "
+        "found, so that the next search starts there. Without it every search starts from the beginning and "
+        "finds a free frame all the same; which free frame a task is handed is not promised, and no check may "
+        "depend on it."
     ),
     "kernel/src/mem.rs:296:&& becomes ||": (
         "Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel "
         "itself supplies. It holds in both versions, and no check hands it a wrong frame to see that it stops "
         "the kernel."
     ),
-    "kernel/src/mem.rs:514:condition inverted": (
+    "kernel/src/mem.rs:515:call removed": (
         "Outside what the model can see. After an unmapping the kernel reloads the address space so that the "
-        "processor forgets the old translations. The function is only ever called for the calling task, whose "
-        "address space is the loaded one, so the changed kernel simply never reloads, and the simulated machine "
+        "processor forgets the old translations. The changed kernel never reloads, and the simulated machine "
         "keeps no translations that could go stale. On a real processor a task could go on using a page it has "
         "given back. Whether the tests in QEMU notice was not tried."
     ),
-    "kernel/src/sys.rs:86:assignment removed": (
-        "A hole in the checks. A read from an I/O port then leaves the caller's register as it was instead of "
-        "returning the value read. No check looks at that value: the simulated port always reads as zero, and "
-        "the helper the tests use returns only the status of the call."
+    "kernel/src/task.rs:372:assignment removed": (
+        "A hole in the checks. The flag that asks for a new choice of task is then never lowered, so the kernel "
+        "chooses again at every entry and not only after an event that calls for it. The harness of the model "
+        "marks the running task ready before every step, which raises the same flag, so the model cannot tell "
+        "the two kernels apart. On the real kernel a task that is over its share would be switched away at the "
+        "next entry instead of at the next scheduling event; what else differs was not worked out."
     ),
-    "kernel/src/sys.rs:154:< becomes <=": (
-        "A hole in the checks. A port capability that begins at the first port of its source can then no longer "
-        "be derived. The directed tests derive one port capability, out of the middle of the capability for "
-        "every port, and none that begins where its source begins. The changed kernel refuses more, not less."
+    "kernel/src/task.rs:708:assignment removed": (
+        "Makes no difference that reading could find; it is a reading and not a proof. The line asks for a new "
+        "choice of task after a kill. A running task that has just died is no longer ready, so the scheduler "
+        "chooses again without being asked, and a task that the death wakes raises the flag itself when it is "
+        "woken."
     ),
-    "kernel/src/sys.rs:324:> becomes >=": (
-        "A hole in the checks. A spawn that asks for exactly the memory quota its caller has left is then "
-        "refused. No test asks for exactly that much. The changed kernel refuses more, not less."
+    # The held-out sample. No test was written this round against any of these.
+    "kernel/src/elf.rs:97:- becomes +": (
+        "A hole in the checks. The start of a program segment is then rounded down wrongly: two single bits are "
+        "cleared instead of everything below a page. A segment that begins on an odd-numbered page gets one "
+        "more page mapped below it, and a segment that begins inside a page is handed on with an address that "
+        "is not a page boundary; what the kernel then does with it was not followed. That the programs the model "
+        "loads have neither kind of segment is inferred from the result and was not checked in the test programs."
     ),
-    "kernel/src/task.rs:29:&& becomes ||": (
+    "kernel/src/ipc.rs:178:call removed": (
+        "A hole in the checks, in a reported figure only. The notice of a task's death then leaves out the "
+        "processor time the task had used. Nothing decides by that word, and no check reads it."
+    ),
+    "kernel/src/mem.rs:76:< becomes <=": (
+        "Makes no difference while the kernel is right. The line is an assertion about an index that the kernel "
+        "itself supplies. It holds in both versions, and no check hands it an index one past the end to see that "
+        "it stops the kernel."
+    ),
+    "kernel/src/sys.rs:378:assignment removed": (
+        "A hole in the checks, in a counter only. The count of tasks started then never rises. The tests added "
+        "this round read the kernel's counts of system calls and of faults, and not this one. It is reported by "
+        "the statistics call; nothing decides by it."
+    ),
+    "kernel/src/sys.rs:417:call removed": (
+        "Outside what the model can see. The kernel's log call then writes nothing but carriage returns. The "
+        "simulated serial port only counts the bytes it is given, and no check reads what was written. In QEMU "
+        "every test reads the serial line, so it would very likely be noticed; that is a judgment, since the "
+        "mutants were not run there."
+    ),
+    "kernel/src/task.rs:31:< becomes <=": (
         "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
-        "and all three of its parts hold for the constants as they are, so the changed kernel is the same program."
+        "and it holds for the constants as they are, so the changed kernel is the same program."
     ),
-    "kernel/src/task.rs:201:< becomes <=": (
+    "kernel/src/task.rs:213:< becomes <=": (
         "A hole in the checks. The frame just past the range of a memory capability then counts as covered by "
         "it. The function decides which pages of device memory are unmapped after a capability is dropped or "
         "revoked, and the checker asks it the same question, so the checker is weakened in the same way. It "
         "would show only when a task loses a capability for device memory while it still holds one for the "
-        "range just below, and no test does that."
+        "range just below, and no test does that. The same change got away a round ago and was not closed."
     ),
-    "kernel/src/task.rs:356:!= becomes ==": (
-        "A hole in the checks, in a counter only. The number of task switches is then counted wrongly. It is "
-        "reported by the statistics call; nothing decides by it, the summary of a state leaves counters out, and "
-        "no check reads it."
+    "kernel/src/task.rs:491:> becomes >=": (
+        "A hole in the checks, at one boundary. A wait whose deadline falls exactly on the time of a timer tick "
+        "then ends one tick late. That no test puts a deadline exactly on a tick is inferred from the result."
     ),
-    "kernel/src/task.rs:423:assignment removed": (
-        "Makes no difference in any state the kernel can reach, as far as reading shows. The line resets the "
-        "deadline of a task that is not waiting. Every path that ends a wait already sets the deadline to never "
-        "and every path that begins one writes a new deadline, so the branch guards against a state that does "
-        "not arise."
-    ),
-    "kernel/src/task.rs:647:assignment removed": (
-        "Makes no difference that a check could see, as far as reading shows; this is the least certain of these "
-        "judgments. The function writes the task's state again before it returns. In between, the only code that "
-        "reads states is the waking of tasks queued on an endpoint whose last receiver is gone, and the most it "
-        "could do is wake the dying task itself, whose state is then overwritten."
+    "kernel/src/task.rs:600:assignment removed": (
+        "A hole in the checks, and not a small one. A task that waits to send, and loses the grant right while "
+        "it waits but keeps the right to send, then still hands its capability over when the message is "
+        "delivered. The line above it, for a waiting receiver, is the same rule on the other side. No test takes "
+        "the grant right from a waiting sender whose message carries a capability. Whether the self-test in "
+        "QEMU catches it was not tried."
     ),
 }
 
@@ -759,6 +760,35 @@ def add_mutants(put: Put, mutants: dict, held_out: dict) -> None:
     )
     for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
         put(f"mutants.before.{key}", int(value), MUTANTS_BEFORE)
+
+    # Both samples are positions in the list of places, so they are drawn anew whenever that list changes. How
+    # many of the places tried now were also tried a round ago is counted here and not guessed. A place is matched
+    # by file, kind of change and the text of the line; identical lines can match each other, so these are upper
+    # bounds.
+    previous = gates.load("mutants-previous.json")
+    if not previous:
+        raise KeyError(f"{MUTANTS_PREVIOUS} is missing; it lists the places tried in the round before")
+    put("mutants.previous.sites", previous["sites"], MUTANTS_PREVIOUS)
+    for name in ("first", "held_out"):
+        for key, value in previous[f"{name}_summary"].items():
+            put(f"mutants.previous.{name}.{key}", value, MUTANTS_PREVIOUS)
+
+    def place(mutant: dict) -> tuple:
+        return mutant["file"], mutant["operator"], mutant["before"].strip()
+
+    for prefix, run in (("mutants", mutants), ("mutants.held_out", held_out)):
+        for name in ("first", "held_out", "held_out_not_caught"):
+            known = {tuple(item) for item in previous[name]}
+            count = sum(1 for mutant in run["mutants"] if place(mutant) in known)
+            put(f"{prefix}.from_previous_{name}", count, f"{MUTANTS_PREVIOUS} against the present sample")
+    put(
+        "mutants.new_places",
+        len(mutants["mutants"]) - sum(
+            1 for mutant in mutants["mutants"]
+            if place(mutant) in {tuple(item) for name in ("first", "held_out") for item in previous[name]}
+        ),
+        f"{MUTANTS_PREVIOUS} against the present sample",
+    )
 
 
 def collect() -> dict[str, dict]:
