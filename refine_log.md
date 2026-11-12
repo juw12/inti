@@ -143,6 +143,11 @@ driver or a hostile program is demonstrably a non-event.
 - Assumed: mutants in QEMU run a shorter suite than `python build.py test` (200,000 random system calls, 2 repeats of each injected fault); the numbers are recorded in the result. Only the mutants the host model did not catch are booted.
 - Assumed: Miri runs from a nightly GNU toolchain kept inside the session's scratch folder, so the owner's rustup is untouched. It checks the kernel's source as compiled into the host model, not the paging, trap and port code that only runs in QEMU.
 - Assumed: taking authority away from `init` is not attempted in round 6. It changes the kernel's interface and would force every sample to be run again; it stays in the queue.
+- Assumed: Miri runs the model's whole set of directed checks (`model tables`) with a time limit of three hours and none of the flags that make it less strict. If the limit cuts the run short, it is reported as cut short, with the number of checks that had passed by then; a run that was cut short is not called a clean run. `tools/miri.py` (`python build.py miri`) writes `evidence/miri.json` and `evidence/miri.log`.
+- Assumed: the documents get a table of where the kernel's uses of `unsafe` are and which of them the host model, and so Miri, can run. It is counted by `tools/claims.py` from the sources, not written by hand.
+- Assumed: the round 5 log of the fresh sample is kept as `evidence/mutants-fresh-before-tests.log`, as was done for the first and the held-out sample, so that "before the tests" stays checkable.
+- Assumed: one mutant (`kernel/src/mem.rs:165`) was run in QEMU as a trial of `tools/mutants_qemu.py` while the samples were running on the same machine. It wrote no evidence file. Should any mutant in a sample come out as "caught by time limit", it is rerun alone before its verdict is used, because the extra load could have caused it.
+- Changed check, reported: the two planted corruptions added for rule 11 in commit `346abc3` were first reported by the checker under rule 1, because the task they corrupted still held memory. They were rewritten to corrupt a task that had really ended (helper `ended()` in `model/src/tables.rs`). The rule they are expected to trip was not changed, and no check that existed before was changed or removed.
 
 ## Rubric
 
@@ -285,10 +290,10 @@ What the judges asked for across the four runs: close the 11 holes of the fresh 
 
 Second run, round 6 (branch `agent/r6-proof`, worktree `worktrees/inti/r6-proof`, started from `agent/r5-holes` at `0522762`).
 
-- Done: plan, keep rule and assumptions (Q14). Directed checks for the eleven round 5 survivors, commit `346abc3` (259 of 259 checks, 46 of 46 planted corruptions on the host model). `tools/mutants.py --unseen`, `tools/mutants_qemu.py`, `tools/all.py`, `build.py` commands `mutants-qemu` and `all` written.
-- In progress: the four samples of mutants on the host model; Miri on `model tables`.
-- Left: commit the samples; `python build.py mutants-qemu`; Miri result into `evidence/`; claims, documents and dossier for the unseen sample, QEMU mutants and Miri; `python build.py gates`; push; four council runs; pairwise against round 1; decision; Q15.
-- Exact next command: `python build.py mutants-qemu --only kernel/src/mem.rs:165` in the round 6 worktree, then `python build.py mutants-qemu`.
+- Done: plan, keep rule and assumptions (Q14). Directed checks for the eleven round 5 survivors, commit `346abc3` (259 of 259 checks, 46 of 46 planted corruptions on the host model). `tools/mutants_qemu.py`, `tools/all.py`, `build.py` commands `mutants-qemu` and `all`, commit `84e6dd3`. Fresh sample rerun: 55 of 60 caught on the host model (it was 44 of 60), all eleven aimed-at mutants caught. One-mutant trial of the QEMU tool passed (unchanged kernel 32 of 32 before and after, `kernel/src/mem.rs:165` caught by a failed check).
+- In progress (not committed): first, held-out and unseen samples running; Miri on `model tables` (three hour limit); `tools/mutants.py --unseen`, `tools/miri.py`, `tools/claims.py`, `tools/check_claims.py`, `tools/dossier.py` edited; the four templates under `docs/src` rewritten for four samples, QEMU mutants and Miri, with three markers still to replace once the results exist (`UNSEEN_HOLES_SENTENCE`, `QEMU_READING_SENTENCE`, `WEAK_FAULT_SENTENCE`).
+- Left: commit the samples; `python build.py mutants-qemu`; Miri result into `evidence/`; survivor notes in `tools/claims.py` for the unseen sample and with the QEMU verdicts; replace the three markers; `python build.py gates`; push; four council runs; pairwise against round 1; decision; Q15.
+- Exact next command: `python build.py mutants-qemu` in the round 6 worktree, once `evidence/mutants-unseen.json` exists.
 
 ### First run, round 5 (kept for the record; superseded by the lines above)
 
