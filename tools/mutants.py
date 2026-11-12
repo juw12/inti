@@ -37,7 +37,8 @@ result whose fingerprint is not that of the sources as they are.
 Nothing in the repository is changed: the work happens in copies under build/mutants/.
 The result goes to evidence/mutants.json and evidence/mutants.log, or with --held-out to
 evidence/mutants-held-out.json and evidence/mutants-held-out.log, or with --fresh to
-evidence/mutants-fresh.json and evidence/mutants-fresh.log. --only writes nothing.
+evidence/mutants-fresh.json and evidence/mutants-fresh.log, or with --unseen to
+evidence/mutants-unseen.json and evidence/mutants-unseen.log. --only writes nothing.
 """
 from __future__ import annotations
 
@@ -123,14 +124,15 @@ def sites() -> list[dict]:
 
 
 # Where in its stretch each sample takes its site, in quarters of the stretch.
-QUARTER = {"first": 2, "held-out": 0, "fresh": 3}
+QUARTER = {"first": 2, "held-out": 0, "fresh": 3, "unseen": 1}
 
 
 def positions(total: int, count: int, which: str) -> list[int]:
     """Where a sample lies in the ordered list: one site from each of `count` equal stretches.
 
     The first sample takes the middle site of each stretch, the held-out sample the first one,
-    the fresh sample the one three quarters of the way through.
+    the fresh sample the one three quarters of the way through, the unseen sample the one a
+    quarter of the way through.
     """
     return [(4 * index + QUARTER[which]) * total // (4 * count) for index in range(count)]
 
@@ -265,12 +267,15 @@ def main() -> int:
                         help="take the second sample: the first site of each stretch, none shared with the first")
     parser.add_argument("--fresh", action="store_true",
                         help="take the third sample: three quarters of the way through each stretch")
+    parser.add_argument("--unseen", action="store_true",
+                        help="take the fourth sample: a quarter of the way through each stretch")
     parser.add_argument("--only", default="", help="numbers of the sampled mutants to run; nothing is written")
     options = parser.parse_args()
-    if options.held_out and options.fresh:
-        print("mutants: stopped: --held-out and --fresh name two different samples; give one", flush=True)
+    named = [name for name in ("held-out", "fresh", "unseen") if getattr(options, name.replace("-", "_"))]
+    if len(named) > 1:
+        print(f"mutants: stopped: --{named[0]} and --{named[1]} name two different samples; give one", flush=True)
         return 1
-    which = "held-out" if options.held_out else "fresh" if options.fresh else "first"
+    which = named[0] if named else "first"
 
     fingerprint = claims.model_fingerprint()
     found = sites()
@@ -337,6 +342,7 @@ def main() -> int:
                    + f" --sample {options.sample}",
         "held_out": options.held_out,
         "fresh": options.fresh,
+        "unseen": options.unseen,
         "source_sha256": fingerprint,
         "files": [f"kernel/src/{name}" for name in FILES],
         "operators": OPERATORS,

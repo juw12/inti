@@ -17,7 +17,7 @@ mutant  16  kernel/src/ipc.rs:99  call removed: caught by `model tables` (failed
 mutant  17  kernel/src/ipc.rs:150  + becomes -: caught by `model tables` (panic)
 mutant  18  kernel/src/ipc.rs:170  condition inverted: caught by `model tables` (panic)
 mutant  19  kernel/src/ipc.rs:195  call removed: caught by `model tables` (failed check)
-mutant  20  kernel/src/ipc.rs:227  condition inverted: caught by `model explore boot` (failed check)
+mutant  20  kernel/src/ipc.rs:227  condition inverted: caught by `model tables` (panic)
 mutant  21  kernel/src/mem.rs:57  + becomes -: not caught
 mutant  22  kernel/src/mem.rs:83  < becomes <=: caught by `model tables` (failed check)
 mutant  23  kernel/src/mem.rs:152  assignment removed: caught by `model tables` (failed check)
@@ -31,7 +31,7 @@ mutant  30  kernel/src/mem.rs:490  + becomes -: caught by `model tables` (failed
 mutant  31  kernel/src/mem.rs:515  call removed: not caught
 mutant  32  kernel/src/mem.rs:551  condition inverted: caught by `model tables` (panic)
 mutant  33  kernel/src/sys.rs:40  assignment removed: caught by `model tables` (failed check)
-mutant  34  kernel/src/sys.rs:97  condition inverted: caught by `model explore boot` (failed check)
+mutant  34  kernel/src/sys.rs:97  condition inverted: caught by `model tables` (panic)
 mutant  35  kernel/src/sys.rs:146  && becomes ||: caught by `model tables` (failed check)
 mutant  36  kernel/src/sys.rs:160  == becomes !=: caught by `model tables` (failed check)
 mutant  37  kernel/src/sys.rs:191  assignment removed: caught by `model tables` (time limit)
@@ -50,7 +50,7 @@ mutant  49  kernel/src/task.rs:443  assignment removed: caught by `model tables`
 mutant  50  kernel/src/task.rs:479  call removed: caught by `model tables` (failed check)
 mutant  51  kernel/src/task.rs:509  == becomes !=: caught by `model tables` (failed check)
 mutant  52  kernel/src/task.rs:555  == becomes !=: caught by `model tables` (failed check)
-mutant  53  kernel/src/task.rs:587  == becomes !=: caught by `model explore boot` (failed check)
+mutant  53  kernel/src/task.rs:587  == becomes !=: caught by `model tables` (failed check)
 mutant  54  kernel/src/task.rs:619  == becomes !=: caught by `model tables` (failed check)
 mutant  55  kernel/src/task.rs:656  assignment removed: caught by `model tables` (failed check)
 mutant  56  kernel/src/task.rs:690  assignment removed: caught by `model tables` (failed check)

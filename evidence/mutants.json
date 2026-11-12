@@ -1,9 +1,10 @@
 {
- "date": "2026-11-12T08:59:58+00:00",
+ "date": "2026-11-12T13:20:12+00:00",
  "command": "python build.py mutants --sample 60",
  "held_out": false,
  "fresh": false,
- "source_sha256": "bb874e6f0221295e8b0aa93f867acfe9473b6465916fcfc0d25f4776aae0adf6",
+ "unseen": false,
+ "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
  "files": [
   "kernel/src/check.rs",
   "kernel/src/elf.rs",
@@ -35,11 +36,11 @@
   "compiled": 60,
   "caught": 53,
   "not_caught": 7,
-  "caught_by_failed_check": 38,
-  "caught_by_panic": 14,
+  "caught_by_failed_check": 36,
+  "caught_by_panic": 16,
   "caught_by_time_limit": 1,
-  "caught_by_tables": 49,
-  "caught_by_exploration": 4,
+  "caught_by_tables": 52,
+  "caught_by_exploration": 1,
   "caught_percent": 88
  },
  "mutants": [
@@ -260,8 +261,8 @@
    "before": "if arch::irq_spurious(irq) {",
    "after": "if !(arch::irq_spurious(irq)) {",
    "verdict": "caught",
-   "how": "failed check",
-   "by": "explore boot"
+   "how": "panic",
+   "by": "tables"
   },
   {
    "number": 21,
@@ -414,8 +415,8 @@
    "before": "if self.irqs[line].task as usize != me {",
    "after": "if !(self.irqs[line].task as usize != me) {",
    "verdict": "caught",
-   "how": "failed check",
-   "by": "explore boot"
+   "how": "panic",
+   "by": "tables"
   },
   {
    "number": 35,
@@ -624,7 +625,7 @@
    "after": "(Cap::Endpoint { ep, .. }, State::Recv(on)) if on != ep => {",
    "verdict": "caught",
    "how": "failed check",
-   "by": "explore boot"
+   "by": "tables"
   },
   {
    "number": 54,

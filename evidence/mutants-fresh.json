@@ -1,9 +1,10 @@
 {
- "date": "2026-11-12T08:46:41+00:00",
+ "date": "2026-11-12T12:47:20+00:00",
  "command": "python build.py mutants --fresh --sample 60",
  "held_out": false,
  "fresh": true,
- "source_sha256": "bb874e6f0221295e8b0aa93f867acfe9473b6465916fcfc0d25f4776aae0adf6",
+ "unseen": false,
+ "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
  "files": [
   "kernel/src/check.rs",
   "kernel/src/elf.rs",
@@ -33,14 +34,14 @@
   "sample": 60,
   "not_compiled": 0,
   "compiled": 60,
-  "caught": 44,
-  "not_caught": 16,
-  "caught_by_failed_check": 25,
-  "caught_by_panic": 19,
+  "caught": 55,
+  "not_caught": 5,
+  "caught_by_failed_check": 32,
+  "caught_by_panic": 23,
   "caught_by_time_limit": 0,
-  "caught_by_tables": 43,
-  "caught_by_exploration": 1,
-  "caught_percent": 73
+  "caught_by_tables": 55,
+  "caught_by_exploration": 0,
+  "caught_percent": 92
  },
  "mutants": [
   {
@@ -94,9 +95,9 @@
    "operator": "|| becomes &&",
    "before": "State::Zombie(ep) if ep != task.fault_ep || !receivable(ep) => return Err(11),",
    "after": "State::Zombie(ep) if ep != task.fault_ep && !receivable(ep) => return Err(11),",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 6,
@@ -182,9 +183,9 @@
    "operator": "|| becomes &&",
    "before": "if file_size > size || start < USER_BASE || end > IMAGE_END as u64 {",
    "after": "if file_size > size && start < USER_BASE || end > IMAGE_END as u64 {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 14,
@@ -226,9 +227,9 @@
    "operator": "assignment removed",
    "before": "self.eps[ep].irq_pending = 0;",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 18,
@@ -239,7 +240,7 @@
    "after": "(line removed)",
    "verdict": "caught",
    "how": "failed check",
-   "by": "explore boot"
+   "by": "tables"
   },
   {
    "number": 19,
@@ -248,9 +249,9 @@
    "operator": "assignment removed",
    "before": "self.tasks[sender].grant = granted;",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 20,
@@ -259,9 +260,9 @@
    "operator": "condition inverted",
    "before": "if bind.task != NONE {",
    "after": "if !(bind.task != NONE) {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "panic",
+   "by": "tables"
   },
   {
    "number": 21,
@@ -336,9 +337,9 @@
    "operator": "&& becomes ||",
    "before": "pte & (RW | FOREIGN) == RW && self.managed(frame)",
    "after": "pte & (RW | FOREIGN) == RW || self.managed(frame)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 28,
@@ -402,9 +403,9 @@
    "operator": "&& becomes ||",
    "before": "if task.gen == gen && task.state == State::Ready {",
    "after": "if task.gen == gen || task.state == State::Ready {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 34,
@@ -469,7 +470,7 @@
    "before": "if irq >= IRQ_LINES as u32 {",
    "after": "if !(irq >= IRQ_LINES as u32) {",
    "verdict": "caught",
-   "how": "failed check",
+   "how": "panic",
    "by": "tables"
   },
   {
@@ -512,9 +513,9 @@
    "operator": "!= becomes ==",
    "before": "if self.cap(me, slot)? != Cap::Log {",
    "after": "if self.cap(me, slot)? == Cap::Log {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 44,
@@ -523,9 +524,9 @@
    "operator": "call removed",
    "before": "put32(&mut out, index * 4, word);",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 45,
@@ -535,7 +536,7 @@
    "before": "self.caps.iter().any(|cap| matches!(*cap, Cap::Irq { mask } if mask & (1 << irq) != 0))",
    "after": "self.caps.iter().any(|cap| matches!(*cap, Cap::Irq { mask } if mask & (1 << irq) == 0))",
    "verdict": "caught",
-   "how": "failed check",
+   "how": "panic",
    "by": "tables"
   },
   {
@@ -622,9 +623,9 @@
    "operator": "assignment removed",
    "before": "self.tasks[t].grant &= task.reaches(ep, R_RECV | R_GRANT, None);",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 54,
@@ -633,9 +634,9 @@
    "operator": "== becomes !=",
    "before": "if self.irqs[irq].task != NONE && self.irqs[irq].ep as usize == ep {",
    "after": "if self.irqs[irq].task != NONE && self.irqs[irq].ep as usize != ep {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "panic",
+   "by": "tables"
   },
   {
    "number": 55,

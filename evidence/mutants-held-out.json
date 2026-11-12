@@ -1,9 +1,10 @@
 {
- "date": "2026-11-12T09:10:44+00:00",
+ "date": "2026-11-12T14:04:14+00:00",
  "command": "python build.py mutants --held-out --sample 60",
  "held_out": true,
  "fresh": false,
- "source_sha256": "bb874e6f0221295e8b0aa93f867acfe9473b6465916fcfc0d25f4776aae0adf6",
+ "unseen": false,
+ "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
  "files": [
   "kernel/src/check.rs",
   "kernel/src/elf.rs",
@@ -33,14 +34,14 @@
   "sample": 60,
   "not_compiled": 1,
   "compiled": 59,
-  "caught": 56,
-  "not_caught": 3,
+  "caught": 57,
+  "not_caught": 2,
   "caught_by_failed_check": 35,
-  "caught_by_panic": 20,
+  "caught_by_panic": 21,
   "caught_by_time_limit": 1,
-  "caught_by_tables": 53,
-  "caught_by_exploration": 3,
-  "caught_percent": 95
+  "caught_by_tables": 55,
+  "caught_by_exploration": 2,
+  "caught_percent": 97
  },
  "mutants": [
   {
@@ -415,7 +416,7 @@
    "after": "(line removed)",
    "verdict": "caught",
    "how": "failed check",
-   "by": "explore boot"
+   "by": "tables"
   },
   {
    "number": 35,
@@ -480,7 +481,7 @@
    "before": "if owner != NONE && owner as usize != me {",
    "after": "if !(owner != NONE && owner as usize != me) {",
    "verdict": "caught",
-   "how": "failed check",
+   "how": "panic",
    "by": "tables"
   },
   {
@@ -523,9 +524,9 @@
    "operator": "call removed",
    "before": "arch::serial_put(byte);",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 45,
