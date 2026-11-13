@@ -48,6 +48,12 @@ const MEMORY: u32 = 0x6200_0000;
 const UNMAPPED: u32 = 0x6800_0000;
 const ARCHIVE_AT: u32 = 0x7000_0000;
 const QUOTA_AT: u32 = 0x8000_0000;
+/// Where the sweep over all free page frames maps its two batches, and the most pages in
+/// a batch. A batch has to span more than one 32-frame word of the kernel's frame map.
+const SWEEP_AT: u32 = 0x8800_0000;
+const SWEEP_GAP: u32 = 0x20_0000;
+const SWEEP_BATCH: u32 = 256;
+const SWEEP_LEAST: u32 = 64;
 /// An address in a child's address space that the child program itself never uses.
 const CHILD_SPARE: u32 = 0x7800_0000;
 /// Where a child maps the page that it then tries to run (`PLAY` in tchild.rs).
@@ -65,6 +71,9 @@ const PROTECTION_FAULT: u32 = 13;
 /// The error code of a page fault when a program fetches an instruction from a page that
 /// is mapped but may not be executed: present, user mode, instruction fetch.
 const EXECUTE_FAULT: u32 = 0x15;
+/// The error code of a page fault when a program reads a page that is not mapped: not
+/// present, user mode, a read.
+const ABSENT_READ: u32 = 0x4;
 /// The keyboard controller's command port; writing 0xFE to it resets the machine.
 const RESET_PORT: u32 = 0x64;
 /// The exit code of a child whose capability in slot 0 was taken away while it waited.
@@ -1338,7 +1347,68 @@ fn memory(test: &mut Test, kids: &mut Kids) -> Option<()> {
     }
     c.works("unmapping the first pages", pages.unmap());
     test.done("a copy of a memory capability covers the same pages or fewer", c);
+
+    let mut c = Check::new();
+    let end = kids.run(mode::TOUCH_UNMAPPED, 0, 0);
+    c.ended("the child", end, PAGE_FAULT, Some(CHILD_PLAY));
+    if let Some(end) = end {
+        c.eq("error code of the fault", end.code, ABSENT_READ);
+    }
+    test.done("a page that was unmapped faults when it is touched again", c);
+
+    sweep(test, me);
     Some(())
+}
+
+/// Takes every free page frame at least once and gives it back.
+///
+/// The kernel hands out frames in rising order from where it last found one, and starts
+/// again at the bottom after the top. Two batches are held in turn, so each new batch
+/// gets frames beyond the other one; once a quarter more frames have been taken than
+/// were free, every free frame has been in a batch, the highest the kernel manages
+/// among them. Each page must arrive zeroed, also when this sweep wrote to its frame on
+/// an earlier lap, and must hold what is written to its first and last byte.
+fn sweep(test: &mut Test, me: u32) {
+    let mut c = Check::new();
+    let before = usage(me);
+    let memory = stats();
+    let batch = (spare_pages(me).saturating_sub(8) / 2).min(SWEEP_BATCH);
+    c.yes("this program's quota allows batches of 64 pages or more", batch >= SWEEP_LEAST);
+    let target = memory.free_frames + memory.free_frames / 4;
+    let mut held: [Option<Pages>; 2] = [None, None];
+    let (mut taken, mut errors, mut zeroed, mut kept) = (0u32, 0u32, true, true);
+    while batch >= SWEEP_LEAST && taken < target && errors == 0 {
+        let place = (taken / batch % 2) as usize;
+        if let Some(pages) = held[place].take() {
+            errors += u32::from(pages.unmap().is_err());
+        }
+        match Pages::map(SWEEP_AT + place as u32 * SWEEP_GAP, batch) {
+            Ok(pages) => {
+                for page in 0..batch {
+                    let value = pattern(taken + page) | 1;
+                    for at in [page * PAGE, page * PAGE + PAGE - 1] {
+                        zeroed &= pages.get(at) == 0;
+                        pages.set(at, value);
+                        kept &= pages.get(at) == value;
+                    }
+                }
+                held[place] = Some(pages);
+                taken += batch;
+            }
+            Err(_) => errors += 1,
+        }
+    }
+    for pages in held.into_iter().flatten() {
+        errors += u32::from(pages.unmap().is_err());
+    }
+    c.eq("maps and unmaps that failed", errors, 0);
+    c.yes("the sweep took a quarter more frames than were free", taken >= target);
+    c.yes("every page arrived zeroed", zeroed);
+    c.yes("every page held what was written", kept);
+    c.same(usage(me), before);
+    outln!("       took ", taken, " page frames in batches of ", batch, "; ", memory.free_frames, " of ",
+           memory.total_frames, " were free");
+    test.done("every free page frame, up to the top of memory, can be taken and given back", c);
 }
 
 /// How each kind of misbehaving child must end: name, mode, cause, exit code or address.
@@ -1649,9 +1719,76 @@ fn quotas(test: &mut Test, kids: &mut Kids) -> Option<()> {
     Some(())
 }
 
+/// What one stretch of spinning saw: the rounds of arithmetic this program got through, and
+/// what the kernel counted meanwhile. The counts tell a stalled machine (few timer ticks for
+/// the time that passed) from another task taking the processor (ticks, but few of them
+/// this program's) and from a slow emulator (all the ticks, and still few rounds).
+#[derive(Clone, Copy)]
+struct Stretch {
+    rounds: u32,
+    /// Timer interrupts the kernel counted, 100 a second.
+    ticks: u32,
+    /// Those of them that found this program running.
+    own: u32,
+    /// Times the kernel went from one task to another.
+    switches: u32,
+}
+
+impl Stretch {
+    fn show(&self, name: &str) {
+        outln!("       ", name, ": ", self.rounds, " rounds, ", self.ticks, " ticks of which ", self.own,
+               " found this program running, ", self.switches, " task switches");
+    }
+
+    /// Rounds per hundred of the ticks that found this program running: how fast the
+    /// machine ran this program while it had the processor, whoever else was waiting.
+    fn speed(&self) -> u64 {
+        u64::from(self.rounds) * 100 / u64::from(self.own.max(1))
+    }
+}
+
+/// How often the share measurement is taken at most before the subtest fails for want of
+/// a steady one.
+const SHARE_TRIES: u32 = 5;
+/// A measurement is steady when the slowest of its five stretches ran this program at
+/// this percentage of the speed of the fastest, or more.
+const STEADY_PERCENT: u64 = 75;
+
+/// This program's speed beside a group held to 20% and beside one without a share, and
+/// alone before, between and after.
+struct Measurement {
+    before: Stretch,
+    capped: Stretch,
+    capped_used: u32,
+    between: Stretch,
+    free: Stretch,
+    free_used: u32,
+    after: Stretch,
+}
+
+impl Measurement {
+    /// The slowest and the fastest of the five stretches, in rounds per hundred own ticks.
+    fn speeds(&self) -> (u64, u64) {
+        let all = [self.before.speed(), self.capped.speed(), self.between.speed(), self.free.speed(), self.after.speed()];
+        let slowest = all.iter().copied().min().unwrap_or(0);
+        let fastest = all.iter().copied().max().unwrap_or(0);
+        (slowest, fastest)
+    }
+
+    /// Whether the machine ran this program at one speed throughout. The rounds a tick of
+    /// its own buys do not depend on who else wants the processor, so a change is the
+    /// machine's (an emulator on a busy host), and the figures of such a measurement
+    /// compare stretches that were not run at the same speed.
+    fn steady(&self) -> bool {
+        let (slowest, fastest) = self.speeds();
+        slowest * 100 >= fastest * STEADY_PERCENT
+    }
+}
+
 /// Counts rounds of a fixed piece of arithmetic until `ms` milliseconds have passed: how
-/// much of the processor this program got in that time.
-fn spins_in(ms: u32) -> u32 {
+/// much of the processor this program, task `me`, got in that time.
+fn spins_in(me: u32, ms: u32) -> Stretch {
+    let (stats_before, own_before) = (stats(), task(me).cpu_ticks);
     let deadline = sys::time() + u64::from(ms) * 1000;
     let mut rounds = 0u32;
     let mut value = 1u32;
@@ -1662,7 +1799,13 @@ fn spins_in(ms: u32) -> u32 {
         rounds += 1;
     }
     core::hint::black_box(value);
-    rounds
+    let stats_after = stats();
+    Stretch {
+        rounds,
+        ticks: stats_after.ticks.wrapping_sub(stats_before.ticks),
+        own: task(me).cpu_ticks.wrapping_sub(own_before),
+        switches: stats_after.switches.wrapping_sub(stats_before.switches),
+    }
 }
 
 /// Tasks that are alive and were started by task `parent`.
@@ -1673,7 +1816,7 @@ fn children_of(parent: u32) -> u32 {
 /// A group of three spinning tasks beside this program, with a share of the processor
 /// (0 = this program's own). Returns this program's rounds in two seconds and what the
 /// kernel says the group used of the last full second, in thousandths.
-fn beside_hogs(c: &mut Check, kids: &mut Kids, share: u32) -> Option<(u32, u32)> {
+fn beside_hogs(c: &mut Check, kids: &mut Kids, share: u32) -> Option<(Stretch, u32)> {
     let archive_pages = cap(kids.me, ARCHIVE).b;
     kids.lend(2, 0);
     let mut spawn = kids.spawn_args(mode::HOGS, archive_pages, 2, &[NO_CAP, ARCHIVE], 120, CHILD_STACK);
@@ -1687,10 +1830,10 @@ fn beside_hogs(c: &mut Check, kids: &mut Kids, share: u32) -> Option<(u32, u32)>
     for child in (0..MAX_TASKS as u32).filter(|&child| task(child).state != ST_FREE && task(child).parent == index) {
         c.eq("share of a child of the group", task(child).cpu_limit, want);
     }
-    let rounds = spins_in(2000);
+    let stretch = spins_in(kids.me, 2000);
     let used = task(index).cpu_used;
     c.ended("the group", kids.kill(group), CAUSE_KILLED, None);
-    Some((rounds, used))
+    Some((stretch, used))
 }
 
 /// A task's share of the processor: what it and everything it starts may use of each
@@ -1720,20 +1863,52 @@ fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
     // This program's speed with nothing beside it, taken before, between and after the
     // two runs. Under an emulator on a busy host the machine can stall for a while, and
     // a stall only ever makes a figure smaller: the largest of the three is the reference.
-    let before = spins_in(500);
-    let (capped, capped_used) = beside_hogs(&mut c, kids, 20)?;
-    let between = spins_in(500);
-    let (free, free_used) = beside_hogs(&mut c, kids, 0)?;
-    let after = spins_in(500);
-    let alone = u64::from(before.max(between).max(after)).max(1);
+    //
+    // A measurement during which the machine changed speed is set aside, said so, and
+    // taken again, SHARE_TRIES times at most. The conditions below are the same for every
+    // try; without a steady measurement the subtest fails.
+    let mut steady = None;
+    for attempt in 1..=SHARE_TRIES {
+        let before = spins_in(me, 500);
+        let (capped, capped_used) = beside_hogs(&mut c, kids, 20)?;
+        let between = spins_in(me, 500);
+        let (free, free_used) = beside_hogs(&mut c, kids, 0)?;
+        let after = spins_in(me, 500);
+        let measurement = Measurement { before, capped, capped_used, between, free, free_used, after };
+        if measurement.steady() {
+            steady = Some(measurement);
+            break;
+        }
+        let (slowest, fastest) = measurement.speeds();
+        outln!("       try ", attempt, " of ", SHARE_TRIES, " set aside: the machine changed speed during it, from ",
+               fastest as u32, " to ", slowest as u32, " rounds");
+        outln!("       per hundred ticks of this program's own");
+        measurement.before.show("set aside: by itself for half a second");
+        measurement.capped.show("set aside: next to the group held to 20% for two seconds");
+        measurement.between.show("set aside: by itself for half a second");
+        measurement.free.show("set aside: next to the group without a share for two seconds");
+        measurement.after.show("set aside: by itself for half a second");
+    }
+    let Measurement { before, capped, capped_used, between, free, free_used, after } = match steady {
+        Some(measurement) => measurement,
+        None => {
+            c.yes("the machine kept one speed through at least one of the measurements", false);
+            test.done("three spinning tasks with a 20% share leave the rest of the processor to others", c);
+            return Some(());
+        }
+    };
+    let alone = u64::from(before.rounds.max(between.rounds).max(after.rounds)).max(1);
     // Rounds per second, as a percentage of the rate with nothing else running.
-    let capped_rate = (u64::from(capped) * 25 / alone) as u32;
-    let free_rate = (u64::from(free) * 25 / alone) as u32;
+    let capped_rate = (u64::from(capped.rounds) * 25 / alone) as u32;
+    let free_rate = (u64::from(free.rounds) * 25 / alone) as u32;
     outln!("       beside three spinning tasks this program kept ", capped_rate, "% of its speed when they");
     outln!("       shared 20% of the processor, and ", free_rate, "% when they had no share of their own;");
     outln!("       the kernel charged the group ", capped_used / 10, "% and ", free_used / 10, "% of a second");
-    outln!("       rounds alone in half a second: ", before, ", ", between, " and ", after, "; in two");
-    outln!("       seconds beside the groups: ", capped, " and ", free);
+    before.show("alone, half a second");
+    capped.show("beside the group held to 20%, two seconds");
+    between.show("alone, half a second");
+    free.show("beside the group without a share, two seconds");
+    after.show("alone, half a second");
     c.yes("this program keeps at least 45% of its speed beside a group held to 20%", capped_rate >= 45);
     c.yes("it keeps at most 40% of its speed beside the same group without a share", free_rate <= 40);
     c.yes("the group held to 20% is charged less than the free one", capped_used < free_used);
@@ -1922,6 +2097,10 @@ fn execution(test: &mut Test, kids: &mut Kids) -> Option<()> {
 
 type Group = fn(&mut Test, &mut Kids) -> Option<()>;
 
+/// How long the selftest sleeps before its first reading of what is in use, so that its
+/// starter has given back the pages it loaded the selftest's file into.
+const STARTER_MS: u32 = 50;
+
 #[no_mangle]
 pub fn main() {
     set_output(Sink::Console(CONSOLE));
@@ -1932,6 +2111,10 @@ pub fn main() {
     let scratch = sys::map(SCRATCH, 2, true).and_then(|()| sys::map(READ_ONLY, 1, false));
     match (Kids::new(), scratch) {
         (Some(mut kids), Ok(())) => {
+            // The program that started this one may still hold the pages it loaded this
+            // program's file into, and unmaps them as soon as it runs again. Let it run
+            // first: otherwise those pages count as taken before and as free after.
+            sys::sleep(STARTER_MS);
             let before = usage(kids.me);
             let groups: [(&str, Group); 13] = [
                 ("argument", arguments),

@@ -16,7 +16,7 @@ mutant  15  kernel/src/ipc.rs:59  assignment removed: caught by `model tables` (
 mutant  16  kernel/src/ipc.rs:93  condition inverted: caught by `model tables` (panic)
 mutant  17  kernel/src/ipc.rs:133  call removed: caught by `model tables` (failed check)
 mutant  18  kernel/src/ipc.rs:164  && becomes ||: caught by `model tables` (time limit)
-mutant  19  kernel/src/ipc.rs:187  assignment removed: not caught
+mutant  19  kernel/src/ipc.rs:187  assignment removed: caught by `model tables` (failed check)
 mutant  20  kernel/src/ipc.rs:222  condition inverted: caught by `model tables` (panic)
 mutant  21  kernel/src/mem.rs:50  == becomes !=: does not compile
 mutant  22  kernel/src/mem.rs:83  != becomes ==: caught by `model tables` (panic)
@@ -33,22 +33,22 @@ mutant  32  kernel/src/mem.rs:539  call removed: caught by `model tables` (faile
 mutant  33  kernel/src/mem.rs:571  call removed: caught by `model tables` (panic)
 mutant  34  kernel/src/sys.rs:80  call removed: caught by `model tables` (failed check)
 mutant  35  kernel/src/sys.rs:142  == becomes !=: caught by `model tables` (panic)
-mutant  36  kernel/src/sys.rs:154  < becomes <=: not caught
+mutant  36  kernel/src/sys.rs:154  < becomes <=: caught by `model tables` (failed check)
 mutant  37  kernel/src/sys.rs:170  + becomes -: caught by `model tables` (failed check)
 mutant  38  kernel/src/sys.rs:221  + becomes -: caught by `model tables` (failed check)
 mutant  39  kernel/src/sys.rs:260  <= becomes <: caught by `model tables` (failed check)
-mutant  40  kernel/src/sys.rs:284  != becomes ==: not caught
+mutant  40  kernel/src/sys.rs:284  != becomes ==: caught by `model tables` (failed check)
 mutant  41  kernel/src/sys.rs:331  - becomes +: caught by `model explore spawn` (panic)
 mutant  42  kernel/src/sys.rs:365  condition inverted: caught by `model tables` (panic)
 mutant  43  kernel/src/sys.rs:389  call removed: caught by `model tables` (failed check)
-mutant  44  kernel/src/sys.rs:432  != becomes ==: not caught
+mutant  44  kernel/src/sys.rs:432  != becomes ==: caught by `model tables` (failed check)
 mutant  45  kernel/src/task.rs:33  && becomes ||: not caught
 mutant  46  kernel/src/task.rs:331  + becomes -: caught by `model tables` (panic)
 mutant  47  kernel/src/task.rs:370  && becomes ||: caught by `model tables` (panic)
-mutant  48  kernel/src/task.rs:387  != becomes ==: not caught
+mutant  48  kernel/src/task.rs:387  != becomes ==: caught by `model tables` (failed check)
 mutant  49  kernel/src/task.rs:426  && becomes ||: caught by `model tables` (panic)
 mutant  50  kernel/src/task.rs:469  + becomes -: caught by `model tables` (panic)
-mutant  51  kernel/src/task.rs:507  call removed: not caught
+mutant  51  kernel/src/task.rs:507  call removed: caught by `model tables` (failed check)
 mutant  52  kernel/src/task.rs:549  condition inverted: caught by `model tables` (failed check)
 mutant  53  kernel/src/task.rs:576  == becomes !=: caught by `model tables` (failed check)
 mutant  54  kernel/src/task.rs:608  == becomes !=: caught by `model tables` (panic)
@@ -58,4 +58,4 @@ mutant  57  kernel/src/task.rs:702  call removed: caught by `model tables` (pani
 mutant  58  kernel/src/task.rs:730  == becomes !=: caught by `model tables` (failed check)
 mutant  59  kernel/src/task.rs:750  && becomes ||: caught by `model tables` (panic)
 mutant  60  kernel/src/task.rs:773  assignment removed: caught by `model tables` (failed check)
-MUTANTS: 52 of 59 caught, 7 not caught, 1 of 60 did not compile
+MUTANTS: 58 of 59 caught, 1 not caught, 1 of 60 did not compile

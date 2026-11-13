@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import re
 import socket
+import os
 import subprocess
 import sys
 import time
@@ -26,6 +27,15 @@ PROMPT = "inti> "
 # Kernel and supervisor log lines are written to the serial port in one piece,
 # but they can land in the middle of a line that the console driver is writing.
 LOG_LINE = re.compile(rb"(?:init|kernel): [^\r\n]*\r\n")
+
+
+# Windows priority classes for the QEMU process; elsewhere the flag is 0 and does nothing.
+PRIORITY_CLASSES = {
+    "normal": 0,
+    "above": getattr(subprocess, "ABOVE_NORMAL_PRIORITY_CLASS", 0),
+    "high": getattr(subprocess, "HIGH_PRIORITY_CLASS", 0),
+}
+DEFAULT_PRIORITY = "above"
 
 
 def free_port() -> int:
@@ -89,8 +99,9 @@ class VM:
             command += ["-d", "int,cpu_reset", "-D", str(self.debug_log)]
         # On a busy host the emulated CPU can be left waiting for longer than the guest's
         # 54.9 ms clock counter takes to wrap, and the guest clock then falls behind.
-        # Running QEMU just above normal priority keeps that from happening.
-        priority = getattr(subprocess, "ABOVE_NORMAL_PRIORITY_CLASS", 0)
+        # Running QEMU above normal priority keeps that from happening. The environment
+        # variable INTI_QEMU_PRIORITY chooses the class: "normal", "above" or "high".
+        priority = PRIORITY_CLASSES[os.environ.get("INTI_QEMU_PRIORITY", DEFAULT_PRIORITY)]
         self.process = subprocess.Popen(
             command,
             stdout=subprocess.DEVNULL,

@@ -1,10 +1,11 @@
 {
- "date": "2026-11-12T14:55:09+00:00",
+ "date": "2026-11-13T01:37:29+00:00",
  "command": "python build.py mutants --unseen --sample 60",
  "held_out": false,
  "fresh": false,
  "unseen": true,
- "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
+ "fifth": false,
+ "source_sha256": "92415fb05c06d18c125e8c0b27e073402579598cdd3f86b8d055403eb7d92e8b",
  "files": [
   "kernel/src/check.rs",
   "kernel/src/elf.rs",
@@ -34,14 +35,14 @@
   "sample": 60,
   "not_compiled": 1,
   "compiled": 59,
-  "caught": 52,
-  "not_caught": 7,
-  "caught_by_failed_check": 26,
+  "caught": 58,
+  "not_caught": 1,
+  "caught_by_failed_check": 32,
   "caught_by_panic": 24,
   "caught_by_time_limit": 2,
-  "caught_by_tables": 51,
+  "caught_by_tables": 57,
   "caught_by_exploration": 1,
-  "caught_percent": 88
+  "caught_percent": 98
  },
  "mutants": [
   {
@@ -249,9 +250,9 @@
    "operator": "assignment removed",
    "before": "self.stats.anomalies += 1;",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 20,
@@ -436,9 +437,9 @@
    "operator": "< becomes <=",
    "before": "if a > b || a < first as u32 || b > last as u32 {",
    "after": "if a > b || a <= first as u32 || b > last as u32 {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 37,
@@ -480,9 +481,9 @@
    "operator": "!= becomes ==",
    "before": "if owner != NONE && owner as usize != me {",
    "after": "if owner != NONE && owner as usize == me {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 41,
@@ -524,9 +525,9 @@
    "operator": "!= becomes ==",
    "before": "let endpoints = self.eps.iter().filter(|endpoint| endpoint.refs != 0).count();",
    "after": "let endpoints = self.eps.iter().filter(|endpoint| endpoint.refs == 0).count();",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 45,
@@ -568,9 +569,9 @@
    "operator": "!= becomes ==",
    "before": "if best != self.cur && best != IDLE {",
    "after": "if best != self.cur && best == IDLE {",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 49,
@@ -601,9 +602,9 @@
    "operator": "call removed",
    "before": "self.preempt(t);",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": ""
+   "verdict": "caught",
+   "how": "failed check",
+   "by": "tables"
   },
   {
    "number": 52,

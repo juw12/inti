@@ -1,11 +1,11 @@
 
 Inti 0.1.0 kernel
-kernel: 560 KiB kernel and archive, 62 MiB for user space
+kernel: 564 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=15570 us
+init: started shell with 11 capabilities, 15552 pages
+Inti 0.1.0 shell ready at t=24913 us
 Type help for the list of commands, or tour for a guided tour.
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -66,6 +66,9 @@ selftest: this line was written through the Log capability
   ok   a task cannot take more memory than its quota
   ok   shared memory keeps the rights and the bounds of its capability
   ok   a copy of a memory capability covers the same pages or fewer
+  ok   a page that was unmapped faults when it is touched again
+       took 19968 page frames in batches of 256; 15829 of 15955 were free
+  ok   every free page frame, up to the top of memory, can be taken and given back
   skip a program cannot run code from its stack
   skip a program cannot run code from its data
   skip a program cannot run code from memory it mapped
@@ -97,11 +100,14 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 63% of its speed when they
+       beside three spinning tasks this program kept 60% of its speed when they
        shared 20% of the processor, and 23% when they had no share of their own;
-       the kernel charged the group 35% and 75% of a second
-       rounds alone in half a second: 67486, 64359 and 61659; in two
-       seconds beside the groups: 170171 and 62389
+       the kernel charged the group 34% and 74% of a second
+       alone, half a second: 58807 rounds, 50 ticks of which 50 found this program running, 49 task switches
+       beside the group held to 20%, two seconds: 142596 rounds, 201 ticks of which 124 found this program running, 267 task switches
+       alone, half a second: 57396 rounds, 50 ticks of which 50 found this program running, 54 task switches
+       beside the group without a share, two seconds: 55966 rounds, 200 ticks of which 50 found this program running, 330 task switches
+       alone, half a second: 57165 rounds, 50 ticks of which 50 found this program running, 54 task switches
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
@@ -109,7 +115,7 @@ selftest: this line was written through the Log capability
   ok   the kernel's invariants hold at the end
   ok   the kernel met nothing unexpected
   ok   no task, endpoint, page frame or quota was lost
-SELFTEST: PASS 91/91, 3 skipped (no no-execute bit)
+SELFTEST: PASS 93/93, 3 skipped (no no-execute bit)
 inti> rogue all
 Starting a hostile program that holds one capability: console output.
 Attempts that need a capability are made with each of the 32 slots.
@@ -175,7 +181,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes

@@ -42,6 +42,10 @@ BANNER = r"Inti (\S+) shell ready at t=(\d+) us"
 # QEMU's plain 32-bit processor model has no no-execute bit. One short boot uses it, to
 # record what the system says and does where W^X cannot be enforced.
 CPU_WITHOUT_NX = "qemu32"
+# The other runs use the VM's default of 64 MiB; the kernel manages at most 128 MiB.
+SMALL_MEMORY_MB = 64
+FULL_MEMORY_MB = 256
+SWEEP = r"took (\d+) page frames in batches of (\d+); (\d+) of (\d+) were free"
 # What the serial log must show, in this order, when fs crashes while the supervisor is
 # waiting for a hung console to answer a ping.
 DOUBLE_DONE = r"DOUBLE FAILURE: fs answering again after (\d+) us, console after (\d+) us"
@@ -473,6 +477,50 @@ def without_nx(run: Run) -> str:
     return log
 
 
+def full_memory(run: Run) -> str:
+    """Boot the same image with more memory than the kernel manages; return its serial log.
+
+    The other runs give the machine 64 MiB, half of what the kernel can manage, so they never
+    touch its highest page frames or the page tables that map them. Here the selftest's sweep
+    takes every free frame up to the last one.
+    """
+    where = f"with {FULL_MEMORY_MB} MiB"
+    vm = VM(memory_mb=FULL_MEMORY_MB)
+    vm.start()
+    try:
+        vm.wait_for_prompt(timeout=20)
+        text = vm.command("selftest", timeout=180)
+        found = re.search(r"SELFTEST: PASS (\d+)/(\d+)", text)
+        failures = re.findall(r"^\s*FAIL (.+)$", text, re.M)
+        skipped = re.findall(r"^\s*skip (.+)$", text, re.M)
+        passed = found is not None and found[1] == found[2] and not failures and not skipped
+        run.check(f"{where}: the kernel boots and the selftest passes", passed,
+                  found[0] if found else text[-300:])
+        sweep = re.search(SWEEP, text)
+        taken, batch, free, total = (int(number) for number in sweep.groups()) if sweep else (0, 0, 0, 0)
+        run.check(f"{where}: more page frames are free than a {SMALL_MEMORY_MB} MiB machine has, and the "
+                  "selftest took every one of them",
+                  sweep is not None and free > SMALL_MEMORY_MB * 256 and taken > free,
+                  sweep[0].strip() if sweep else text[-300:])
+        run.check(f"{where}: the kernel invariants hold afterwards",
+                  "kernel invariants: all hold" in vm.command("uptime"))
+        run.measured["full_memory"] = {
+            "memory_mb": FULL_MEMORY_MB,
+            "selftest_passed": int(found[2]) if found else None,
+            "frames_taken": taken,
+            "batch": batch,
+            "free_frames": free,
+            "total_frames": total,
+        }
+    except VMError as error:
+        run.check(f"{where}: the run reached its end", False, str(error)[-600:])
+    finally:
+        vm.close()
+    log = vm.log().replace("\r", "")
+    run.check(f"{where}: no kernel panic anywhere in the serial log", "KERNEL PANIC" not in log)
+    return log
+
+
 def qemu_version() -> str:
     answer = subprocess.run([build.find_qemu(), "--version"], capture_output=True, text=True, check=False)
     found = re.search(r"version (\S+)", answer.stdout)
@@ -515,10 +563,12 @@ def main() -> int:
     log = vm.log().replace("\r", "")
     run.check("no kernel panic anywhere in the serial log", "KERNEL PANIC" not in log)
     log_without_nx = without_nx(run)
+    log_full_memory = full_memory(run)
 
     passed = all(check["ok"] for check in run.checks)
     (EVIDENCE / "test_serial.log").write_text(log, encoding="utf-8", newline="\n")
     (EVIDENCE / "test_nonx_serial.log").write_text(log_without_nx, encoding="utf-8", newline="\n")
+    (EVIDENCE / "test_fullmem_serial.log").write_text(log_full_memory, encoding="utf-8", newline="\n")
     report = {
         "passed": passed,
         "date": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),

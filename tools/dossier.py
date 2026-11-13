@@ -132,7 +132,7 @@ def model_table(model: dict) -> str:
     return claims.table(["Measure", *[f"`{scenario['name']}`" for scenario in scenarios]], rows)
 
 
-def mutants_table(first: dict, held_out: dict, fresh: dict, unseen: dict) -> str:
+def mutants_table(first: dict, held_out: dict, fresh: dict, unseen: dict, fifth: dict) -> str:
     """The samples side by side: mutant N of each comes from stretch N of the same ordered list of places."""
 
     def place(mutant: dict) -> str:
@@ -147,15 +147,16 @@ def mutants_table(first: dict, held_out: dict, fresh: dict, unseen: dict) -> str
     return claims.table(
         [
             "Stretch", "First sample", "Outcome", "Second sample", "Outcome", "Fresh sample", "Outcome",
-            "Unseen sample", "Outcome",
+            "Fourth sample", "Outcome", "Fifth sample", "Outcome",
         ],
         [
             [
                 one["number"], place(one), outcome(one), place(two), outcome(two), place(three), outcome(three),
-                place(four), outcome(four),
+                place(four), outcome(four), place(five), outcome(five),
             ]
-            for one, two, three, four in zip(
-                first["mutants"], held_out["mutants"], fresh["mutants"], unseen["mutants"], strict=True,
+            for one, two, three, four, five in zip(
+                first["mutants"], held_out["mutants"], fresh["mutants"], unseen["mutants"], fifth["mutants"],
+                strict=True,
             )
         ],
     )
@@ -208,18 +209,18 @@ def main() -> int:
     parts.append("## The model run, scenario by scenario\n\n" + model_table(gates.load("model.json")))
     parts.append(
         "## Every sampled mutant\n\n"
-        "All four samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
+        "All five samples, stretch by stretch; the files are in `kernel/src`. An outcome says how the changed kernel was "
         "caught and by which run of the model: `tables` are the directed tests, `explore` is an exploration. "
         "NOT CAUGHT marks a mutant that the host model let through; each of those is explained in the design "
         "document above, which also says what became of it when the changed kernel was booted in QEMU.\n\n"
         + mutants_table(
             gates.load("mutants.json"), gates.load("mutants-held-out.json"), gates.load("mutants-fresh.json"),
-            gates.load("mutants-unseen.json"),
+            gates.load("mutants-unseen.json"), gates.load("mutants-fifth.json"),
         )
     )
     parts.append(
         "## The surviving mutants in QEMU, as logged\n\n"
-        "The log of `python build.py mutants-qemu`: every mutant that the host model let through in any of the four "
+        "The log of `python build.py mutants-qemu`: every mutant that the host model let through in any of the five "
         "samples, built into the whole system and run against a shortened test suite in QEMU.\n\n```\n"
         + "\n".join(claims.evidence_lines("mutants-qemu.log")).strip() + "\n```"
     )

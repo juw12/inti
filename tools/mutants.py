@@ -1,6 +1,6 @@
 """Plant defects in a copy of the kernel and count how many the model catches.
 
-    python tools/mutants.py [--sample N] [--jobs N] [--held-out | --fresh] [--only N,N,...]
+    python tools/mutants.py [--sample N] [--jobs N] [--held-out | --fresh | --unseen | --fifth] [--only N,N,...]
 
 Why. The model (model/src, `python build.py model`) reports no violation in the kernel. That
 says something only if it would have reported one, so this script breaks the kernel on
@@ -22,6 +22,10 @@ no longer. --fresh takes the site three quarters of the way through each stretch
 sample that shares no site with the other two. Whether a test was written against it is
 not something the script can know; the documents say when it was drawn.
 
+The unseen and the fifth sample. --unseen takes the site a quarter of the way through each
+stretch. Once tests had been aimed at what it let through, --fifth was added: the site an
+eighth of the way through each stretch, which shares no site with the other four.
+
 What counts. A changed kernel (a "mutant") is caught when a directed test or a scenario of
 the exploration fails, when the program stops with a panic, or when a check runs past its
 time limit. The checks are the ones `python build.py model` runs, with the same depths,
@@ -38,7 +42,8 @@ Nothing in the repository is changed: the work happens in copies under build/mut
 The result goes to evidence/mutants.json and evidence/mutants.log, or with --held-out to
 evidence/mutants-held-out.json and evidence/mutants-held-out.log, or with --fresh to
 evidence/mutants-fresh.json and evidence/mutants-fresh.log, or with --unseen to
-evidence/mutants-unseen.json and evidence/mutants-unseen.log. --only writes nothing.
+evidence/mutants-unseen.json and evidence/mutants-unseen.log, or with --fifth to
+evidence/mutants-fifth.json and evidence/mutants-fifth.log. --only writes nothing.
 """
 from __future__ import annotations
 
@@ -123,8 +128,8 @@ def sites() -> list[dict]:
     return found
 
 
-# Where in its stretch each sample takes its site, in quarters of the stretch.
-QUARTER = {"first": 2, "held-out": 0, "fresh": 3, "unseen": 1}
+# Where in its stretch each sample takes its site, in eighths of the stretch.
+EIGHTH = {"first": 4, "held-out": 0, "fresh": 6, "unseen": 2, "fifth": 1}
 
 
 def positions(total: int, count: int, which: str) -> list[int]:
@@ -132,9 +137,9 @@ def positions(total: int, count: int, which: str) -> list[int]:
 
     The first sample takes the middle site of each stretch, the held-out sample the first one,
     the fresh sample the one three quarters of the way through, the unseen sample the one a
-    quarter of the way through.
+    quarter of the way through, the fifth sample the one an eighth of the way through.
     """
-    return [(4 * index + QUARTER[which]) * total // (4 * count) for index in range(count)]
+    return [(8 * index + EIGHTH[which]) * total // (8 * count) for index in range(count)]
 
 
 def sample(found: list[dict], count: int, which: str = "first") -> list[dict]:
@@ -269,9 +274,11 @@ def main() -> int:
                         help="take the third sample: three quarters of the way through each stretch")
     parser.add_argument("--unseen", action="store_true",
                         help="take the fourth sample: a quarter of the way through each stretch")
+    parser.add_argument("--fifth", action="store_true",
+                        help="take the fifth sample: an eighth of the way through each stretch")
     parser.add_argument("--only", default="", help="numbers of the sampled mutants to run; nothing is written")
     options = parser.parse_args()
-    named = [name for name in ("held-out", "fresh", "unseen") if getattr(options, name.replace("-", "_"))]
+    named = [name for name in ("held-out", "fresh", "unseen", "fifth") if getattr(options, name.replace("-", "_"))]
     if len(named) > 1:
         print(f"mutants: stopped: --{named[0]} and --{named[1]} name two different samples; give one", flush=True)
         return 1
@@ -280,7 +287,7 @@ def main() -> int:
     fingerprint = claims.model_fingerprint()
     found = sites()
     count = min(options.sample, len(found))
-    drawn = [position for name in QUARTER for position in positions(len(found), count, name)]
+    drawn = [position for name in EIGHTH for position in positions(len(found), count, name)]
     if len(set(drawn)) != len(drawn):
         print("mutants: stopped: two of the samples would share a site; take a smaller --sample", flush=True)
         return 1
@@ -343,6 +350,7 @@ def main() -> int:
         "held_out": options.held_out,
         "fresh": options.fresh,
         "unseen": options.unseen,
+        "fifth": options.fifth,
         "source_sha256": fingerprint,
         "files": [f"kernel/src/{name}" for name in FILES],
         "operators": OPERATORS,

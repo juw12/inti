@@ -1,0 +1,6 @@
+mutants-qemu: 21 mutants the host model did not catch, 200000 random system calls and 2 repeats per run
+mutants-qemu: unchanged kernel before: PASS 36/36 checks, 159 s
+QEMU MUTANT first #21 kernel/src/mem.rs:57 [+ becomes -] the unchanged kernel failed beside it; not counted
+QEMU MUTANT first #24 kernel/src/mem.rs:196 [condition inverted] caught twice by failed check: the run reached its end (+2 more)
+QEMU MUTANT first #25 kernel/src/mem.rs:253 [assignment removed] not caught
+QEMU MUTANT first #26 kernel/src/mem.rs:296 [&& becomes ||] the unchanged kernel failed beside it; not counted

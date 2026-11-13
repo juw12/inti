@@ -69,6 +69,7 @@ pub mod mode {
     pub const EXEC_STACK: u32 = 15;
     pub const EXEC_DATA: u32 = 16;
     pub const EXEC_MAPPED: u32 = 17;
+    pub const TOUCH_UNMAPPED: u32 = 18;
     pub const SPIN: u32 = 20;
     pub const SLEEP: u32 = 21;
     pub const ECHO: u32 = 22;

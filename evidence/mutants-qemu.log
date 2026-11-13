@@ -1,22 +1,22 @@
-QEMU MUTANT first #21 kernel/src/mem.rs:57 [+ becomes -] not caught
-QEMU MUTANT first #24 kernel/src/mem.rs:196 [condition inverted] caught by failed check: the run reached its end (+1 more)
-QEMU MUTANT first #25 kernel/src/mem.rs:253 [assignment removed] caught by failed check: selftest after boot
+QEMU MUTANT first #21 kernel/src/mem.rs:57 [+ becomes -] caught twice by failed check: with 256 MiB: the run reached its end (+1 more)
+QEMU MUTANT first #24 kernel/src/mem.rs:196 [condition inverted] the unchanged kernel failed beside it; not counted
+QEMU MUTANT first #25 kernel/src/mem.rs:253 [assignment removed] not caught
 QEMU MUTANT first #26 kernel/src/mem.rs:296 [&& becomes ||] not caught
-QEMU MUTANT first #31 kernel/src/mem.rs:515 [call removed] not caught
+QEMU MUTANT first #31 kernel/src/mem.rs:515 [call removed] caught twice by failed check: selftest after boot (+3 more)
 QEMU MUTANT first #47 kernel/src/task.rs:372 [assignment removed] not caught
 QEMU MUTANT first #57 kernel/src/task.rs:708 [assignment removed] not caught
 QEMU MUTANT held-out #22 kernel/src/mem.rs:76 [< becomes <=] not caught
 QEMU MUTANT held-out #45 kernel/src/task.rs:31 [< becomes <=] same image
 QEMU MUTANT fresh #21 kernel/src/mem.rs:70 [< becomes <=] not caught
-QEMU MUTANT fresh #23 kernel/src/mem.rs:165 [assignment removed] caught by failed check: the run reached its end (+1 more)
+QEMU MUTANT fresh #23 kernel/src/mem.rs:165 [assignment removed] caught twice by failed check: the run reached its end (+2 more)
 QEMU MUTANT fresh #26 kernel/src/mem.rs:308 [&& becomes ||] not caught
-QEMU MUTANT fresh #42 kernel/src/sys.rs:374 [assignment removed] caught by failed check: the run reached its end (+3 more)
-QEMU MUTANT fresh #46 kernel/src/task.rs:345 [condition inverted] caught by failed check: the kernel enforces W^X: its boot log says the no-execute bit is in use (+1 more)
-QEMU MUTANT unseen #19 kernel/src/ipc.rs:187 [assignment removed] not caught
-QEMU MUTANT unseen #36 kernel/src/sys.rs:154 [< becomes <=] caught by failed check: selftest after boot (+2 more)
-QEMU MUTANT unseen #40 kernel/src/sys.rs:284 [!= becomes ==] caught by failed check: selftest after boot (+2 more)
-QEMU MUTANT unseen #44 kernel/src/sys.rs:432 [!= becomes ==] caught by failed check: selftest after boot (+2 more)
+QEMU MUTANT fresh #42 kernel/src/sys.rs:374 [assignment removed] the unchanged kernel failed beside it; not counted
+QEMU MUTANT fresh #46 kernel/src/task.rs:345 [condition inverted] caught twice by failed check: the kernel enforces W^X: its boot log says the no-execute bit is in use (+1 more)
 QEMU MUTANT unseen #45 kernel/src/task.rs:33 [&& becomes ||] same image
-QEMU MUTANT unseen #48 kernel/src/task.rs:387 [!= becomes ==] not caught
-QEMU MUTANT unseen #51 kernel/src/task.rs:507 [call removed] caught by failed check: selftest after boot (+1 more)
-MUTANTS IN QEMU: 9 of 21 caught, 2 build the same image, 10 not caught, 0 do not build
+QEMU MUTANT fifth #16 kernel/src/ipc.rs:83 [assignment removed] the unchanged kernel failed beside it; not counted
+QEMU MUTANT fifth #21 kernel/src/mem.rs:49 [&& becomes ||] same image
+QEMU MUTANT fifth #26 kernel/src/mem.rs:282 [< becomes <=] caught twice by failed check
+QEMU MUTANT fifth #27 kernel/src/mem.rs:322 [>= becomes >] the unchanged kernel failed beside it; not counted
+QEMU MUTANT fifth #58 kernel/src/task.rs:728 [assignment removed] the unchanged kernel failed beside it; not counted
+QEMU MUTANT fifth #60 kernel/src/task.rs:771 [assignment removed] caught twice by failed check
+MUTANTS IN QEMU: 6 of 21 caught twice, 0 failed once and passed when run again, 5 not counted because the unchanged kernel failed beside them, 3 build the same image, 7 not caught, 0 do not build

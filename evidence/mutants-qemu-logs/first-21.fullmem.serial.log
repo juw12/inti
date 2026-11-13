@@ -1,0 +1,70 @@
+
+Inti 0.1.0 kernel
+kernel: 564 KiB kernel and archive, 126 MiB for user space
+kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
+init: started console with 6 capabilities, 64 pages
+init: started fs with 2 capabilities, 64 pages
+init: started shell with 11 capabilities, 31968 pages
+Inti 0.1.0 shell ready at t=20636 us
+Type help for the list of commands, or tour for a guided tour.
+inti> selftest
+Each line is one promise of the kernel, checked from user space.
+  ok   the kernel's invariants hold at the start
+  ok   the kernel has met nothing unexpected so far
+  ok   system call numbers that do not exist give E_NOSYS
+  ok   a message buffer outside the caller's memory gives E_FAULT
+  ok   a message buffer the caller cannot write gives E_FAULT
+  ok   a message buffer is checked up to its last byte
+  ok   log checks the length and the address of the text
+  ok   sysinfo checks where it writes and what it is asked
+  ok   spawn checks the addresses of the image and of its arguments
+  ok   an empty or impossible capability slot gives E_NOCAP
+  ok   a capability of the wrong kind gives E_NOCAP
+  ok   a copy of a capability has the same rights or fewer
+  ok   a badge is set once, and only by a holder of the grant right
+  ok   a dropped capability is gone
+  ok   an I/O port capability reaches its ports and no others
+  ok   an interrupt capability reaches its lines and no others
+  ok   an interrupt line is released when its endpoint goes away
+selftest: this line was written through the Log capability
+  ok   the Log capability writes to the kernel log
+  ok   the Info capability describes tasks and their capabilities
+  ok   no task, init included, holds a capability for the reset port 0x64
+  ok   the drivers refuse to crash or hang for an ordinary program
+  ok   every port, interrupt line and page of device memory that any task holds was handed out by name
+  ok   recv can poll, and can give up after a time limit
+  ok   a call that nobody receives times out and leaves nothing queued
+  ok   a call to an endpoint that nobody can receive from gives E_DEAD
+  ok   an endpoint has one receiver at a time
+  ok   a call carries its label, words and badge; a reply carries no badge
+  ok   a program cannot send the kernel's labels or an oversized message
+  ok   a 256-byte message crosses a page boundary in both directions
+  ok   a server can end in an orderly way, and its clients are told
+  ok   a reply needs the token of the call, and the token works once
+  ok   callers are served in the order in which they called
+  ok   a caller is told when the server dies with its request
+  ok   a caller that is killed while it waits leaves nothing queued
+  ok   a reply to a caller that was killed gives E_INVAL
+  ok   revoking a capability takes back its copies and theirs, and nothing else
+  ok   revoking reaches another task: its copy and what it mapped through it
+  ok   revoking wakes the tasks that waited through the copies
+  ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a server takes back one client's access and leaves the other's
+  ok   a capability goes along with a call when both ends hold the grant right
+  ok   without the grant right at both ends nothing is handed over
+  ok   the sender takes back what it sent
+  ok   a reply carries a capability back, still linked to where it came from
+  ok   a waiting task that loses the grant right takes no more capabilities
+  ok   a capability is not handed to a task whose table is full
+  ok   memory of a device is refused as a message buffer, also in part
+  ok   a device page taken from a waiting task was never its message buffer
+  ok   a reply reaches a caller whose capability was revoked in between
+  ok   map gives zeroed pages that can be written
+  ok   a map that fails part-way changes nothing
+  ok   map and unmap accept only whole pages inside user space
+  ok   unmap gives every page frame back
+  ok   a task cannot take more memory than its quota
+  ok   shared memory keeps the rights and the bounds of its capability
+  ok   a copy of a memory capability covers the same pages or fewer
+  ok   a page that was unmapped faults when it is touched again
+KERNEL PANIC:

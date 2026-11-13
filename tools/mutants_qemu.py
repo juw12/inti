@@ -1,27 +1,38 @@
 #!/usr/bin/env python3
 """Mutants in QEMU: the changed kernels the host model let through, booted and tested.
 
-    python build.py mutants-qemu                 every mutant the four samples did not catch
+    python build.py mutants-qemu                 every mutant the five samples did not catch
     python build.py mutants-qemu --only kernel/src/mem.rs:165   chosen places; nothing is written
 
 `python build.py mutants` runs the kernel's source on the build machine, where the paging
 code, the trap frames and the processor are replaced. A changed kernel that those checks let
 through may still be noticed by the system itself. This script takes every mutant marked
-"not caught" in evidence/mutants.json, mutants-held-out.json, mutants-fresh.json and
-mutants-unseen.json, and for each one:
+"not caught" in evidence/mutants.json, mutants-held-out.json, mutants-fresh.json,
+mutants-unseen.json and mutants-fifth.json, and for each one:
 
 1. plants the same one-line change in a copy of the sources under build/mutants/qemu,
 2. builds the disk image there (`python build.py build`),
-3. boots it in QEMU and runs the test suite (`python tools/test.py --fuzz N --runs N`).
+3. boots it in QEMU and runs the test suite (`python tools/test.py --fuzz N --runs N`),
+4. if that run failed, runs the suite on the unchanged image and then on the changed one again.
 
-The verdicts:
+The suite has checks of timing that fail now and then on a kernel that is right, so one
+failed run is not a catch. The verdicts:
 
-    caught             the suite failed: a check failed, or the run passed its time limit
+    caught             the suite failed on the changed kernel twice, and passed on the unchanged
+                       kernel in between; a run fails when a check fails or the time limit passes
+    not repeated       the suite failed on the changed kernel once and passed when it was run
+                       again; not counted as caught
+    not counted        the suite failed on the unchanged kernel run beside the mutant, so the
+                       failures say nothing about the change; not counted as caught
     same image         the disk image is byte for byte the unchanged one, so the change cannot
                        be observed by any test (for example a compile-time assertion)
     not caught         a different kernel, and every check passed: a hole, or a change that
                        makes no difference at run time; the script cannot tell which
     does not build     the image could not be built
+
+Every run that failed leaves its serial logs in evidence/mutants-qemu-logs/, named after the
+sample and the number of the mutant, so that the check and the subtest that failed can be read
+afterwards. A run that was ended at the time limit leaves none.
 
 The unchanged copy is tested before the first mutant and again after the last. Both runs
 must pass, or nothing is written: a suite that fails on the unchanged kernel proves nothing
@@ -55,9 +66,13 @@ import mutants  # noqa: E402
 
 EVIDENCE = ROOT / "evidence"
 COPY = ROOT / "build" / "mutants" / "qemu"
+LOGS = EVIDENCE / "mutants-qemu-logs"
+SCRATCH_LOGS = ROOT / "build" / "mutants" / "qemu-logs"  # where --only keeps them: nothing is written to evidence/
+SERIAL_LOGS = (("test_serial.log", "serial.log"), ("test_fullmem_serial.log", "fullmem.serial.log"))
 COPIED = (*mutants.COPIED, "build.py", "tools", "files")
 SAMPLES = (("first", "mutants.json"), ("held-out", "mutants-held-out.json"),
-           ("fresh", "mutants-fresh.json"), ("unseen", "mutants-unseen.json"))
+           ("fresh", "mutants-fresh.json"), ("unseen", "mutants-unseen.json"),
+           ("fifth", "mutants-fifth.json"))
 FUZZ = 200_000
 RUNS = 2
 BUILD_LIMIT = 1800  # seconds for building one image
@@ -126,10 +141,27 @@ def build_image(env: dict[str, str]) -> str:
     return hashlib.sha256(image.read_bytes()).hexdigest()
 
 
+def set_aside() -> int:
+    """Share measurements the self-test set aside in the run just made, because the machine changed speed."""
+    log = COPY / "evidence" / "test_serial.log"
+    if not log.exists():
+        return 0
+    return log.read_text(encoding="utf-8", errors="replace").count("set aside: the machine changed speed")
+
+
 def run_suite(env: dict[str, str], fuzz: int, runs: int, limit: float) -> dict:
+    """Boot the image in the copy and test it. Returns passed, failed check names, seconds, timed_out, set_aside."""
+    outcome = run_suite_once(env, fuzz, runs, limit)
+    outcome["set_aside"] = set_aside()
+    return outcome
+
+
+def run_suite_once(env: dict[str, str], fuzz: int, runs: int, limit: float) -> dict:
     """Boot the image in the copy and test it. Returns passed, failed check names, seconds, timed_out."""
     report_path = COPY / "evidence" / "test.json"
     report_path.unlink(missing_ok=True)
+    for name, _ in SERIAL_LOGS:  # a run ended at the time limit must not leave the logs of the run before
+        (COPY / "evidence" / name).unlink(missing_ok=True)
     started = time.monotonic()
     code, output = run_limited(
         [sys.executable, str(Path("tools") / "test.py"), "--fuzz", str(fuzz), "--runs", str(runs)], env, limit)
@@ -145,8 +177,39 @@ def run_suite(env: dict[str, str], fuzz: int, runs: int, limit: float) -> dict:
             "seconds": seconds, "timed_out": False}
 
 
-def judge(site: dict, env: dict[str, str], unchanged_image: str, fuzz: int, runs: int, limit: float) -> dict:
-    """Plant one change, build, test, put the file back."""
+def put_image(path: Path, data: bytes) -> None:
+    """Write a disk image. An emulator that was just ended may hold the file for a moment longer."""
+    for attempt in range(20):
+        try:
+            path.write_bytes(data)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.5)
+
+
+def keep_logs(folder: Path, stem: str) -> list[str]:
+    """Copy the serial logs of the run just made into `folder`. Returns their names; none after a time limit."""
+    kept = []
+    for name, suffix in SERIAL_LOGS:
+        source = COPY / "evidence" / name
+        if source.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, folder / f"{stem}.{suffix}")
+            kept.append(f"{stem}.{suffix}")
+    return kept
+
+
+def record(kind: str, outcome: dict, logs: list[str]) -> dict:
+    """One run of the suite as it is written to the result."""
+    return {"kind": kind, "passed": outcome["passed"], "failed": outcome["failed"], "timed_out": outcome["timed_out"],
+            "seconds": outcome["seconds"], "set_aside": outcome["set_aside"], "logs": logs}
+
+
+def judge(site: dict, env: dict[str, str], unchanged_image: str, unchanged_bytes: bytes, fuzz: int, runs: int,
+          limit: float, logs: Path) -> dict:
+    """Plant one change, build, test; repeat a failed run beside the unchanged image; put the file back."""
     path = COPY / site["file"]
     original = path.read_bytes()
     lines = original.decode("utf-8").split("\n")
@@ -164,13 +227,30 @@ def judge(site: dict, env: dict[str, str], unchanged_image: str, fuzz: int, runs
             return {**result, "verdict": "does not build", "how": "", "by": [], "seconds": 0}
         if image == unchanged_image:
             return {**result, "verdict": "same image", "how": "", "by": [], "seconds": 0}
-        outcome = run_suite(env, fuzz, runs, limit)
-        if outcome["timed_out"]:
-            return {**result, "verdict": "caught", "how": "time limit", "by": [], "seconds": outcome["seconds"]}
-        if not outcome["passed"]:
-            return {**result, "verdict": "caught", "how": "failed check", "by": outcome["failed"],
-                    "seconds": outcome["seconds"]}
-        return {**result, "verdict": "not caught", "how": "", "by": [], "seconds": outcome["seconds"]}
+        stem = f"{site['sample']}-{site['number']}"
+        image_path = COPY / "build" / "inti.img"
+        changed_bytes = image_path.read_bytes()
+        first = run_suite(env, fuzz, runs, limit)
+        if first["passed"]:
+            return {**result, "verdict": "not caught", "how": "", "by": [], "seconds": first["seconds"],
+                    "runs": [record("mutant", first, [])]}
+        # One failed run is not a catch: the suite's checks of timing fail now and then by themselves.
+        made = [record("mutant", first, keep_logs(logs, stem))]
+        put_image(image_path, unchanged_bytes)
+        beside = run_suite(env, fuzz, runs, limit)
+        made.append(record("unchanged", beside, [] if beside["passed"] else keep_logs(logs, f"{stem}.unchanged")))
+        put_image(image_path, changed_bytes)
+        second = run_suite(env, fuzz, runs, limit)
+        made.append(record("mutant", second, [] if second["passed"] else keep_logs(logs, f"{stem}.repeat")))
+        seconds = sum(run["seconds"] for run in made)
+        if not beside["passed"]:
+            return {**result, "verdict": "not counted", "how": "", "by": [], "seconds": seconds, "runs": made}
+        if second["passed"]:
+            return {**result, "verdict": "not repeated", "how": "", "by": [], "seconds": seconds, "runs": made}
+        both = [name for name in first["failed"] if name in second["failed"]]
+        how = "time limit" if first["timed_out"] and second["timed_out"] else "failed check"
+        return {**result, "verdict": "caught", "how": how, "by": both, "by_first_run": first["failed"],
+                "by_repeat_run": second["failed"], "seconds": seconds, "runs": made}
     finally:
         path.write_bytes(original)
 
@@ -180,7 +260,11 @@ def line_of(result: dict) -> str:
     if verdict == "caught":
         first = f": {result['by'][0]}" if result["by"] else ""
         more = f" (+{len(result['by']) - 1} more)" if len(result["by"]) > 1 else ""
-        verdict = f"caught by {result['how']}{first}{more}"
+        verdict = f"caught twice by {result['how']}{first}{more}"
+    elif verdict == "not repeated":
+        verdict = "failed once and passed when run again; not counted"
+    elif verdict == "not counted":
+        verdict = "the unchanged kernel failed beside it; not counted"
     return (f"QEMU MUTANT {result['sample']} #{result['number']} {result['file']}:{result['line']} "
             f"[{result['operator']}] {verdict}")
 
@@ -211,6 +295,9 @@ def main() -> int:
     if not unchanged_image:
         print("mutants-qemu: stopped: the unchanged copy does not build", flush=True)
         return 1
+    unchanged_bytes = (COPY / "build" / "inti.img").read_bytes()
+    logs = SCRATCH_LOGS if options.only else LOGS
+    shutil.rmtree(logs, ignore_errors=True)
     before = run_suite(env, options.fuzz, options.runs, 4 * LIMIT_FLOOR)
     print(f"mutants-qemu: unchanged kernel before: {'PASS' if before['passed'] else 'FAIL'} "
           f"{before['checks'] - len(before['failed'])}/{before['checks']} checks, {before['seconds']} s", flush=True)
@@ -221,7 +308,7 @@ def main() -> int:
 
     results = []
     for site in chosen:
-        result = judge(site, env, unchanged_image, options.fuzz, options.runs, limit)
+        result = judge(site, env, unchanged_image, unchanged_bytes, options.fuzz, options.runs, limit, logs)
         results.append(result)
         print(line_of(result), flush=True)
 
@@ -241,12 +328,16 @@ def main() -> int:
     counts = {
         "tried": len(results),
         "caught": sum(result["verdict"] == "caught" for result in results),
+        "not_repeated": sum(result["verdict"] == "not repeated" for result in results),
+        "not_counted": sum(result["verdict"] == "not counted" for result in results),
         "same_image": sum(result["verdict"] == "same image" for result in results),
         "not_caught": sum(result["verdict"] == "not caught" for result in results),
         "does_not_build": sum(result["verdict"] == "does not build" for result in results),
     }
-    final = (f"MUTANTS IN QEMU: {counts['caught']} of {counts['tried']} caught, {counts['same_image']} build the "
-             f"same image, {counts['not_caught']} not caught, {counts['does_not_build']} do not build")
+    final = (f"MUTANTS IN QEMU: {counts['caught']} of {counts['tried']} caught twice, {counts['not_repeated']} "
+             f"failed once and passed when run again, {counts['not_counted']} not counted because the unchanged "
+             f"kernel failed beside them, {counts['same_image']} build the same image, {counts['not_caught']} "
+             f"not caught, {counts['does_not_build']} do not build")
     print(final, flush=True)
     if options.only:
         return 0

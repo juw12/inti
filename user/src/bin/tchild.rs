@@ -39,6 +39,7 @@ pub fn main() {
         mode::NULL_READ..=mode::STACK_OVERFLOW => misbehave(what),
         mode::PANIC => panic!("asked to panic"),
         mode::EXEC_STACK..=mode::EXEC_MAPPED => run_data(what),
+        mode::TOUCH_UNMAPPED => touch_unmapped(),
         mode::SPIN => loop {
             core::hint::spin_loop();
         },
@@ -121,6 +122,24 @@ fn run_data(what: u32) -> ! {
     // the call comes straight back, having used one word of stack and nothing else.
     unsafe { asm!("call {target}", target = in(reg) target, clobber_abi("C")) };
     sys::exit(0xBAD1)
+}
+
+/// Maps a page, writes to it so that the processor has its translation at hand, unmaps it
+/// and reads it again. The read must be a page fault; if the kernel left the old
+/// translation in place the read succeeds and the task exits with 0xBAD1.
+fn touch_unmapped() -> ! {
+    if sys::map(PLAY, 1, true).is_err() {
+        sys::exit(0xBAD2)
+    }
+    // SAFETY: the page at PLAY was mapped writable just above; nothing else uses it.
+    unsafe { (PLAY as *mut u8).write_volatile(0x5A) };
+    // SAFETY: nothing refers to the page; the read below is the point of the test.
+    if unsafe { sys::unmap(PLAY, 1) }.is_err() {
+        sys::exit(0xBAD3)
+    }
+    // SAFETY: not safe, on purpose: the page is gone and the read must fault.
+    let seen = unsafe { (PLAY as *const u8).read_volatile() };
+    sys::exit(0xBAD1_0000 | u32::from(seen))
 }
 
 /// A server that answers every request with what it saw, until it is told to stop.

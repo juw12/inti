@@ -1,0 +1,832 @@
+
+Inti 0.1.0 kernel
+kernel: 560 KiB kernel and archive, 62 MiB for user space
+kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
+init: started console with 6 capabilities, 64 pages
+init: started fs with 2 capabilities, 64 pages
+init: started shell with 11 capabilities, 15553 pages
+Inti 0.1.0 shell ready at t=14219 us
+Type help for the list of commands, or tour for a guided tour.
+inti> selftest
+Each line is one promise of the kernel, checked from user space.
+  ok   the kernel's invariants hold at the start
+  ok   the kernel has met nothing unexpected so far
+  ok   system call numbers that do not exist give E_NOSYS
+  ok   a message buffer outside the caller's memory gives E_FAULT
+  ok   a message buffer the caller cannot write gives E_FAULT
+  ok   a message buffer is checked up to its last byte
+  ok   log checks the length and the address of the text
+  ok   sysinfo checks where it writes and what it is asked
+  ok   spawn checks the addresses of the image and of its arguments
+  ok   an empty or impossible capability slot gives E_NOCAP
+  ok   a capability of the wrong kind gives E_NOCAP
+  ok   a copy of a capability has the same rights or fewer
+  ok   a badge is set once, and only by a holder of the grant right
+  ok   a dropped capability is gone
+  ok   an I/O port capability reaches its ports and no others
+  ok   an interrupt capability reaches its lines and no others
+  ok   an interrupt line is released when its endpoint goes away
+selftest: this line was written through the Log capability
+  ok   the Log capability writes to the kernel log
+  ok   the Info capability describes tasks and their capabilities
+  ok   no task, init included, holds a capability for the reset port 0x64
+  ok   the drivers refuse to crash or hang for an ordinary program
+  ok   every port, interrupt line and page of device memory that any task holds was handed out by name
+  ok   recv can poll, and can give up after a time limit
+  ok   a call that nobody receives times out and leaves nothing queued
+  ok   a call to an endpoint that nobody can receive from gives E_DEAD
+  ok   an endpoint has one receiver at a time
+  ok   a call carries its label, words and badge; a reply carries no badge
+  ok   a program cannot send the kernel's labels or an oversized message
+  ok   a 256-byte message crosses a page boundary in both directions
+  ok   a server can end in an orderly way, and its clients are told
+  ok   a reply needs the token of the call, and the token works once
+  ok   callers are served in the order in which they called
+  ok   a caller is told when the server dies with its request
+  ok   a caller that is killed while it waits leaves nothing queued
+  ok   a reply to a caller that was killed gives E_INVAL
+  ok   revoking a capability takes back its copies and theirs, and nothing else
+  ok   revoking reaches another task: its copy and what it mapped through it
+  ok   revoking wakes the tasks that waited through the copies
+  ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a server takes back one client's access and leaves the other's
+  ok   a capability goes along with a call when both ends hold the grant right
+  ok   without the grant right at both ends nothing is handed over
+  ok   the sender takes back what it sent
+  ok   a reply carries a capability back, still linked to where it came from
+  ok   a waiting task that loses the grant right takes no more capabilities
+  ok   a capability is not handed to a task whose table is full
+  ok   memory of a device is refused as a message buffer, also in part
+  ok   a device page taken from a waiting task was never its message buffer
+  ok   a reply reaches a caller whose capability was revoked in between
+  ok   map gives zeroed pages that can be written
+  ok   a map that fails part-way changes nothing
+  ok   map and unmap accept only whole pages inside user space
+  ok   unmap gives every page frame back
+  ok   a task cannot take more memory than its quota
+  ok   shared memory keeps the rights and the bounds of its capability
+  ok   a copy of a memory capability covers the same pages or fewer
+  ok   a page that was unmapped faults when it is touched again
+       took 19968 page frames in batches of 256; 15831 of 15956 were free
+  ok   every free page frame, up to the top of memory, can be taken and given back
+  ok   a program cannot run code from its stack
+  ok   a program cannot run code from its data
+  ok   a program cannot run code from memory it mapped
+  ok   the exit code of a child reaches its parent
+  ok   a panic ends the program that panicked
+  ok   reading address 4 is a page fault at address 4
+  ok   a program cannot write to its own code
+  ok   a program cannot read kernel memory
+  ok   a program cannot write kernel memory
+  ok   a program cannot jump into the kernel
+  ok   a stack overflow ends the program with a page fault
+  ok   a division by zero ends the program
+  ok   an invalid instruction ends the program
+  ok   a program cannot switch interrupts off
+  ok   a program cannot halt the processor
+  ok   a program cannot use I/O ports without a capability
+  ok   floating-point instructions are refused
+  ok   fourteen children ended, twelve by a fault, and left nothing behind
+  ok   a task that never yields is pre-empted and can be killed, once
+  ok   the children of a task end with it
+  ok   the memory of a child comes out of its parent's quota and goes back
+  ok   damaged program images are refused and leave nothing behind
+  ok   an image with writable code, or with two segments on one page, is refused
+  ok   starting a child fails cleanly at every point where memory can run out
+  ok   the same image, repaired, starts and runs
+  ok   a full capability table gives E_NOSLOT and recovers
+  ok   a child gets the share of the quotas that its parent lends, and no more
+  ok   an endpoint outlives the task that made it, and its parent pays for it
+  ok   endpoints are created only within a quota, and the quota comes back
+  ok   tasks are started only within a quota, and the quota comes back
+  ok   a child gets its parent's share of the processor or a smaller one, never a larger
+       beside three spinning tasks this program kept 59% of its speed when they
+       shared 20% of the processor, and 23% when they had no share of their own;
+       the kernel charged the group 35% and 74% of a second
+       alone, half a second: 73807 rounds, 50 ticks of which 50 found this program running, 56 task switches
+       beside the group held to 20%, two seconds: 175819 rounds, 203 ticks of which 129 found this program running, 270 task switches
+       alone, half a second: 71487 rounds, 50 ticks of which 50 found this program running, 49 task switches
+       beside the group without a share, two seconds: 68696 rounds, 200 ticks of which 50 found this program running, 330 task switches
+       alone, half a second: 67716 rounds, 50 ticks of which 50 found this program running, 49 task switches
+  ok   three spinning tasks with a 20% share leave the rest of the processor to others
+  ok   sleep lasts as long as asked, and not much longer
+  ok   the clock never goes backwards
+  ok   files are read through the file server
+  ok   the kernel's invariants hold at the end
+  ok   the kernel met nothing unexpected
+  ok   no task, endpoint, page frame or quota was lost
+SELFTEST: PASS 96/96
+inti> rogue all
+Starting a hostile program that holds one capability: console output.
+Attempts that need a capability are made with each of the 32 slots.
+ 1. read the keyboard port 0x60                denied: E_NOCAP
+ 2. reset the machine through port 0x64        denied: E_NOCAP
+ 3. take over the keyboard interrupt           denied: E_NOCAP
+ 4. map physical memory                        denied: E_NOCAP
+ 5. kill another task                          denied: E_NOCAP
+ 6. read kernel and task information           denied: E_NOCAP
+ 7. write to the kernel log                    denied: E_NOCAP
+ 8. use capability number 1000000              denied: E_NOCAP
+ 9. add the receive right to its console cap   denied: E_PERM
+10. receive other programs' console requests   denied: E_PERM
+11. answer others' calls with forged tokens    denied: E_INVAL
+12. re-badge its console cap as the shell's    denied: E_PERM
+13. ask the console driver to crash            denied: refused by the driver
+14. ask the console driver to hang             denied: refused by the driver
+15. have the kernel write into kernel memory   denied: E_FAULT
+16. pass a message pointer that wraps around   denied: E_FAULT
+17. start a task from kernel memory            denied: E_FAULT
+18. map pages over kernel and video memory     denied: E_INVAL
+19. unmap kernel pages                         denied: E_INVAL
+20. take more memory than its quota            denied: E_NOMEM
+21. start a task from a garbage image          denied: E_INVAL
+22. give a child more memory than it has       denied: E_NOMEM
+23. give a child a capability it does not hold denied: E_NOCAP
+24. create an endpoint with no endpoint quota  denied: E_NOSLOT
+25. give a child more task quota than it has   denied: E_NOSLOT
+26. give a child a larger processor share      denied: E_PERM
+27. hand a capability to the console driver    denied: E_PERM
+28. revoke capabilities it does not hold       denied: E_NOCAP
+29. call system calls that do not exist        denied: E_NOSYS
+30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+31. disable interrupts (cli)                   denied: general protection fault
+32. halt the processor (hlt)                   denied: general protection fault
+33. read the keyboard port directly (in)       denied: general protection fault
+34. reset the machine directly (out 0x64)      denied: general protection fault
+35. read kernel memory                         denied: page fault
+36. write kernel memory                        denied: page fault
+37. jump into kernel code                      denied: page fault
+38. load the kernel's data segment             denied: general protection fault
+39. raise the timer interrupt (int 0x20)       denied: general protection fault
+40. replace the page tables (mov cr3)          denied: general protection fault
+41. turn off paging and protection (mov cr0)   denied: general protection fault
+42. replace the interrupt table (lidt)         denied: general protection fault
+43. far jump to the kernel's code segment      denied: general protection fault
+44. overwrite its own code                     denied: page fault
+45. overflow its stack                         denied: page fault
+46. return to ring 0 with a forged iret frame  denied: general protection fault
+47. write a model-specific register (wrmsr)    denied: general protection fault
+48. enter the kernel through sysenter          denied: general protection fault
+49. run code from its stack                    denied: page fault
+50. run code from its data                     denied: page fault
+51. run code from memory it just mapped        denied: page fault
+ROGUE: 51/51 attempts denied
+kernel invariants: all hold
+inti> rogue
+Starting a hostile program that holds one capability: console output.
+Attempts that need a capability are made with each of the 32 slots.
+ 1. read the keyboard port 0x60                denied: E_NOCAP
+ 2. reset the machine through port 0x64        denied: E_NOCAP
+ 3. take over the keyboard interrupt           denied: E_NOCAP
+ 4. map physical memory                        denied: E_NOCAP
+ 5. kill another task                          denied: E_NOCAP
+ 6. read kernel and task information           denied: E_NOCAP
+ 7. write to the kernel log                    denied: E_NOCAP
+ 8. use capability number 1000000              denied: E_NOCAP
+ 9. add the receive right to its console cap   denied: E_PERM
+10. receive other programs' console requests   denied: E_PERM
+11. answer others' calls with forged tokens    denied: E_INVAL
+12. re-badge its console cap as the shell's    denied: E_PERM
+13. ask the console driver to crash            denied: refused by the driver
+14. ask the console driver to hang             denied: refused by the driver
+15. have the kernel write into kernel memory   denied: E_FAULT
+16. pass a message pointer that wraps around   denied: E_FAULT
+17. start a task from kernel memory            denied: E_FAULT
+18. map pages over kernel and video memory     denied: E_INVAL
+19. unmap kernel pages                         denied: E_INVAL
+20. take more memory than its quota            denied: E_NOMEM
+21. start a task from a garbage image          denied: E_INVAL
+22. give a child more memory than it has       denied: E_NOMEM
+23. give a child a capability it does not hold denied: E_NOCAP
+24. create an endpoint with no endpoint quota  denied: E_NOSLOT
+25. give a child more task quota than it has   denied: E_NOSLOT
+26. give a child a larger processor share      denied: E_PERM
+27. hand a capability to the console driver    denied: E_PERM
+28. revoke capabilities it does not hold       denied: E_NOCAP
+29. call system calls that do not exist        denied: E_NOSYS
+30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+31. disable interrupts (cli)                   denied: general protection fault
+32. halt the processor (hlt)                   denied: general protection fault
+33. read the keyboard port directly (in)       denied: general protection fault
+34. reset the machine directly (out 0x64)      denied: general protection fault
+35. read kernel memory                         denied: page fault
+36. write kernel memory                        denied: page fault
+37. jump into kernel code                      denied: page fault
+38. load the kernel's data segment             denied: general protection fault
+39. raise the timer interrupt (int 0x20)       denied: general protection fault
+40. replace the page tables (mov cr3)          denied: general protection fault
+41. turn off paging and protection (mov cr0)   denied: general protection fault
+42. replace the interrupt table (lidt)         denied: general protection fault
+43. far jump to the kernel's code segment      denied: general protection fault
+44. overwrite its own code                     denied: page fault
+45. overflow its stack                         denied: page fault
+46. return to ring 0 with a forged iret frame  skipped
+47. write a model-specific register (wrmsr)    denied: general protection fault
+48. enter the kernel through sysenter          denied: general protection fault
+49. run code from its stack                    denied: page fault
+50. run code from its data                     denied: page fault
+51. run code from memory it just mapped        denied: page fault
+ROGUE: 50/50 attempts denied, 1 skipped
+The skipped attempt stops the v86 browser emulator; "rogue all" runs it.
+kernel invariants: all hold
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> crash console
+init: console crashed: page fault at address 0x10, eip 0x400020d6
+[console restarted]
+init: console restarted after 2057 us (restart 1)
+RECOVERY: console crash -> answering again after 7959 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> svc
+service   state  restarts  last end                  last restart took
+console   up            1  page fault                2057 us
+fs        up            0  -
+shell     up            0  -
+inti> crash console
+init: console crashed: page fault at address 0x10, eip 0x400020d6
+[console restarted]
+init: console restarted after 2923 us (restart 2)
+RECOVERY: console crash -> answering again after 7838 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 1497 us (restart 1)
+RECOVERY: fs crash -> answering again after 2908 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 879 us (restart 2)
+RECOVERY: fs crash -> answering again after 2270 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> hang console
+init: console did not answer for 500 ms; ending it
+init: console ended: killed
+[console restarted]
+init: console restarted after 6183 us (restart 3)
+RECOVERY: console hang -> answering again after 896727 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> hang console
+init: console did not answer for 500 ms; ending it
+init: console ended: killed
+[console restarted]
+init: console restarted after 2442 us (restart 4)
+RECOVERY: console hang -> answering again after 629895 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> hang fs
+init: fs did not answer for 500 ms; ending it
+init: fs ended: killed
+init: fs restarted after 992 us (restart 3)
+RECOVERY: fs hang -> answering again after 725213 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> hang fs
+init: fs did not answer for 500 ms; ending it
+init: fs ended: killed
+init: fs restarted after 528 us (restart 4)
+RECOVERY: fs hang -> answering again after 711208 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 1133 us (restart 5)
+RECOVERY: fs crash -> answering again after 2230 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> hang fs
+init: fs did not answer for 500 ms; ending it
+init: fs ended: killed
+init: fs restarted after 671 us (restart 6)
+RECOVERY: fs hang -> answering again after 1252237 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 1489 us (restart 7)
+RECOVERY: fs crash -> answering again after 2443 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> hang fs
+init: fs did not answer for 500 ms; ending it
+init: fs ended: killed
+init: fs restarted after 654 us (restart 8)
+RECOVERY: fs hang -> answering again after 1188673 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> double
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: noticed while waiting for console to answer a ping
+init: fs restarted after 3217 us (restart 9)
+init: console did not answer for 500 ms; ending it
+init: console ended: killed
+[console restarted]
+init: console restarted after 942 us (restart 5)
+DOUBLE FAILURE: fs answering again after 49104 us, console after 635753 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> double
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: noticed while waiting for console to answer a ping
+init: fs restarted after 1010 us (restart 10)
+init: console did not answer for 500 ms; ending it
+init: console ended: killed
+[console restarted]
+init: console restarted after 388 us (restart 6)
+DOUBLE FAILURE: fs answering again after 42233 us, console after 794222 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> tour
+
+TOUR 1/5: A hostile program tries to break out; watch what it is denied.
+  (the command for this step: rogue)
+Starting a hostile program that holds one capability: console output.
+Attempts that need a capability are made with each of the 32 slots.
+ 1. read the keyboard port 0x60                denied: E_NOCAP
+ 2. reset the machine through port 0x64        denied: E_NOCAP
+ 3. take over the keyboard interrupt           denied: E_NOCAP
+ 4. map physical memory                        denied: E_NOCAP
+ 5. kill another task                          denied: E_NOCAP
+ 6. read kernel and task information           denied: E_NOCAP
+ 7. write to the kernel log                    denied: E_NOCAP
+ 8. use capability number 1000000              denied: E_NOCAP
+ 9. add the receive right to its console cap   denied: E_PERM
+10. receive other programs' console requests   denied: E_PERM
+11. answer others' calls with forged tokens    denied: E_INVAL
+12. re-badge its console cap as the shell's    denied: E_PERM
+13. ask the console driver to crash            denied: refused by the driver
+14. ask the console driver to hang             denied: refused by the driver
+15. have the kernel write into kernel memory   denied: E_FAULT
+16. pass a message pointer that wraps around   denied: E_FAULT
+17. start a task from kernel memory            denied: E_FAULT
+18. map pages over kernel and video memory     denied: E_INVAL
+19. unmap kernel pages                         denied: E_INVAL
+20. take more memory than its quota            denied: E_NOMEM
+21. start a task from a garbage image          denied: E_INVAL
+22. give a child more memory than it has       denied: E_NOMEM
+23. give a child a capability it does not hold denied: E_NOCAP
+24. create an endpoint with no endpoint quota  denied: E_NOSLOT
+25. give a child more task quota than it has   denied: E_NOSLOT
+26. give a child a larger processor share      denied: E_PERM
+27. hand a capability to the console driver    denied: E_PERM
+28. revoke capabilities it does not hold       denied: E_NOCAP
+29. call system calls that do not exist        denied: E_NOSYS
+30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU
+31. disable interrupts (cli)                   denied: general protection fault
+32. halt the processor (hlt)                   denied: general protection fault
+33. read the keyboard port directly (in)       denied: general protection fault
+34. reset the machine directly (out 0x64)      denied: general protection fault
+35. read kernel memory                         denied: page fault
+36. write kernel memory                        denied: page fault
+37. jump into kernel code                      denied: page fault
+38. load the kernel's data segment             denied: general protection fault
+39. raise the timer interrupt (int 0x20)       denied: general protection fault
+40. replace the page tables (mov cr3)          denied: general protection fault
+41. turn off paging and protection (mov cr0)   denied: general protection fault
+42. replace the interrupt table (lidt)         denied: general protection fault
+43. far jump to the kernel's code segment      denied: general protection fault
+44. overwrite its own code                     denied: page fault
+45. overflow its stack                         denied: page fault
+46. return to ring 0 with a forged iret frame  skipped
+47. write a model-specific register (wrmsr)    denied: general protection fault
+48. enter the kernel through sysenter          denied: general protection fault
+49. run code from its stack                    denied: page fault
+50. run code from its data                     denied: page fault
+51. run code from memory it just mapped        denied: page fault
+ROGUE: 50/50 attempts denied, 1 skipped
+The skipped attempt stops the v86 browser emulator; "rogue all" runs it.
+kernel invariants: all hold
+
+TOUR 2/5: The screen driver crashes and is restarted like any program.
+  (the command for this step: crash console)
+init: console crashed: page fault at address 0x10, eip 0x400020d6
+[console restarted]
+init: console restarted after 1692 us (restart 7)
+RECOVERY: console crash -> answering again after 5880 us
+
+TOUR 3/5: The file server stops answering; the supervisor replaces it.
+  (the command for this step: hang fs)
+init: fs did not answer for 500 ms; ending it
+init: fs ended: killed
+init: fs restarted after 504 us (restart 11)
+RECOVERY: fs hang -> answering again after 723194 us
+
+TOUR 4/5: Two at once: the screen driver hangs, the file server crashes.
+  (the command for this step: double)
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: noticed while waiting for console to answer a ping
+init: fs restarted after 1147 us (restart 12)
+init: console did not answer for 500 ms; ending it
+init: console ended: killed
+[console restarted]
+init: console restarted after 423 us (restart 8)
+DOUBLE FAILURE: fs answering again after 41668 us, console after 642790 us
+
+TOUR 5/5: The kernel reports its counters and checks its own tables.
+  (the command for this step: uptime)
+up 71.149 s, 7009 timer interrupts
+4 tasks, 4 endpoints, 541643 system calls, 13881 task switches
+7091 device interrupts, 87 faults contained
+177 tasks started, 0 kernel anomalies
+kernel invariants: all hold
+
+TOUR: done. Nothing was rebooted; this is the shell that started the tour.
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 9457 us (restart 13)
+RECOVERY: fs crash -> answering again after 21753 us
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 14939 us (restart 14)
+RECOVERY: fs crash -> answering again after 22574 us
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 14628 us (restart 15)
+RECOVERY: fs crash -> answering again after 22172 us
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs ended 3 times in a row; next restart in 100 ms
+init: fs restarted after 144889 us (restart 16)
+RECOVERY: fs crash -> answering again after 158954 us
+inti> crash fs
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs ended 4 times in a row; next restart in 200 ms
+init: fs restarted after 250458 us (restart 17)
+RECOVERY: fs crash -> answering again after 264432 us
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> svc
+service   state  restarts  last end                  last restart took
+console   up            8  killed                    423 us
+fs        up           17  page fault                250458 us
+shell     up            0  -
+inti> crash init
+Crashing the root task. The kernel will start user space again.
+kernel: the root task ended (cause 0xe); restarting user space at t=77926031 us
+[user space restarted]
+init: started console with 6 capabilities, 64 pages
+init: started fs with 2 capabilities, 64 pages
+init: started shell with 11 capabilities, 15553 pages
+Inti 0.1.0 shell ready at t=78118677 us
+Type help for the list of commands, or tour for a guided tour.
+inti> ls
+  bench          12288 bytes
+  console        12288 bytes
+  fs              8192 bytes
+  fuzz           16384 bytes
+  hello           8192 bytes
+  init           16384 bytes
+  rogue          12288 bytes
+  selftest       77824 bytes
+  shell          28672 bytes
+  tchild         12288 bytes
+  readme.txt      1007 bytes
+inti> fuzz 200000
+Fuzzing the kernel with 200000 random system calls, seed 81157387.
+   10%  20281 calls, 65 tasks ended, 171 checks
+   20%  40241 calls, 108 tasks ended, 234 checks
+   30%  60380 calls, 149 tasks ended, 316 checks
+   40%  81229 calls, 194 tasks ended, 415 checks
+   50%  100027 calls, 235 tasks ended, 496 checks
+   60%  120183 calls, 279 tasks ended, 605 checks
+   70%  140020 calls, 317 tasks ended, 666 checks
+   80%  160171 calls, 352 tasks ended, 717 checks
+   90%  180513 calls, 400 tasks ended, 812 checks
+  100%  201315 calls, 438 tasks ended, 904 checks
+FUZZ: 201510 random system calls from 439 tasks in 18715 ms
+FUZZ: 906 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 109 exited, 241 were stopped, 89 hit a CPU exception
+Calls the tasks reported before they ended (tried / accepted by the kernel):
+  yield            2507 /    2507    io_in            2520 /     366
+  exit               83 /      83    io_out           2493 /     429
+  call             2569 /     453    irq_bind         2499 /     131
+  recv             2424 /      46    irq_ack          2551 /      93
+  reply            2500 /       5    spawn            2486 /     134
+  ep_create        2464 /    1089    task_kill        2524 /       9
+  cap_derive       2518 /     462    sleep            2523 /    2523
+  cap_drop         2377 /     628    time             2536 /    2536
+  map              2429 /     426    log              2557 /       0
+  unmap            2610 /     726    sysinfo          2452 /     366
+  map_mem          2480 /     261    cap_revoke       2502 /    1037
+FUZZ: PASS
+inti> bench
+Times are read from the guest's clock. Under an emulator they mostly
+describe the emulator; compare them with each other, not with real hardware.
+BENCH: system call entry and return: 870 ns
+BENCH: read the clock: 1344 ns
+BENCH: IPC call and reply: 29908 ns
+BENCH: start, run and reap a task: 863070 ns
+BENCH: map and unmap one page: 35705 ns
+BENCH: check every kernel invariant: 3292250 ns
+BENCH: done
+inti> selftest
+Each line is one promise of the kernel, checked from user space.
+  ok   the kernel's invariants hold at the start
+  ok   the kernel has met nothing unexpected so far
+  ok   system call numbers that do not exist give E_NOSYS
+  ok   a message buffer outside the caller's memory gives E_FAULT
+  ok   a message buffer the caller cannot write gives E_FAULT
+  ok   a message buffer is checked up to its last byte
+  ok   log checks the length and the address of the text
+  ok   sysinfo checks where it writes and what it is asked
+  ok   spawn checks the addresses of the image and of its arguments
+  ok   an empty or impossible capability slot gives E_NOCAP
+  ok   a capability of the wrong kind gives E_NOCAP
+  ok   a copy of a capability has the same rights or fewer
+  ok   a badge is set once, and only by a holder of the grant right
+  ok   a dropped capability is gone
+  ok   an I/O port capability reaches its ports and no others
+  ok   an interrupt capability reaches its lines and no others
+  ok   an interrupt line is released when its endpoint goes away
+selftest: this line was written through the Log capability
+  ok   the Log capability writes to the kernel log
+  ok   the Info capability describes tasks and their capabilities
+  ok   no task, init included, holds a capability for the reset port 0x64
+  ok   the drivers refuse to crash or hang for an ordinary program
+  ok   every port, interrupt line and page of device memory that any task holds was handed out by name
+  ok   recv can poll, and can give up after a time limit
+  ok   a call that nobody receives times out and leaves nothing queued
+  ok   a call to an endpoint that nobody can receive from gives E_DEAD
+  ok   an endpoint has one receiver at a time
+  ok   a call carries its label, words and badge; a reply carries no badge
+  ok   a program cannot send the kernel's labels or an oversized message
+  ok   a 256-byte message crosses a page boundary in both directions
+  ok   a server can end in an orderly way, and its clients are told
+  ok   a reply needs the token of the call, and the token works once
+  ok   callers are served in the order in which they called
+  ok   a caller is told when the server dies with its request
+  ok   a caller that is killed while it waits leaves nothing queued
+  ok   a reply to a caller that was killed gives E_INVAL
+  ok   revoking a capability takes back its copies and theirs, and nothing else
+  ok   revoking reaches another task: its copy and what it mapped through it
+  ok   revoking wakes the tasks that waited through the copies
+  ok   revoking an interrupt capability frees the line its holder had bound
+  ok   a server takes back one client's access and leaves the other's
+  ok   a capability goes along with a call when both ends hold the grant right
+  ok   without the grant right at both ends nothing is handed over
+  ok   the sender takes back what it sent
+  ok   a reply carries a capability back, still linked to where it came from
+  ok   a waiting task that loses the grant right takes no more capabilities
+  ok   a capability is not handed to a task whose table is full
+  ok   memory of a device is refused as a message buffer, also in part
+  ok   a device page taken from a waiting task was never its message buffer
+  ok   a reply reaches a caller whose capability was revoked in between
+  ok   map gives zeroed pages that can be written
+  ok   a map that fails part-way changes nothing
+  ok   map and unmap accept only whole pages inside user space
+  ok   unmap gives every page frame back
+  ok   a task cannot take more memory than its quota
+  ok   shared memory keeps the rights and the bounds of its capability
+  ok   a copy of a memory capability covers the same pages or fewer
+  ok   a page that was unmapped faults when it is touched again
+       took 19968 page frames in batches of 256; 15831 of 15956 were free
+  ok   every free page frame, up to the top of memory, can be taken and given back
+  ok   a program cannot run code from its stack
+  ok   a program cannot run code from its data
+  ok   a program cannot run code from memory it mapped
+  ok   the exit code of a child reaches its parent
+  ok   a panic ends the program that panicked
+  ok   reading address 4 is a page fault at address 4
+  ok   a program cannot write to its own code
+  ok   a program cannot read kernel memory
+  ok   a program cannot write kernel memory
+  ok   a program cannot jump into the kernel
+  ok   a stack overflow ends the program with a page fault
+  ok   a division by zero ends the program
+  ok   an invalid instruction ends the program
+  ok   a program cannot switch interrupts off
+  ok   a program cannot halt the processor
+  ok   a program cannot use I/O ports without a capability
+  ok   floating-point instructions are refused
+  ok   fourteen children ended, twelve by a fault, and left nothing behind
+  ok   a task that never yields is pre-empted and can be killed, once
+  ok   the children of a task end with it
+  ok   the memory of a child comes out of its parent's quota and goes back
+  ok   damaged program images are refused and leave nothing behind
+  ok   an image with writable code, or with two segments on one page, is refused
+  ok   starting a child fails cleanly at every point where memory can run out
+  ok   the same image, repaired, starts and runs
+  ok   a full capability table gives E_NOSLOT and recovers
+  ok   a child gets the share of the quotas that its parent lends, and no more
+  ok   an endpoint outlives the task that made it, and its parent pays for it
+  ok   endpoints are created only within a quota, and the quota comes back
+  ok   tasks are started only within a quota, and the quota comes back
+  ok   a child gets its parent's share of the processor or a smaller one, never a larger
+       beside three spinning tasks this program kept 62% of its speed when they
+       shared 20% of the processor, and 24% when they had no share of their own;
+       the kernel charged the group 35% and 74% of a second
+       alone, half a second: 65230 rounds, 50 ticks of which 50 found this program running, 61 task switches
+       beside the group held to 20%, two seconds: 169826 rounds, 203 ticks of which 130 found this program running, 269 task switches
+       alone, half a second: 68329 rounds, 50 ticks of which 50 found this program running, 61 task switches
+       beside the group without a share, two seconds: 66244 rounds, 200 ticks of which 50 found this program running, 325 task switches
+       alone, half a second: 65892 rounds, 50 ticks of which 50 found this program running, 50 task switches
+  ok   three spinning tasks with a 20% share leave the rest of the processor to others
+  ok   sleep lasts as long as asked, and not much longer
+  ok   the clock never goes backwards
+  ok   files are read through the file server
+  ok   the kernel's invariants hold at the end
+  ok   the kernel met nothing unexpected
+  ok   no task, endpoint, page frame or quota was lost
+SELFTEST: PASS 96/96
+inti> uptime
+up 111.669 s, 10881 timer interrupts
+4 tasks, 4 endpoints, 1806247 system calls, 162787 task switches
+11008 device interrupts, 273 faults contained
+1864 tasks started, 0 kernel anomalies
+kernel invariants: all hold
+inti> uptime
+up 111.774 s, 10891 timer interrupts
+4 tasks, 4 endpoints, 1806789 system calls, 162803 task switches
+11020 device interrupts, 273 faults contained
+1864 tasks started, 0 kernel anomalies
+kernel invariants: all hold
+inti> uptime
+up 123.817 s, 11804 timer interrupts
+4 tasks, 4 endpoints, 1808456 system calls, 163331 task switches
+11936 device interrupts, 273 faults contained
+1864 tasks started, 0 kernel anomalies
+kernel invariants: all hold
+inti> uptime
+up 124.024 s, 11822 timer interrupts
+4 tasks, 4 endpoints, 1809012 system calls, 163356 task switches
+11956 device interrupts, 273 faults contained
+1864 tasks started, 0 kernel anomalies
+kernel invariants: all hold
+inti> shutdown
+init: shutdown requested; switching the machine off

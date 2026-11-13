@@ -1,0 +1,172 @@
+{
+ "what": "Round 7, item (A): the cause of the processor-share subtest failing now and then on an unchanged kernel, as far as it was established, and the change made to the subtest.",
+ "probe": {
+  "when": "2026-11-13 08:18 to 08:50 local time",
+  "selftest_runs": 120,
+  "selftest_runs_failed": 0,
+  "places": [
+   "after boot",
+   "after the fuzz run"
+  ],
+  "boots": 60,
+  "alone_stretches": 360,
+  "alone_rounds_min": 43893,
+  "alone_rounds_max": 80759,
+  "alone_ticks_seen": [
+   49,
+   50,
+   51
+  ],
+  "alone_own_ticks_seen": [
+   49,
+   50,
+   51
+  ],
+  "alone_switches_min": 44,
+  "alone_switches_max": 63,
+  "clock_checks": 60,
+  "clock_guest_over_host_min": 0.9995,
+  "clock_guest_over_host_max": 1.001,
+  "host_load": "the later boots ran beside the mutant samples, which keep all eight logical processors busy",
+  "host_monitor_samples": 22657,
+  "host_monitor_worst_overslept_ms": 338.4,
+  "anomalies_reproduced": 0,
+  "steadiness_min_percent": 83,
+  "file": "evidence/timing/calm-probe.jsonl"
+ },
+ "hypotheses": [
+  "host or emulator slow: about fifty ticks, all of them the program's own, few rounds",
+  "another guest task or an interrupt storm: few own ticks, or many task switches",
+  "guest clock fast: far fewer than fifty ticks"
+ ],
+ "conclusion": "Established: the failures are reproduced on the unchanged kernel when the build machine is saturated by other work; in every failed run the program's rounds per tick of its own drop to about a tenth for some seconds while the ticks stay its own; with a guest clock that counts instructions every alone stretch holds the same count and the subtest passes. So the emulator's speed changes while the guest clock follows the host's. Not established: whether a given stall comes from the processors being taken or from the processor frequency dropping. Changed check: the subtest sets aside a measurement whose five stretches differ in rounds per own tick by more than a quarter, and measures again, five times at most; the pass conditions are unchanged; no steady measurement is a failure. The clock check is unchanged.",
+ "earlier_failures": [
+  {
+   "log": "scratch_probes/control253/unchanged5/test_serial.log (not in the repository)",
+   "place": "after boot",
+   "alone_rounds": [
+    62606,
+    6182,
+    3481
+   ],
+   "selftest": "FAIL 93/94"
+  },
+  {
+   "log": "scratch_probes/control253/unchanged5/test_serial.log (not in the repository)",
+   "place": "after all faults",
+   "alone_rounds": [
+    54317,
+    54744,
+    6144
+   ],
+   "selftest": "passed"
+  },
+  {
+   "log": "scratch_probes/probe253_full/attempt1/test_serial.log (not in the repository)",
+   "place": "after all faults",
+   "alone_rounds": [
+    54915,
+    62299,
+    6915
+   ],
+   "selftest": "passed"
+  },
+  {
+   "log": "evidence/test_serial.log at commit 42e33ae (round 6)",
+   "place": "after all faults",
+   "alone_rounds": [
+    6378,
+    68654,
+    70033
+   ],
+   "selftest": "passed"
+  }
+ ],
+ "under_load": {
+  "first_batch_attempt": {
+   "when": "2026-11-13 09:46 to 10:17 local time, stopped by hand",
+   "mutants_reached": 4,
+   "not_counted_because_unchanged_kernel_failed": 2,
+   "log": "evidence/mutants-qemu-first-attempt.log",
+   "serial_logs": "evidence/mutants-qemu-first-attempt-logs/"
+  },
+  "host": {
+   "when": "11/13/2026 10:01:18.305 to 11/13/2026 10:15:41.556",
+   "file": "evidence/timing/host-counters.csv",
+   "logical_processors": 8,
+   "processor_time_median_percent": 99.6,
+   "processor_queue_median": 170,
+   "processor_queue_max": 533,
+   "frequency_min_percent": 23,
+   "note": "the sampler itself was held up for more than five seconds 29 times, so it did not see inside the stalls"
+  },
+  "priority_probe": {
+   "file": "evidence/timing/priority-probe.jsonl",
+   "runs": 64,
+   "failed": 6,
+   "classes": {
+    "above": {
+     "runs": 32,
+     "failed": 4
+    },
+    "high": {
+     "runs": 32,
+     "failed": 2
+    }
+   },
+   "failed_subtests": [
+    "FAIL three spinning tasks with a 20% share leave the rest of the processor to others"
+   ],
+   "failed_steadiness_max_percent": 37
+  },
+  "instruction_clock": {
+   "file": "evidence/timing/instruction-clock-probe.jsonl",
+   "option": "-icount shift=1,sleep=on",
+   "selftest_runs": 2,
+   "failed": 0,
+   "alone_stretches": 6,
+   "alone_rounds_min": 17546,
+   "alone_rounds_max": 17547,
+   "selftest_seconds": [
+    337,
+    361
+   ],
+   "plain_clock_same_minutes": {
+    "selftest_runs": 2,
+    "failed": 1
+   }
+  }
+ },
+ "guard": {
+  "steady_percent": 75,
+  "three_tries": {
+   "file": "evidence/timing/guard-probe-three-tries.jsonl",
+   "boots": 32,
+   "boot_errors": 0,
+   "runs": 64,
+   "failed_runs": 2,
+   "runs_with_set_aside": 3,
+   "set_aside_measurements": 7,
+   "failures": [
+    "FAIL three spinning tasks with a 20% share leave the rest of the processor to others"
+   ],
+   "results": [
+    "SELFTEST: FAIL 95/96",
+    "SELFTEST: PASS 96/96"
+   ]
+  },
+  "five_tries": {
+   "file": "evidence/timing/guard-probe-five-tries.jsonl",
+   "boots": 16,
+   "boot_errors": 0,
+   "runs": 32,
+   "failed_runs": 0,
+   "runs_with_set_aside": 0,
+   "set_aside_measurements": 0,
+   "failures": [],
+   "results": [
+    "SELFTEST: PASS 96/96"
+   ]
+  }
+ }
+}

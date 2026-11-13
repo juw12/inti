@@ -62,6 +62,9 @@ const BATCH: u32 = 64;
 const STALL_US: u64 = 10_000_000;
 /// How long the fuzzer waits at the end for kids to end and for the counts to settle.
 const SETTLE_US: u64 = 2_000_000;
+/// How long the fuzzer sleeps before its first reading, so that its starter has given back
+/// the pages it loaded the fuzzer's file into.
+const STARTER_MS: u32 = 50;
 
 /// The system calls by number. Numbers that do not exist share the last entry.
 const NAMES: [&str; 23] = [
@@ -369,6 +372,10 @@ impl Fuzzer {
 
     /// Runs kids until they have made `wanted` calls. Returns true if the kernel held up.
     fn run(&mut self, wanted: u32) -> bool {
+        // The program that started this one may still hold the pages it loaded this
+        // program's file into, and unmaps them as soon as it runs again. Let it run first:
+        // otherwise those pages count as taken before and as free after.
+        sys::sleep(STARTER_MS);
         let before = usage(self.me);
         let started = sys::time();
         let mut progress_at = started;

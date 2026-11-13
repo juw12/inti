@@ -8,8 +8,8 @@
     python build.py model    compile the kernel for this computer and run its model checks
     python build.py mutants  plant defects in a copy of the kernel, count how many the model catches
                              (--held-out: a second sample of places; --fresh: a third, drawn after tests
-                             were aimed at the second; --unseen: a fourth, which no test was
-                             written against)
+                             were aimed at the second; --unseen: a fourth, unseen until tests were
+                             aimed at it; --fifth: a fifth, which no test was written against)
     python build.py mutants-qemu  boot the mutants the model did not catch and run the tests on them
     python build.py miri     the model's directed checks under Miri (needs a nightly toolchain with miri)
     python build.py all      model, then build, test and gates; --mutants also runs every sample again

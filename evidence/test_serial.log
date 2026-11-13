@@ -1,11 +1,11 @@
 
 Inti 0.1.0 kernel
-kernel: 560 KiB kernel and archive, 62 MiB for user space
+kernel: 564 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=15881 us
+init: started shell with 11 capabilities, 15552 pages
+Inti 0.1.0 shell ready at t=25023 us
 Type help for the list of commands, or tour for a guided tour.
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -66,6 +66,9 @@ selftest: this line was written through the Log capability
   ok   a task cannot take more memory than its quota
   ok   shared memory keeps the rights and the bounds of its capability
   ok   a copy of a memory capability covers the same pages or fewer
+  ok   a page that was unmapped faults when it is touched again
+       took 19968 page frames in batches of 256; 15829 of 15955 were free
+  ok   every free page frame, up to the top of memory, can be taken and given back
   ok   a program cannot run code from its stack
   ok   a program cannot run code from its data
   ok   a program cannot run code from memory it mapped
@@ -97,11 +100,14 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 58% of its speed when they
-       shared 20% of the processor, and 21% when they had no share of their own;
+       beside three spinning tasks this program kept 60% of its speed when they
+       shared 20% of the processor, and 24% when they had no share of their own;
        the kernel charged the group 35% and 74% of a second
-       rounds alone in half a second: 69442, 63268 and 61372; in two
-       seconds beside the groups: 163314 and 59816
+       alone, half a second: 54672 rounds, 50 ticks of which 50 found this program running, 57 task switches
+       beside the group held to 20%, two seconds: 133359 rounds, 202 ticks of which 126 found this program running, 280 task switches
+       alone, half a second: 53471 rounds, 50 ticks of which 50 found this program running, 49 task switches
+       beside the group without a share, two seconds: 53073 rounds, 200 ticks of which 50 found this program running, 330 task switches
+       alone, half a second: 54832 rounds, 50 ticks of which 50 found this program running, 53 task switches
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
@@ -109,7 +115,7 @@ selftest: this line was written through the Log capability
   ok   the kernel's invariants hold at the end
   ok   the kernel met nothing unexpected
   ok   no task, endpoint, page frame or quota was lost
-SELFTEST: PASS 94/94
+SELFTEST: PASS 96/96
 inti> rogue all
 Starting a hostile program that holds one capability: console output.
 Attempts that need a capability are made with each of the 32 slots.
@@ -231,15 +237,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-init: console restarted after 2746 us (restart 1)
-RECOVERY: console crash -> answering again after 7133 us
+init: console restarted after 2596 us (restart 1)
+RECOVERY: console crash -> answering again after 6554 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -248,20 +254,20 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up            1  page fault                2746 us
+console   up            1  page fault                2596 us
 fs        up            0  -
 shell     up            0  -
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-init: console restarted after 2998 us (restart 2)
-RECOVERY: console crash -> answering again after 7247 us
+init: console restarted after 3077 us (restart 2)
+RECOVERY: console crash -> answering again after 9509 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -270,15 +276,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-init: console restarted after 1740 us (restart 3)
-RECOVERY: console crash -> answering again after 6004 us
+init: console restarted after 2012 us (restart 3)
+RECOVERY: console crash -> answering again after 6426 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -287,15 +293,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-init: console restarted after 2826 us (restart 4)
-RECOVERY: console crash -> answering again after 7808 us
+init: console restarted after 2750 us (restart 4)
+RECOVERY: console crash -> answering again after 8553 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -304,15 +310,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash console
 init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-init: console restarted after 2397 us (restart 5)
-RECOVERY: console crash -> answering again after 6310 us
+init: console restarted after 2835 us (restart 5)
+RECOVERY: console crash -> answering again after 10118 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -321,14 +327,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 1771 us (restart 1)
-RECOVERY: fs crash -> answering again after 4037 us
+init: fs restarted after 1155 us (restart 1)
+RECOVERY: fs crash -> answering again after 2847 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -337,14 +343,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 2083 us (restart 2)
-RECOVERY: fs crash -> answering again after 4342 us
+init: fs restarted after 2548 us (restart 2)
+RECOVERY: fs crash -> answering again after 5297 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -353,14 +359,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 13360 us (restart 3)
-RECOVERY: fs crash -> answering again after 17641 us
+init: fs restarted after 2461 us (restart 3)
+RECOVERY: fs crash -> answering again after 4923 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -369,14 +375,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 21250 us (restart 4)
-RECOVERY: fs crash -> answering again after 36582 us
+init: fs restarted after 2647 us (restart 4)
+RECOVERY: fs crash -> answering again after 20518 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -385,14 +391,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-RECOVERY: fs crash -> answering again after 26439 us
-init: fs restarted after 17699 us (restart 5)
+init: fs restarted after 1541 us (restart 5)
+RECOVERY: fs crash -> answering again after 3107 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -401,7 +407,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
@@ -409,8 +415,8 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 14207 us (restart 6)
-RECOVERY: console hang -> answering again after 694414 us
+init: console restarted after 1046 us (restart 6)
+RECOVERY: console hang -> answering again after 687677 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -419,7 +425,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
@@ -427,8 +433,8 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 6273 us (restart 7)
-RECOVERY: console hang -> answering again after 700322 us
+init: console restarted after 442 us (restart 7)
+RECOVERY: console hang -> answering again after 727487 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -437,7 +443,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
@@ -445,8 +451,8 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 2470 us (restart 8)
-RECOVERY: console hang -> answering again after 743537 us
+init: console restarted after 1698 us (restart 8)
+RECOVERY: console hang -> answering again after 667714 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -455,7 +461,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
@@ -463,8 +469,8 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 2146 us (restart 9)
-RECOVERY: console hang -> answering again after 775650 us
+init: console restarted after 1668 us (restart 9)
+RECOVERY: console hang -> answering again after 732585 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -473,7 +479,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
@@ -481,8 +487,8 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 1097 us (restart 10)
-RECOVERY: console hang -> answering again after 699516 us
+init: console restarted after 1926 us (restart 10)
+RECOVERY: console hang -> answering again after 712258 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -491,15 +497,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 368 us (restart 6)
-RECOVERY: fs hang -> answering again after 698924 us
+init: fs restarted after 1125 us (restart 6)
+RECOVERY: fs hang -> answering again after 714323 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -508,15 +514,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 318 us (restart 7)
-RECOVERY: fs hang -> answering again after 730154 us
+init: fs restarted after 464 us (restart 7)
+RECOVERY: fs hang -> answering again after 715275 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -525,15 +531,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 881 us (restart 8)
-RECOVERY: fs hang -> answering again after 710231 us
+init: fs restarted after 1026 us (restart 8)
+RECOVERY: fs hang -> answering again after 748901 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -542,15 +548,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 626 us (restart 9)
-RECOVERY: fs hang -> answering again after 736125 us
+init: fs restarted after 1085 us (restart 9)
+RECOVERY: fs hang -> answering again after 658916 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -559,15 +565,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 821 us (restart 10)
-RECOVERY: fs hang -> answering again after 715446 us
+init: fs restarted after 985 us (restart 10)
+RECOVERY: fs hang -> answering again after 737752 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -576,14 +582,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 1365 us (restart 11)
-RECOVERY: fs crash -> answering again after 2927 us
+init: fs restarted after 1793 us (restart 11)
+RECOVERY: fs crash -> answering again after 3725 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -592,15 +598,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 760 us (restart 12)
-RECOVERY: fs hang -> answering again after 1169538 us
+init: fs restarted after 1728 us (restart 12)
+RECOVERY: fs hang -> answering again after 1174171 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -609,14 +615,14 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 1290 us (restart 13)
-RECOVERY: fs crash -> answering again after 2523 us
+init: fs restarted after 2935 us (restart 13)
+RECOVERY: fs crash -> answering again after 4607 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -625,15 +631,15 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 765 us (restart 14)
-RECOVERY: fs hang -> answering again after 1200297 us
+init: fs restarted after 996 us (restart 14)
+RECOVERY: fs hang -> answering again after 1128770 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -642,31 +648,31 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-RECOVERY: fs crash -> answering again after 1990 us
-inti> ls
+RECOVERY: fs crash -> answering again after 2738 us
+inti> init: fs restarted after 4746 us (restart 15)
+ls
   bench          12288 bytes
   console        12288 bytes
   fs              8192 bytes
-init: fs restarted after 10972 us (restart 15)
   fuzz           16384 bytes
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 1574 us (restart 16)
-RECOVERY: fs hang -> answering again after 1178953 us
+init: fs restarted after 1243 us (restart 16)
+RECOVERY: fs hang -> answering again after 1255152 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -675,19 +681,19 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 1477 us (restart 17)
+init: fs restarted after 2290 us (restart 17)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 342 us (restart 11)
-DOUBLE FAILURE: fs answering again after 41489 us, console after 622376 us
+init: console restarted after 428 us (restart 11)
+DOUBLE FAILURE: fs answering again after 40218 us, console after 727084 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -696,19 +702,19 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 2139 us (restart 18)
+init: fs restarted after 1234 us (restart 18)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 386 us (restart 12)
-DOUBLE FAILURE: fs answering again after 59629 us, console after 643105 us
+init: console restarted after 407 us (restart 12)
+DOUBLE FAILURE: fs answering again after 39868 us, console after 794738 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -717,19 +723,19 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 37912 us (restart 19)
+init: fs restarted after 1304 us (restart 19)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 7348 us (restart 13)
-DOUBLE FAILURE: fs answering again after 75188 us, console after 881142 us
+init: console restarted after 403 us (restart 13)
+DOUBLE FAILURE: fs answering again after 42100 us, console after 625567 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -738,19 +744,19 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 22673 us (restart 20)
+init: fs restarted after 1311 us (restart 20)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 5146 us (restart 14)
-DOUBLE FAILURE: fs answering again after 54832 us, console after 814667 us
+init: console restarted after 800 us (restart 14)
+DOUBLE FAILURE: fs answering again after 31064 us, console after 608265 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -759,19 +765,19 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> double
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 40246 us (restart 21)
+init: fs restarted after 2369 us (restart 21)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 4801 us (restart 15)
-DOUBLE FAILURE: fs answering again after 94234 us, console after 854712 us
+init: console restarted after 408 us (restart 15)
+DOUBLE FAILURE: fs answering again after 29069 us, console after 616786 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -780,7 +786,7 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
@@ -849,33 +855,33 @@ TOUR 2/5: The screen driver crashes and is restarted like any program.
   (the command for this step: crash console)
 init: console crashed: page fault at address 0x10, eip 0x400020d6
 [console restarted]
-init: console restarted after 2163 us (restart 16)
-RECOVERY: console crash -> answering again after 9109 us
+init: console restarted after 1856 us (restart 16)
+RECOVERY: console crash -> answering again after 5924 us
 
 TOUR 3/5: The file server stops answering; the supervisor replaces it.
   (the command for this step: hang fs)
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 899 us (restart 22)
-RECOVERY: fs hang -> answering again after 626313 us
+init: fs restarted after 1279 us (restart 22)
+RECOVERY: fs hang -> answering again after 673981 us
 
 TOUR 4/5: Two at once: the screen driver hangs, the file server crashes.
   (the command for this step: double)
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: noticed while waiting for console to answer a ping
-init: fs restarted after 1902 us (restart 23)
+init: fs restarted after 1206 us (restart 23)
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 786 us (restart 17)
-DOUBLE FAILURE: fs answering again after 29147 us, console after 616997 us
+init: console restarted after 384 us (restart 17)
+DOUBLE FAILURE: fs answering again after 20554 us, console after 665207 us
 
 TOUR 5/5: The kernel reports its counters and checks its own tables.
   (the command for this step: uptime)
-up 112.609 s, 11254 timer interrupts
-4 tasks, 4 endpoints, 524501 system calls, 16968 task switches
-11437 device interrupts, 96 faults contained
-196 tasks started, 0 kernel anomalies
+up 110.159 s, 11011 timer interrupts
+4 tasks, 4 endpoints, 458250 system calls, 16887 task switches
+11198 device interrupts, 97 faults contained
+197 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 
 TOUR: done. Nothing was rebooted; this is the shell that started the tour.
@@ -887,32 +893,32 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 710 us (restart 24)
-RECOVERY: fs crash -> answering again after 1766 us
+init: fs restarted after 1319 us (restart 24)
+RECOVERY: fs crash -> answering again after 4247 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 1429 us (restart 25)
-RECOVERY: fs crash -> answering again after 2813 us
+init: fs restarted after 2654 us (restart 25)
+RECOVERY: fs crash -> answering again after 5173 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 1226 us (restart 26)
-RECOVERY: fs crash -> answering again after 2327 us
+init: fs restarted after 2771 us (restart 26)
+RECOVERY: fs crash -> answering again after 6331 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 3 times in a row; next restart in 100 ms
-init: fs restarted after 117459 us (restart 27)
-RECOVERY: fs crash -> answering again after 118615 us
+init: fs restarted after 124683 us (restart 27)
+RECOVERY: fs crash -> answering again after 126993 us
 inti> crash fs
 init: fs crashed: page fault at address 0x10, eip 0x400019aa
 init: fs ended 4 times in a row; next restart in 200 ms
-init: fs restarted after 235412 us (restart 28)
-RECOVERY: fs crash -> answering again after 236610 us
+init: fs restarted after 231439 us (restart 28)
+RECOVERY: fs crash -> answering again after 234020 us
 inti> ls
   bench          12288 bytes
   console        12288 bytes
@@ -921,23 +927,23 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> svc
 service   state  restarts  last end                  last restart took
-console   up           17  killed                    786 us
-fs        up           28  page fault                235412 us
+console   up           17  killed                    384 us
+fs        up           28  page fault                231439 us
 shell     up            0  -
 inti> crash init
 Crashing the root task. The kernel will start user space again.
-kernel: the root task ended (cause 0xe); restarting user space at t=118254387 us
+kernel: the root task ended (cause 0xe); restarting user space at t=115870576 us
 [user space restarted]
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 15553 pages
-Inti 0.1.0 shell ready at t=118263121 us
+init: started shell with 11 capabilities, 15552 pages
+Inti 0.1.0 shell ready at t=115885315 us
 Type help for the list of commands, or tour for a guided tour.
 inti> ls
   bench          12288 bytes
@@ -947,47 +953,47 @@ inti> ls
   hello           8192 bytes
   init           16384 bytes
   rogue          12288 bytes
-  selftest       77824 bytes
+  selftest       81920 bytes
   shell          28672 bytes
   tchild         12288 bytes
   readme.txt      1007 bytes
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 120892019.
-   10%  100039 calls, 206 tasks ended, 404 checks
-   20%  200956 calls, 420 tasks ended, 874 checks
-   30%  300759 calls, 598 tasks ended, 1270 checks
-   40%  400528 calls, 822 tasks ended, 1735 checks
-   50%  500432 calls, 1133 tasks ended, 2435 checks
-   60%  600682 calls, 1349 tasks ended, 2811 checks
-   70%  700253 calls, 1536 tasks ended, 3185 checks
-   80%  800196 calls, 1750 tasks ended, 3616 checks
-   90%  900350 calls, 1939 tasks ended, 3994 checks
-  100%  1000808 calls, 2136 tasks ended, 4380 checks
-FUZZ: 1004365 random system calls from 2139 tasks in 89253 ms
-FUZZ: 4384 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 588 exited, 1129 were stopped, 422 hit a CPU exception
+Fuzzing the kernel with 1000000 random system calls, seed 118533465.
+   10%  100045 calls, 203 tasks ended, 408 checks
+   20%  200364 calls, 400 tasks ended, 864 checks
+   30%  300239 calls, 607 tasks ended, 1256 checks
+   40%  400673 calls, 804 tasks ended, 1660 checks
+   50%  500916 calls, 1004 tasks ended, 2090 checks
+   60%  600125 calls, 1216 tasks ended, 2543 checks
+   70%  700002 calls, 1428 tasks ended, 2977 checks
+   80%  803835 calls, 1647 tasks ended, 3432 checks
+   90%  900024 calls, 1854 tasks ended, 3870 checks
+  100%  1000450 calls, 2061 tasks ended, 4304 checks
+FUZZ: 1000789 random system calls from 2063 tasks in 81177 ms
+FUZZ: 4307 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 527 exited, 1131 were stopped, 405 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14337 /   14337    io_in           14677 /    1979
-  exit              456 /     456    io_out          14495 /    1989
-  call            14603 /    2284    irq_bind        14764 /     909
-  recv            14619 /     332    irq_ack         14384 /     612
-  reply           14743 /      63    spawn           14796 /    1019
-  ep_create       14813 /    6154    task_kill       14666 /      58
-  cap_derive      14396 /    2522    sleep           14424 /   14424
-  cap_drop        14103 /    3678    time            14767 /   14767
-  map             14704 /    2477    log             14766 /       0
-  unmap           14287 /    3963    sysinfo         14545 /    2211
-  map_mem         14694 /    1706    cap_revoke      14591 /    6072
+  yield           14409 /   14409    io_in           14582 /    2157
+  exit              412 /     412    io_out          14340 /    2251
+  call            14468 /    2249    irq_bind        14616 /     855
+  recv            14485 /     322    irq_ack         14527 /     606
+  reply           14419 /      50    spawn           14579 /     959
+  ep_create       14340 /    5944    task_kill       14542 /      46
+  cap_derive      14429 /    2614    sleep           14302 /   14302
+  cap_drop        13839 /    3520    time            14590 /   14590
+  map             14533 /    2448    log             14376 /       0
+  unmap           14368 /    3783    sysinfo         14426 /    2249
+  map_mem         14666 /    1616    cap_revoke      14361 /    6058
 FUZZ: PASS
 inti> bench
 Times are read from the guest's clock. Under an emulator they mostly
 describe the emulator; compare them with each other, not with real hardware.
-BENCH: system call entry and return: 946 ns
-BENCH: read the clock: 1483 ns
-BENCH: IPC call and reply: 33300 ns
-BENCH: start, run and reap a task: 796590 ns
-BENCH: map and unmap one page: 42096 ns
-BENCH: check every kernel invariant: 32245500 ns
+BENCH: system call entry and return: 1077 ns
+BENCH: read the clock: 1785 ns
+BENCH: IPC call and reply: 39712 ns
+BENCH: start, run and reap a task: 1050850 ns
+BENCH: map and unmap one page: 40939 ns
+BENCH: check every kernel invariant: 3506850 ns
 BENCH: done
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -1048,6 +1054,9 @@ selftest: this line was written through the Log capability
   ok   a task cannot take more memory than its quota
   ok   shared memory keeps the rights and the bounds of its capability
   ok   a copy of a memory capability covers the same pages or fewer
+  ok   a page that was unmapped faults when it is touched again
+       took 19968 page frames in batches of 256; 15829 of 15955 were free
+  ok   every free page frame, up to the top of memory, can be taken and given back
   ok   a program cannot run code from its stack
   ok   a program cannot run code from its data
   ok   a program cannot run code from memory it mapped
@@ -1079,11 +1088,14 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 46% of its speed when they
-       shared 20% of the processor, and 24% when they had no share of their own;
-       the kernel charged the group 34% and 74% of a second
-       rounds alone in half a second: 6378, 68654 and 70033; in two
-       seconds beside the groups: 131010 and 69317
+       beside three spinning tasks this program kept 56% of its speed when they
+       shared 20% of the processor, and 22% when they had no share of their own;
+       the kernel charged the group 35% and 74% of a second
+       alone, half a second: 66049 rounds, 50 ticks of which 50 found this program running, 56 task switches
+       beside the group held to 20%, two seconds: 148655 rounds, 200 ticks of which 120 found this program running, 270 task switches
+       alone, half a second: 61342 rounds, 50 ticks of which 50 found this program running, 52 task switches
+       beside the group without a share, two seconds: 59493 rounds, 200 ticks of which 50 found this program running, 331 task switches
+       alone, half a second: 58994 rounds, 50 ticks of which 50 found this program running, 56 task switches
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
@@ -1091,30 +1103,30 @@ selftest: this line was written through the Log capability
   ok   the kernel's invariants hold at the end
   ok   the kernel met nothing unexpected
   ok   no task, endpoint, page frame or quota was lost
-SELFTEST: PASS 94/94
+SELFTEST: PASS 96/96
 inti> uptime
-up 230.620 s, 22137 timer interrupts
-4 tasks, 4 endpoints, 2582658 system calls, 260728 task switches
-22375 device interrupts, 870 faults contained
-5955 tasks started, 0 kernel anomalies
+up 212.581 s, 21244 timer interrupts
+4 tasks, 4 endpoints, 2561225 system calls, 259700 task switches
+21481 device interrupts, 885 faults contained
+5892 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> uptime
-up 230.718 s, 22147 timer interrupts
-4 tasks, 4 endpoints, 2583210 system calls, 260751 task switches
-22387 device interrupts, 870 faults contained
-5955 tasks started, 0 kernel anomalies
+up 212.674 s, 21254 timer interrupts
+4 tasks, 4 endpoints, 2561781 system calls, 259718 task switches
+21495 device interrupts, 885 faults contained
+5892 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> uptime
-up 235.737 s, 22649 timer interrupts
-4 tasks, 4 endpoints, 2584218 system calls, 260979 task switches
-22891 device interrupts, 870 faults contained
-5955 tasks started, 0 kernel anomalies
+up 217.693 s, 21756 timer interrupts
+4 tasks, 4 endpoints, 2562806 system calls, 259950 task switches
+22000 device interrupts, 885 faults contained
+5892 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> uptime
-up 235.752 s, 22651 timer interrupts
-4 tasks, 4 endpoints, 2584789 system calls, 260999 task switches
-22898 device interrupts, 870 faults contained
-5955 tasks started, 0 kernel anomalies
+up 217.713 s, 21758 timer interrupts
+4 tasks, 4 endpoints, 2563357 system calls, 259963 task switches
+22006 device interrupts, 885 faults contained
+5892 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> shutdown
 init: shutdown requested; switching the machine off

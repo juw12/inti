@@ -1,13 +1,13 @@
 {
   "rubric": "inti-os-v1",
   "mode": "full",
-  "date": "2026-11-12T23:25:10+07:00",
-  "image_sha256": "c50687aac3966153e39925daebc75707fb447bcb2ade4ad6380e0b7c18b6195c",
+  "date": "2026-11-13T15:33:18+07:00",
+  "image_sha256": "57f7d9992635ccb84e471fb2f44be143ef146107081cb66e182ed13069618ed8",
   "sizes": {
     "boot_sector_bytes": 512,
     "kernel_bytes": 70400,
-    "archive_bytes": 206176,
-    "payload_bytes": 276576,
+    "archive_bytes": 210272,
+    "payload_bytes": 280672,
     "image_bytes": 2097152,
     "files": {
       "bench": 12288,
@@ -17,7 +17,7 @@
       "hello": 8192,
       "init": 16384,
       "rogue": 12288,
-      "selftest": 77824,
+      "selftest": 81920,
       "shell": 28672,
       "tchild": 12288,
       "readme.txt": 1007
@@ -27,7 +27,7 @@
     "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
     "python": "3.13.2"
   },
-  "build_seconds": 6,
+  "build_seconds": 27,
   "tries": {
     "qemu_test": [
       0
@@ -41,25 +41,25 @@
       "id": "G1",
       "title": "One command builds the disk image from a clean tree",
       "ok": true,
-      "detail": "clean build in 6 s wrote build/inti.img (2,097,152 bytes)"
+      "detail": "clean build in 27 s wrote build/inti.img (2,097,152 bytes)"
     },
     {
       "id": "G2",
       "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
       "ok": true,
-      "detail": "shell prompt 153 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
+      "detail": "shell prompt 269 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
     },
     {
       "id": "G3",
       "title": "The self-test inside the system passes with at least 30 checks",
       "ok": true,
-      "detail": "SELFTEST: PASS 94/94 after boot and 94/94 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx)"
+      "detail": "SELFTEST: PASS 96/96 after boot and 96/96 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx)"
     },
     {
       "id": "G4",
       "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
       "ok": true,
-      "detail": "console crash 7.1 ms, fs crash 17.6 ms, console hang 700.3 ms, fs hang 715.4 ms, fs crash during a console hang: fs 59.6 ms and console 814.7 ms (median of 5 runs each, guest clock); the shell answered after every run"
+      "detail": "console crash 8.6 ms, fs crash 4.9 ms, console hang 712.3 ms, fs hang 715.3 ms, fs crash during a console hang: fs 39.9 ms and console 625.6 ms (median of 5 runs each, guest clock); the shell answered after every run"
     },
     {
       "id": "G5",
@@ -71,19 +71,19 @@
       "id": "G6",
       "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
       "ok": true,
-      "detail": "1,004,365 random system calls from 2,139 tasks, 4,384 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
+      "detail": "1,000,789 random system calls from 2,063 tasks, 4,307 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
     },
     {
       "id": "G7",
       "title": "No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code",
       "ok": true,
-      "detail": "no alloc crate in the kernel; 84 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000)"
+      "detail": "no alloc crate in the kernel; 87 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000)"
     },
     {
       "id": "G8",
       "title": "The same disk image boots to the shell prompt in a web browser",
       "ok": true,
-      "detail": "shell prompt after 0.78 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless); 7 commands answered; byte-for-byte the image of the QEMU test"
+      "detail": "shell prompt after 2.45 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless); 7 commands answered; byte-for-byte the image of the QEMU test"
     },
     {
       "id": "G9",

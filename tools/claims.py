@@ -53,8 +53,9 @@ MUTANTS_HELD_OUT_BEFORE = "evidence/mutants-held-out-before-tests.log"
 MUTANTS_FRESH = "evidence/mutants-fresh.json"
 MUTANTS_FRESH_BEFORE = "evidence/mutants-fresh-before-tests.log"
 MUTANTS_UNSEEN = "evidence/mutants-unseen.json"
+MUTANTS_UNSEEN_BEFORE = "evidence/mutants-unseen-before-tests.log"
+MUTANTS_FIFTH = "evidence/mutants-fifth.json"
 MUTANTS_QEMU = "evidence/mutants-qemu.json"
-MUTANTS_QEMU_REPEATS = "evidence/mutants-qemu-repeats.json"
 MIRI = "evidence/miri.json"
 MUTANTS_PREVIOUS = "evidence/mutants-previous.json"
 
@@ -225,6 +226,11 @@ def add_test(put: Put, test: dict) -> None:
         put(f"nonx.{key}", measured["no_nx"][key], TEST)
     put("test.cpu", test["cpu"], TEST)
     put("test.cpu_without_nx", test["cpu_without_nx"], TEST)
+    # The boot with more memory than the kernel manages, where the selftest's sweep reaches the top frames.
+    full = measured["full_memory"]
+    for key in ("memory_mb", "selftest_passed", "frames_taken", "batch", "free_frames", "total_frames"):
+        put(f"fullmem.{key}", full[key], TEST)
+    put("fullmem.checks", sum(1 for check in test["checks"] if check["name"].startswith("with ")), TEST)
 
     fuzz = measured["fuzz"]
     for key in ("calls", "requested", "tasks", "calls_per_second", "checks", "violations", "anomalies",
@@ -643,7 +649,9 @@ SURVIVORS: dict[str, str] = {
         "spoilt, the one that maps the top two mebibytes of all the memory the kernel can manage, and the tests "
         "give the emulated machine half of that, so the spoilt part of the map covers memory that is not there. "
         "Frames are handed out from the bottom, so even on a machine with all the memory only a test that "
-        "reaches the top of it would notice. There is no such test: a hole in the tests in QEMU."
+        "reaches the top of it would notice. Until round seven there was no such test. Now the tests start the "
+        "machine once more with more memory than the kernel can manage and take every free frame; the table of "
+        "the runs in QEMU says what happened there."
     ),
     "kernel/src/mem.rs:196:condition inverted": (
         "Outside what the model can see. The kernel's own half of every address space would then map page zero "
@@ -655,9 +663,7 @@ SURVIVORS: dict[str, str] = {
         "Makes no difference to anything that is promised. The line remembers where the last free frame was "
         "found, so that the next search starts there. Without it every search starts from the beginning and "
         "finds a free frame all the same; which free frame a task is handed is not promised, and no check may "
-        "depend on it. In QEMU the changed kernel failed the self-test once; the unchanged kernel fails the same "
-        "check now and then, and the changed kernel passed when it was run again. The account of the runs in "
-        "QEMU says more."
+        "depend on it. The table of the runs in QEMU says what happened there."
     ),
     "kernel/src/mem.rs:296:&& becomes ||": (
         "Makes no difference while the kernel is right. The line is an assertion about arguments that the kernel "
@@ -668,9 +674,9 @@ SURVIVORS: dict[str, str] = {
         "Outside what the model can see. After an unmapping the kernel reloads the address space so that the "
         "processor forgets the old translations. The changed kernel never reloads, and the simulated machine "
         "keeps no translations that could go stale. On a real processor a task could go on using a page it has "
-        "given back, until another address space is loaded. QEMU keeps translations as a processor does, and "
-        "the reading was that the tests there might notice. They did not: the selftest and the fuzzer unmap "
-        "pages, but no test touches a page after unmapping it and expects a fault. A hole in the tests in QEMU."
+        "given back, until another address space is loaded. QEMU keeps translations as a processor does. Until "
+        "round seven no test there touched a page after unmapping it; now the self-test has a child do so and "
+        "expects the fault. The table of the runs in QEMU says what happened there."
     ),
     "kernel/src/task.rs:372:assignment removed": (
         "A hole in the checks, read through and left open. The flag that asks for a new choice of task is then "
@@ -727,41 +733,47 @@ SURVIVORS: dict[str, str] = {
         "no-execute bit at boot and enforce exactly what it did before. The simulated serial port only counts "
         "the bytes it is given. The tests in QEMU read that sentence, with the bit and without it."
     ),
-    # The unseen sample, drawn last. No test was written against any of these, and none will be before a
-    # new unseen sample is drawn.
-    "kernel/src/ipc.rs:187:assignment removed": (
-        "Makes no difference that reading could find; it is a reading and not a proof. The line counts an "
-        "anomaly in a branch that the kernel's own comment calls unreachable: the message of a blocked sender "
-        "was checked when the call was made, and only the sender can unmap its own memory, which it cannot do "
-        "while it is blocked."
-    ),
-    "kernel/src/sys.rs:154:< becomes <=": (
-        "A hole in the checks. Deriving a range of I/O ports that begins at the first port of the range it is "
-        "derived from is then refused. The changed kernel hands out less and not more, and no check derives "
-        "such a range."
-    ),
-    "kernel/src/sys.rs:284:!= becomes ==": (
-        "A hole in the checks, and the one that matters most. A task could then bind an interrupt line that "
-        "another task holds, and a task that binds its own line a second time is refused. No check binds a "
-        "line that is already bound, by its holder or by anyone else."
-    ),
-    "kernel/src/sys.rs:432:!= becomes ==": (
-        "A hole in the checks. The call that reports on the system would then give the number of free "
-        "endpoints as the number in use. No check compares that figure with the true one, and a check that "
-        "only compares it before and after, to look for a leak, passes either way."
-    ),
+    # The fourth sample. It was the unseen one in round 6, when seven of its mutants survived. Round 7 aimed
+    # six checks of the model at the six that were holes; this one is what is left.
     "kernel/src/task.rs:33:&& becomes ||": (
         "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
         "and it holds for the constants as they are, so the changed kernel is the same program."
     ),
-    "kernel/src/task.rs:387:!= becomes ==": (
-        "A hole in the checks. Only the count of switches from one task to another goes wrong: the kernel "
-        "chooses the same tasks in the same order. No check reads that count."
+    # The fifth sample, drawn in round 7 after those checks. No test was written against any of these, and
+    # none will be before a new unseen sample is drawn.
+    "kernel/src/ipc.rs:83:assignment removed": (
+        "A hole in the checks. A task that waits for a message with a time limit would then wait with no limit: "
+        "the line that sets its deadline is gone, and the deadline of a task that runs is always never. The "
+        "exploration of the model expires a wait by setting the deadline itself, so it cannot see whether the "
+        "kernel had set one, and every directed test of a receive either polls or is answered. The self-test in "
+        "QEMU has a receive that must run out; the table of the runs in QEMU says what happened there."
     ),
-    "kernel/src/task.rs:507:call removed": (
-        "A hole in the checks. A task woken by the timer then keeps its old place among the tasks of its rank "
-        "and does not go to the back, and the kernel is not asked to choose again at once. That is a matter of "
-        "fairness and not of isolation, and no check asks where a woken task lands."
+    "kernel/src/mem.rs:49:&& becomes ||": (
+        "Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, "
+        "and it holds for the constants as they are, so the changed kernel is the same program."
+    ),
+    "kernel/src/mem.rs:282:< becomes <=": (
+        "Makes no difference while the kernel is right. The line is an assertion about an index that the kernel "
+        "itself supplies. It holds in both versions, and no check hands it an index one past the end to see that "
+        "it stops the kernel."
+    ),
+    "kernel/src/mem.rs:322:>= becomes >": (
+        "Makes no difference while the kernel is right. The line refuses the number of a page table that lies "
+        "past the user range. Every caller takes the number from a user address it has checked or from a loop "
+        "that stops below the bound, so the one value that the two versions treat differently never arrives, "
+        "and no check hands it in to see that it is refused. This is a reading and not a proof."
+    ),
+    "kernel/src/task.rs:728:assignment removed": (
+        "Makes no difference that reading could find; it is a reading and not a proof. The line clears the "
+        "deadline of a task that is being destroyed. The timer wakes nobody that has ended or whose slot is "
+        "free, and clears such a deadline itself when it comes due; a slot that is used again gets a new "
+        "deadline when its task is made ready, and every way of waiting sets its own."
+    ),
+    "kernel/src/task.rs:771:assignment removed": (
+        "Makes no difference that reading could find; it is a reading and not a proof. The line forgets the "
+        "fault endpoint of a slot that has just become free. Starting a task writes that field anew, the kernel "
+        "reads it only for a task that is being destroyed or reaped, and the checker skips free slots when it "
+        "counts the references to an endpoint."
     ),
 }
 
@@ -811,9 +823,9 @@ def add_mutant_run(put: Put, prefix: str, table_name: str, mutants: dict, source
         put(f"{prefix}.{name}", count, f"{source}, as judged in tools/claims.py")
 
 
-def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: dict) -> None:
-    """The kernel broken on purpose, one place at a time: python build.py mutants, plain, --held-out, --fresh
-    and --unseen."""
+def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: dict, fifth: dict) -> None:
+    """The kernel broken on purpose, one place at a time: python build.py mutants, plain, --held-out, --fresh,
+    --unseen and --fifth."""
     add_mutant_run(put, "mutants", "table.mutants_not_caught", mutants, MUTANTS, "python build.py mutants")
     add_mutant_run(
         put, "mutants.held_out", "table.mutants_held_out_not_caught", held_out, MUTANTS_HELD_OUT,
@@ -827,12 +839,17 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: di
         put, "mutants.unseen", "table.mutants_unseen_not_caught", unseen, MUTANTS_UNSEEN,
         "python build.py mutants --unseen",
     )
+    add_mutant_run(
+        put, "mutants.fifth", "table.mutants_fifth_not_caught", fifth, MUTANTS_FIFTH,
+        "python build.py mutants --fifth",
+    )
 
     def identity(mutant: dict) -> tuple:
         return mutant["file"], mutant["line"], mutant["operator"], mutant["after"]
 
     samples = (
         (MUTANTS, mutants), (MUTANTS_HELD_OUT, held_out), (MUTANTS_FRESH, fresh), (MUTANTS_UNSEEN, unseen),
+        (MUTANTS_FIFTH, fifth),
     )
     for index, (source, run) in enumerate(samples):
         for other_source, other in samples[index + 1:]:
@@ -842,7 +859,7 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: di
     # A note that belongs to no surviving mutant has outlived what it describes.
     alive = {
         survivor_key(mutant)
-        for run in (mutants, held_out, fresh, unseen)
+        for run in (mutants, held_out, fresh, unseen, fifth)
         for mutant in run["mutants"]
         if mutant["verdict"] == "not caught"
     }
@@ -891,6 +908,31 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: di
     put("mutants.fresh.closed", sum(1 for key in got_away if now[key] == "caught"), source)
     put("mutants.fresh.left_open", sum(1 for key in got_away if now[key] == "not caught"), source)
 
+    # The fourth sample as it came out while no test had been aimed at it: the run of the round before. Tests
+    # were then written against the holes it showed, so its present figure is no longer that of an unseen sample.
+    unseen_before = evidence_lines("mutants-unseen-before-tests.log")
+    before = re.search(
+        r"MUTANTS: (\d+) of (\d+) caught(?: \(\d+%\))?, (\d+) not caught", "\n".join(unseen_before),
+    )
+    for key, value in zip(("caught", "compiled", "not_caught"), before.groups()):
+        put(f"mutants.unseen.before.{key}", int(value), MUTANTS_UNSEEN_BEFORE)
+    got_away = set()
+    for line in unseen_before:
+        found = re.match(r"mutant\s+\d+\s+(\S+):(\d+)\s+(.+): not caught\s*$", line)
+        if found:
+            got_away.add((found.group(1), int(found.group(2)), found.group(3)))
+    if len(got_away) != int(before.group(3)):
+        raise ValueError(f"{MUTANTS_UNSEEN_BEFORE}: its lines and its summary disagree")
+    now = {
+        (mutant["file"], mutant["line"], mutant["operator"]): mutant["verdict"]
+        for mutant in unseen["mutants"]
+    }
+    if not got_away <= set(now):
+        raise ValueError(f"{MUTANTS_UNSEEN_BEFORE} names mutants the present unseen sample does not hold")
+    source = f"{MUTANTS_UNSEEN_BEFORE} against {MUTANTS_UNSEEN}"
+    put("mutants.unseen.closed", sum(1 for key in got_away if now[key] == "caught"), source)
+    put("mutants.unseen.left_open", sum(1 for key in got_away if now[key] == "not caught"), source)
+
     # All samples are positions in the list of places, so they are drawn anew whenever that list changes. How
     # many of the places tried now were also tried a round ago is counted here and not guessed. A place is matched
     # by file, kind of change and the text of the line; identical lines can match each other, so these are upper
@@ -908,7 +950,7 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: di
 
     for prefix, run in (
         ("mutants", mutants), ("mutants.held_out", held_out), ("mutants.fresh", fresh),
-        ("mutants.unseen", unseen),
+        ("mutants.unseen", unseen), ("mutants.fifth", fifth),
     ):
         for name in ("first", "held_out", "held_out_not_caught"):
             known = {tuple(item) for item in previous[name]}
@@ -925,63 +967,50 @@ def add_mutants(put: Put, mutants: dict, held_out: dict, fresh: dict, unseen: di
 
 
 QEMU_VERDICTS = {
-    "caught": "caught",
+    "caught": "caught twice",
+    "not repeated": "failed once, passed when run again; not counted",
+    "not counted": "the unchanged kernel failed beside it; not counted",
     "same image": "builds the same image",
     "not caught": "not caught",
     "does not build": "does not build",
+    "differing": "failed twice, on different checks; not counted",
 }
 
 
-def doubted_catches(qemu: dict, repeats: dict) -> set[str]:
-    """The catches in QEMU that the repeat runs could not tell from a check that fails by itself.
-
-    A mutant is doubted when the batch caught it through one failed check and the unchanged kernel, run again
-    beside it under the batch's options, failed that same check."""
-    if not repeats:
-        raise KeyError(f"{MUTANTS_QEMU_REPEATS} is missing; it is collected by hand from repeat runs")
-    place = survivor_key(repeats)
-    batch = [mutant for mutant in qemu["mutants"] if survivor_key(mutant) == place]
-    if len(batch) != 1 or batch[0]["verdict"] != "caught" or len(batch[0]["by"]) != 1:
-        raise ValueError(f"{MUTANTS_QEMU_REPEATS}: {place} is not a mutant that {MUTANTS_QEMU} caught by one check")
-    if repeats["options"] != qemu["options"]:
-        raise ValueError(f"{MUTANTS_QEMU_REPEATS} was not run under the options of {MUTANTS_QEMU}")
-    in_batch = [run for run in repeats["runs"] if run["kind"] == "mutant" and run["where"] == "the batch"]
-    if len(in_batch) != 1 or in_batch[0]["failed"] != batch[0]["by"]:
-        raise ValueError(f"{MUTANTS_QEMU_REPEATS} does not hold the batch's own run as {MUTANTS_QEMU} has it")
-    unchanged_fails = {
-        check for run in repeats["runs"] if run["kind"] == "unchanged" for check in run["failed"]
-    }
-    return {place} if batch[0]["by"][0] in unchanged_fails else set()
+def check_qemu_catch(mutant: dict) -> bool:
+    """A catch is counted only as the tool's rule has it: the changed kernel failed, the unchanged kernel
+    passed the same suite straight after, and the changed kernel failed again. And this page is stricter
+    than the tool: False is returned for a mutant whose two failed runs share no failed check and did not
+    pass their time limit. Two failures with nothing in common are not evidence of one defect, so such a
+    mutant is listed as failing on different checks and is not counted as caught."""
+    place = survivor_key(mutant)
+    kinds = [(run["kind"], run["passed"]) for run in mutant.get("runs", [])]
+    if kinds != [("mutant", False), ("unchanged", True), ("mutant", False)]:
+        raise ValueError(f"{MUTANTS_QEMU}: {place} is called caught, but its runs are {kinds}")
+    if mutant["how"] == "failed check" and not mutant["by"]:
+        first, repeat = mutant["runs"][0], mutant["runs"][2]
+        return bool(first["timed_out"] or repeat["timed_out"])
+    return True
 
 
-def add_mutants_qemu_repeats(put: Put, repeats: dict) -> None:
-    """One counted catch run again beside the unchanged kernel: evidence/mutants-qemu-repeats.json."""
-    for kind in ("mutant", "unchanged"):
-        runs = [run for run in repeats["runs"] if run["kind"] == kind]
-        if any(run["passed"] != (not run["failed"]) for run in runs):
-            raise ValueError(f"{MUTANTS_QEMU_REPEATS}: a run is marked passed and lists a failed check, or the reverse")
-        failed = sum(1 for run in runs if not run["passed"])
-        put(f"mutants.qemu.repeats.{kind}_runs", len(runs), MUTANTS_QEMU_REPEATS)
-        put(f"mutants.qemu.repeats.{kind}_failed", failed, MUTANTS_QEMU_REPEATS)
-        put(f"mutants.qemu.repeats.{kind}_passed", len(runs) - failed, MUTANTS_QEMU_REPEATS)
-    put("mutants.qemu.repeats.place", f"`{repeats['file']}`, line {repeats['line']}", MUTANTS_QEMU_REPEATS)
-    put("mutants.qemu.repeats.unchanged_subtest", repeats["unchanged_failure"]["subtest"], MUTANTS_QEMU_REPEATS)
-
-
-def add_mutants_qemu(put: Put, qemu: dict, runs: tuple[dict, ...], repeats: dict) -> None:
+def add_mutants_qemu(put: Put, qemu: dict, runs: tuple[dict, ...]) -> None:
     """The mutants the host model let through, booted in QEMU: python build.py mutants-qemu."""
     if not qemu:
         raise KeyError(f"{MUTANTS_QEMU} is missing; run python build.py mutants-qemu")
     summary = qemu["summary"]
-    for key in ("tried", "caught", "same_image", "not_caught", "does_not_build"):
+    keys = ("tried", "caught", "not_repeated", "not_counted", "same_image", "not_caught", "does_not_build")
+    for key in keys:
         put(f"mutants.qemu.{key}", summary[key], MUTANTS_QEMU)
-    if summary["tried"] != len(qemu["mutants"]):
+    if summary["tried"] != len(qemu["mutants"]) or summary["tried"] != sum(summary[key] for key in keys[1:]):
         raise ValueError(f"{MUTANTS_QEMU}: the list of mutants does not match its summary")
+    for key in keys[1:]:
+        if summary[key] != sum(1 for mutant in qemu["mutants"] if mutant["verdict"] == key.replace("_", " ")):
+            raise ValueError(f"{MUTANTS_QEMU}: the verdicts of the mutants do not match the summary's {key}")
     survivors = sorted(
         survivor_key(mutant) for run in runs for mutant in run["mutants"] if mutant["verdict"] == "not caught"
     )
     if sorted(survivor_key(mutant) for mutant in qemu["mutants"]) != survivors:
-        raise ValueError(f"{MUTANTS_QEMU} does not hold exactly the mutants the four samples did not catch")
+        raise ValueError(f"{MUTANTS_QEMU} does not hold exactly the mutants the five samples did not catch")
     put("mutants.qemu.fuzz", qemu["options"]["fuzz"], MUTANTS_QEMU)
     put("mutants.qemu.runs", qemu["options"]["runs"], MUTANTS_QEMU)
     put("mutants.qemu.time_limit_s", round(qemu["time_limit_s"]), MUTANTS_QEMU)
@@ -990,30 +1019,73 @@ def add_mutants_qemu(put: Put, qemu: dict, runs: tuple[dict, ...], repeats: dict
         if not unchanged["passed"]:
             raise ValueError(f"{MUTANTS_QEMU}: the unchanged kernel did not pass {when} the mutants")
         put(f"mutants.qemu.unchanged_{when}_checks", unchanged["checks"], MUTANTS_QEMU)
+    called_caught = [mutant for mutant in qemu["mutants"] if mutant["verdict"] == "caught"]
+    caught = [mutant for mutant in called_caught if check_qemu_catch(mutant)]
+    differing = [mutant for mutant in called_caught if not check_qemu_catch(mutant)]
+    put("mutants.qemu.differing", len(differing), MUTANTS_QEMU)
     put(
         "mutants.qemu.caught_by_time_limit",
-        sum(1 for mutant in qemu["mutants"] if mutant["how"] == "time limit"), MUTANTS_QEMU,
+        sum(1 for mutant in caught if mutant["how"] == "time limit"), MUTANTS_QEMU,
     )
     put(
         "mutants.qemu.caught_by_failed_check",
-        sum(1 for mutant in qemu["mutants"] if mutant["how"] == "failed check"), MUTANTS_QEMU,
+        sum(1 for mutant in caught if mutant["how"] == "failed check"), MUTANTS_QEMU,
     )
-    # A catch through one check that the unchanged kernel also fails now and then is not a catch. The batch
-    # file stays as measured; the counts below leave such a catch out.
-    doubted = doubted_catches(qemu, repeats)
-    caught = [mutant for mutant in qemu["mutants"] if mutant["verdict"] == "caught"]
-    believed = [mutant for mutant in caught if survivor_key(mutant) not in doubted]
-    put("mutants.qemu.doubted", len(doubted), MUTANTS_QEMU_REPEATS)
-    put("mutants.qemu.noticed", len(believed), MUTANTS_QEMU_REPEATS)
+    # A catch is a mutant that failed twice with the unchanged kernel passing in between; the tool applies
+    # that rule itself. Taken out of its count here: the mutants whose two failures share no check.
+    put("mutants.qemu.noticed", len(caught), MUTANTS_QEMU)
     put(
         "mutants.qemu.noticed_by_several_checks",
-        sum(1 for mutant in believed if len(mutant["by"]) > 1 or mutant["how"] == "time limit"),
-        MUTANTS_QEMU_REPEATS,
+        sum(1 for mutant in caught if len(mutant["by"]) > 1 or mutant["how"] == "time limit"),
+        MUTANTS_QEMU,
     )
+    # How many runs beside the unchanged kernel there were, and how many of those the unchanged kernel failed.
+    beside = [
+        run for mutant in qemu["mutants"] for run in mutant.get("runs", []) if run["kind"] == "unchanged"
+    ]
+    put("mutants.qemu.unchanged_beside_runs", len(beside), MUTANTS_QEMU)
+    put("mutants.qemu.unchanged_beside_failed", sum(1 for run in beside if not run["passed"]), MUTANTS_QEMU)
+    # Why the unchanged kernel failed beside a mutant; every such failure must be of a kind named here.
+    failed_beside = [run for run in beside if not run["passed"]]
+    by_kind = {
+        "time_limit": [run for run in failed_beside if run["timed_out"]],
+        "clock": [
+            run for run in failed_beside
+            if not run["timed_out"] and any("guest clock" in name for name in run["failed"])
+        ],
+        "fuzz": [
+            run for run in failed_beside
+            if not run["timed_out"] and any(name.startswith("fuzz:") for name in run["failed"])
+        ],
+    }
+    if sum(len(found) for found in by_kind.values()) != len(failed_beside):
+        raise ValueError(f"{MUTANTS_QEMU}: a failure of the unchanged kernel is of no kind, or of two")
+    for kind, found in by_kind.items():
+        put(f"mutants.qemu.unchanged_failed_{kind}", len(found), MUTANTS_QEMU)
+    if any("selftest" in name for run in failed_beside for name in run["failed"]):
+        raise ValueError(f"{MUTANTS_QEMU}: the unchanged kernel failed the self-test; the text says it did not")
+    # Mutants that lost their verdict to a failing unchanged kernel although they failed one check twice.
+    put(
+        "mutants.qemu.not_counted_same_check_twice",
+        sum(
+            1 for mutant in qemu["mutants"]
+            if mutant["verdict"] == "not counted" and len(mutant["runs"]) == 3
+            and set(mutant["runs"][0]["failed"]) & set(mutant["runs"][2]["failed"])
+        ),
+        MUTANTS_QEMU,
+    )
+    # Every run of the suite in the batch, and the share measurements those runs set aside as unsteady.
+    every_run = [qemu["unchanged"]["before"], qemu["unchanged"]["after"]] + [
+        run for mutant in qemu["mutants"] for run in mutant.get("runs", [])
+    ]
+    put("mutants.qemu.suite_runs", len(every_run), MUTANTS_QEMU)
+    put("mutants.qemu.set_aside", sum(run["set_aside"] for run in every_run), MUTANTS_QEMU)
     # A mutant that neither the host model nor the booted system notices is the real remainder.
     put(
         "mutants.qemu.not_noticed",
-        summary["not_caught"] + summary["same_image"] + len(doubted), MUTANTS_QEMU_REPEATS,
+        summary["not_caught"] + summary["same_image"] + summary["not_repeated"] + summary["not_counted"]
+        + len(differing),
+        MUTANTS_QEMU,
     )
 
     def code(text: str) -> str:
@@ -1023,17 +1095,28 @@ def add_mutants_qemu(put: Put, qemu: dict, runs: tuple[dict, ...], repeats: dict
     for mutant in qemu["mutants"]:
         how = ""
         if mutant["verdict"] == "caught":
-            how = "the run passed its time limit" if mutant["how"] == "time limit" else (
-                f"{len(mutant['by'])} failed, the first: {mutant['by'][0]}" if mutant["by"] else "the suite failed"
-            )
-            if survivor_key(mutant) in doubted:
-                how += "; the unchanged kernel fails this check now and then, so this is not counted"
+            if mutant["how"] == "time limit":
+                how = "both runs passed their time limit"
+            elif mutant["by"]:
+                how = f"{len(mutant['by'])} failed in both runs, the first: {mutant['by'][0]}"
+            else:
+                first, repeat = mutant["runs"][0]["failed"], mutant["runs"][2]["failed"]
+                how = (
+                    f"first run: {first[0] if first else 'time limit'}; "
+                    f"second run: {repeat[0] if repeat else 'time limit'}"
+                )
+        elif mutant["verdict"] == "not repeated":
+            failed = mutant["runs"][0]["failed"]
+            how = f"failed in the first run only: {failed[0]}" if failed else "the first run passed its time limit"
+        elif mutant["verdict"] == "not counted":
+            failed = mutant["runs"][1]["failed"]
+            how = f"the unchanged kernel failed: {failed[0]}" if failed else "the unchanged kernel passed its time limit"
         rows.append([
             f"`{mutant['file']}`, line {mutant['line']}",
             mutant["sample"],
             mutant["operator"].replace("|", "\\|"),
             code(mutant["after"]),
-            QEMU_VERDICTS[mutant["verdict"]],
+            QEMU_VERDICTS["differing" if mutant in differing else mutant["verdict"]],
             how.replace("|", "\\|"),
         ])
     put(
@@ -1055,6 +1138,145 @@ def add_miri(put: Put, miri: dict) -> None:
     put("miri.limit_minutes", round(miri["limit_s"] / 60), MIRI)
     put("miri.ended", "ran to its end" if miri["finished"] else "was cut short at its time limit", MIRI)
     put("miri.finished", "yes" if miri["finished"] else "no", MIRI)
+
+
+SHARE_TIMING = "evidence/share-timing.json"
+LAUNCH_RACE = "evidence/fuzz-launch-race"
+LAST_SUBTEST = "no task, endpoint, page frame or quota was lost"
+
+
+def add_launch_race(put: Put) -> None:
+    """The race between a program's first reading of free frames and its starter unmapping the file.
+
+    Every figure is read from the serial logs; the record only names the delay that was put into the shell.
+    """
+    import json
+    import pathlib
+
+    evidence = pathlib.Path(str(gates.EVIDENCE))
+    frames = re.compile(r"^FUZZ: page frames (\d+) -> (\d+)$", re.MULTILINE)
+    failed_subtest = re.compile(r"^  FAIL (.+)$", re.MULTILINE)
+
+    def text_of(path: pathlib.Path) -> str:
+        return path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+
+    batch = evidence / "mutants-qemu-logs"
+    readings = set()
+    runs = 0
+    for path in sorted(batch.glob("*.unchanged.serial.log")):
+        found = frames.findall(text_of(path))
+        if found:
+            runs += 1
+            readings.update(found)
+    if len(readings) != 1:
+        raise ValueError(f"{batch}: the unchanged kernel's fuzz runs do not all show one pair of figures: {readings}")
+    before, after = (int(figure) for figure in readings.pop())
+    source = "evidence/mutants-qemu-logs"
+    put("race.batch_runs", runs, source)
+    put("race.frames_before", before, source)
+    put("race.frames_after", after, source)
+    put("race.frames_gained", after - before, source)
+
+    stage = {path.name.split("-")[0]: text_of(path) for path in (evidence / "fuzz-launch-race").glob("*.serial.log")}
+    if sorted(stage) != ["1", "2", "3"]:
+        raise ValueError(f"{LAUNCH_RACE}: expected three stages, found {sorted(stage)}")
+    size = re.search(r"^  fuzz\s+(\d+) bytes$", stage["1"], re.MULTILINE)
+    pages = -(-int(size.group(1)) // 4096)
+    if pages + 1 != after - before:
+        raise ValueError(f"{LAUNCH_RACE}: the fuzzer's file and one page table do not explain {after - before} frames")
+    put("race.image_pages", pages, f"{LAUNCH_RACE}/1-shell-delay-old-fuzzer.serial.log")
+
+    if set(frames.findall(stage["1"])) != {(str(before), str(after))} or "FUZZ: FAIL" not in stage["1"]:
+        raise ValueError(f"{LAUNCH_RACE}: stage one does not show the figures of the batch")
+    if set(failed_subtest.findall(stage["1"])) != {LAST_SUBTEST}:
+        raise ValueError(f"{LAUNCH_RACE}: stage one does not fail the self-test's last subtest alone")
+    if "FUZZ: PASS" not in stage["2"] or "FUZZ: FAIL" in stage["2"]:
+        raise ValueError(f"{LAUNCH_RACE}: stage two does not pass the fuzzer")
+    if set(failed_subtest.findall(stage["2"])) != {LAST_SUBTEST}:
+        raise ValueError(f"{LAUNCH_RACE}: stage two was expected to fail the self-test's last subtest still")
+    if "FUZZ: PASS" not in stage["3"] or "SELFTEST: PASS" not in stage["3"]:
+        raise ValueError(f"{LAUNCH_RACE}: stage three does not pass")
+    if failed_subtest.findall(stage["3"]) or "FUZZ: FAIL" in stage["3"] or "SELFTEST: FAIL" in stage["3"]:
+        raise ValueError(f"{LAUNCH_RACE}: stage three has a failure")
+
+    record = json.loads((evidence / "fuzz-launch-race" / "record.json").read_text(encoding="utf-8"))
+    put("race.delay_ms", record["shell_delay_ms"], f"{LAUNCH_RACE}/record.json")
+
+    sleeps = set()
+    for program in ("fuzz.rs", "selftest.rs"):
+        source_text = (evidence.parent / "user" / "src" / "bin" / program).read_text(encoding="utf-8")
+        found = re.findall(r"const STARTER_MS: u32 = (\d+);", source_text)
+        if len(found) != 1 or "sys::sleep(STARTER_MS);" not in source_text:
+            raise ValueError(f"user/src/bin/{program}: the sleep before the first reading is missing")
+        sleeps.add(int(found[0]))
+    if len(sleeps) != 1:
+        raise ValueError("the fuzzer and the self-test do not sleep equally long before their first reading")
+    put("race.starter_ms", sleeps.pop(), "user/src/bin/fuzz.rs")
+
+    alone = [
+        path.name
+        for path in sorted(batch.glob("*.serial.log"))
+        if ".fullmem." not in path.name and set(failed_subtest.findall(text_of(path))) == {LAST_SUBTEST}
+    ]
+    if alone != ["fifth-26.serial.log"]:
+        raise ValueError(f"{batch}: the runs that fail the last subtest alone are {alone}; docs/src/design.md names one")
+    put("race.selftest_batch_runs", len(alone), source)
+
+
+def add_timing(put: Put, timing: dict) -> None:
+    """The search for the cause of the timing checks failing now and then: evidence/share-timing.json."""
+    if not timing:
+        raise KeyError(f"{SHARE_TIMING} is missing")
+    probe = timing["probe"]
+    for key in ("boots", "selftest_runs", "selftest_runs_failed", "alone_stretches", "anomalies_reproduced"):
+        put(f"timing.probe.{key}", probe[key], SHARE_TIMING)
+    put("timing.earlier_failures", len(timing["earlier_failures"]), SHARE_TIMING)
+    put("timing.hypotheses", len(timing["hypotheses"]), SHARE_TIMING)
+    put("timing.calm.steadiness_min", probe["steadiness_min_percent"], SHARE_TIMING)
+
+    load = timing["under_load"]
+    first = load["first_batch_attempt"]
+    put("timing.batch1.reached", first["mutants_reached"], SHARE_TIMING)
+    put("timing.batch1.not_counted", first["not_counted_because_unchanged_kernel_failed"], SHARE_TIMING)
+    priority = load["priority_probe"]
+    if len(priority["failed_subtests"]) != 1 or "share" not in priority["failed_subtests"][0]:
+        raise ValueError(f"{SHARE_TIMING}: the failed runs under load are not all in the share subtest")
+    put("timing.load.runs", priority["runs"], SHARE_TIMING)
+    put("timing.load.failed", priority["failed"], SHARE_TIMING)
+    put("timing.load.high_runs", priority["classes"]["high"]["runs"], SHARE_TIMING)
+    put("timing.load.high_failed", priority["classes"]["high"]["failed"], SHARE_TIMING)
+    put("timing.load.failed_steadiness_max", priority["failed_steadiness_max_percent"], SHARE_TIMING)
+    host = load["host"]
+    put("timing.host.processors", host["logical_processors"], SHARE_TIMING)
+    put("timing.host.queue_median", host["processor_queue_median"], SHARE_TIMING)
+    put("timing.host.frequency_min", host["frequency_min_percent"], SHARE_TIMING)
+    icount = load["instruction_clock"]
+    # The documents say that these runs passed and that every stretch came to within a round of the others.
+    if icount["failed"] != 0 or icount["alone_rounds_max"] - icount["alone_rounds_min"] > 1:
+        raise ValueError(f"{SHARE_TIMING}: the runs with the instruction clock are not as the documents say")
+    put("timing.icount.runs", icount["selftest_runs"], SHARE_TIMING)
+    put("timing.icount.failed", icount["failed"], SHARE_TIMING)
+    put("timing.icount.stretches", icount["alone_stretches"], SHARE_TIMING)
+    put("timing.icount.rounds_min", icount["alone_rounds_min"], SHARE_TIMING)
+    put("timing.icount.rounds_max", icount["alone_rounds_max"], SHARE_TIMING)
+    put("timing.icount.plain_runs", icount["plain_clock_same_minutes"]["selftest_runs"], SHARE_TIMING)
+    put("timing.icount.plain_failed", icount["plain_clock_same_minutes"]["failed"], SHARE_TIMING)
+
+    guard = timing["guard"]
+    steady = constant("user/src/bin/selftest.rs", "STEADY_PERCENT")
+    if guard["steady_percent"] != steady:
+        raise ValueError(f"{SHARE_TIMING}: the limit of the guard is not the self-test's STEADY_PERCENT")
+    # The documents say that the limit lies between the least steady quiet run and the steadiest failed one.
+    if not priority["failed_steadiness_max_percent"] < steady < probe["steadiness_min_percent"]:
+        raise ValueError(f"{SHARE_TIMING}: STEADY_PERCENT does not lie between the two figures it is said to")
+    put("timing.steady.percent", steady, "user/src/bin/selftest.rs")
+    put("timing.tries", constant("user/src/bin/selftest.rs", "SHARE_TRIES"), "user/src/bin/selftest.rs")
+    for name, key in (("guard3", "three_tries"), ("guard5", "five_tries")):
+        tried = guard[key]
+        put(f"timing.{name}.runs", tried["runs"], SHARE_TIMING)
+        put(f"timing.{name}.failed", tried["failed_runs"], SHARE_TIMING)
+        put(f"timing.{name}.runs_set_aside", tried["runs_with_set_aside"], SHARE_TIMING)
+        put(f"timing.{name}.set_aside", tried["set_aside_measurements"], SHARE_TIMING)
 
 
 def collect() -> dict[str, dict]:
@@ -1084,13 +1306,16 @@ def collect() -> dict[str, dict]:
     add_model(put, gates.load("model.json"))
     samples = tuple(
         gates.load(name)
-        for name in ("mutants.json", "mutants-held-out.json", "mutants-fresh.json", "mutants-unseen.json")
+        for name in (
+            "mutants.json", "mutants-held-out.json", "mutants-fresh.json", "mutants-unseen.json",
+            "mutants-fifth.json",
+        )
     )
     add_mutants(put, *samples)
-    repeats = gates.load("mutants-qemu-repeats.json")
-    add_mutants_qemu(put, gates.load("mutants-qemu.json"), samples, repeats)
-    add_mutants_qemu_repeats(put, repeats)
+    add_mutants_qemu(put, gates.load("mutants-qemu.json"), samples)
     add_miri(put, gates.load("miri.json"))
+    add_timing(put, gates.load("share-timing.json"))
+    add_launch_race(put)
     return claims
 
 

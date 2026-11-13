@@ -1,0 +1,19 @@
+{
+  "what": "A sleep was put into user/src/bin/shell.rs between sys::spawn and drop(image), and the test suite was run in three stages. The sleep was removed afterwards; the shell in the repository does not have it.",
+  "shell_delay_ms": 20,
+  "shell_patch": [
+    "let started = sys::spawn(image.bytes(), &spawn);",
+    "sys::sleep(20);",
+    "drop(image);"
+  ],
+  "suite_options": "--fuzz 20000 --runs 1",
+  "stages": {
+    "1-shell-delay-old-fuzzer": "fuzzer and self-test as they were: both fail",
+    "2-shell-delay-corrected-fuzzer": "fuzzer sleeps before its first reading: fuzzer passes, self-test's last subtest fails",
+    "3-shell-delay-both-corrected": "both sleep before their first reading: the run passes"
+  },
+  "scripts": [
+    "race_experiment.py",
+    "race_second.py"
+  ]
+}

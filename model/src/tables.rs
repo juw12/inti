@@ -16,8 +16,8 @@ use crate::world::{
 use crate::{get32, put32};
 use abi::nr;
 use abi::{
-    CAP_ENDPOINT, CAP_MEMORY, CAP_SLOTS, CAUSE_KILLED, E_FAULT, E_INVAL, E_NOCAP, E_NOMEM, E_NOSLOT, E_PERM, E_TIMEOUT,
-    FOREVER, INFO_CAP, INFO_TASK, L_FAULT, L_IRQ, L_KERNEL, MAP_WRITE, MAX_ENDPOINTS, MAX_TASKS, MSG_DATA, MSG_HEADER,
+    CAP_ENDPOINT, CAP_MEMORY, CAP_SLOTS, CAUSE_KILLED, E_BUSY, E_FAULT, E_INVAL, E_NOCAP, E_NOMEM, E_NOSLOT, E_PERM, E_TIMEOUT,
+    FOREVER, INFO_CAP, INFO_STATS, INFO_TASK, L_FAULT, L_IRQ, L_KERNEL, MAP_WRITE, MAX_ENDPOINTS, MAX_TASKS, MSG_DATA, MSG_HEADER,
     NO_CAP, PAGE, R_GRANT, R_RECV, R_SEND, ST_READY, USER_BASE, USER_END,
 };
 
@@ -1689,6 +1689,225 @@ fn checker_sensitivity(tally: &mut Tally) {
     println!("MODEL blind: {unseen} of {} forged capabilities that the checker cannot tell from honest ones went unnoticed", UNSEEN.len());
 }
 
+// ---- Places that a changed kernel got through unnoticed in round 6 -------------------------
+//
+// Each of the checks below was written after a deliberately broken kernel passed everything
+// above. They are directed at those places, so they say nothing about places not yet tried.
+
+/// An interrupt line that one task has bound cannot be taken by another, and its owner can
+/// still move it.
+fn a_bound_interrupt_line(tally: &mut Tally) {
+    tally.section("An interrupt line that is already bound");
+    let mut w = World::boot(SMALL, true);
+    let made = [w.ep_create(0), w.ep_create(0)] == [Some(6), Some(7)];
+    let (Cap::Endpoint { ep: first, .. }, Cap::Endpoint { ep: second, .. }) = (w.k.tasks[0].caps[6], w.k.tasks[0].caps[7])
+    else {
+        tally.check("the root task holds two endpoints", false);
+        return;
+    };
+    let bound = w.irq_bind(0, 3, 1, 6) == Some(0);
+    let Ok(other) = w.spawn_task(0, &Spawn { eps: 1, ..Spawn::PLAIN }.with_caps(&[3])) else {
+        tally.check("a second task starts with the capability for the interrupt lines", false);
+        return;
+    };
+    let own = w.ep_create(other);
+    tally.check(
+        "the root task binds interrupt 1, and a second task holds the same capability and an endpoint of its own",
+        made && bound && own == Some(1) && matches!(w.k.tasks[other].caps[0], Cap::Irq { .. }),
+    );
+    let refused = w.irq_bind(other, 0, 1, 1);
+    tally.check(
+        "the second task cannot bind interrupt 1 (E_BUSY); the line stays bound to the root task's endpoint, and open",
+        refused == Some(E_BUSY) && w.k.irqs[1].task == 0 && w.k.irqs[1].ep == first && !masked(1),
+    );
+    w.interrupt(1);
+    let ours = w.recv(0, 6, 0);
+    let named = word_at(&w, 0, BUFFER) == L_IRQ && word_at(&w, 0, BUFFER + 16) == 1 << 1;
+    let theirs = w.recv(other, 1, 0);
+    tally.check(
+        "the interrupt arrives at the root task's endpoint, and nothing at the second task's (E_TIMEOUT)",
+        ours == Some(0) && named && theirs == Some(E_TIMEOUT),
+    );
+    let opened = w.irq_ack(0, 3, 1) == Some(0);
+    let moved = w.irq_bind(0, 3, 1, 7);
+    tally.check(
+        "the root task, which owns the binding, moves interrupt 1 to its other endpoint",
+        opened && moved == Some(0) && w.k.irqs[1].task == 0 && w.k.irqs[1].ep == second && !masked(1),
+    );
+    let free = w.irq_bind(other, 0, 3, 1);
+    let taken = w.irq_bind(0, 3, 3, 6);
+    tally.check(
+        "the second task binds interrupt 3, which was free, and then the root task cannot (E_BUSY)",
+        free == Some(0) && taken == Some(E_BUSY) && w.k.irqs[3].task as usize == other,
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// The count of task switches: one for each time another task gets the processor, none for a
+/// task that keeps it, and none for the processor going idle.
+fn switches_counted(tally: &mut Tally) {
+    tally.section("The count of task switches");
+    let mut w = World::boot(SMALL, true);
+    let alone = w.ep_create(0).is_some() && w.k.cur == 0 && w.tasks() == 1;
+    let before = w.k.stats.switches;
+    w.ticks(5);
+    tally.check(
+        "five timer ticks with one task that keeps the processor count no switch",
+        alone && w.k.cur == 0 && w.k.stats.switches == before,
+    );
+    let asleep = w.sleep(0, 30).is_none() && w.k.cur == IDLE;
+    tally.check("the processor going idle counts no switch", asleep && w.k.stats.switches == before);
+    w.pass(40_000);
+    tally.check(
+        "the task that wakes and takes the idle processor counts one",
+        w.k.cur == 0 && woke_with(&w, 0, 0) && w.k.stats.switches == before.wrapping_add(1),
+    );
+    let (Ok(_), Ok(_)) = (w.spawn_task(0, &Spawn::PLAIN), w.spawn_task(0, &Spawn::PLAIN)) else {
+        tally.check("two more tasks start", false);
+        return;
+    };
+    let before = w.k.stats.switches;
+    let mut changes = 0;
+    for _ in 0..6 {
+        let running = w.k.cur;
+        w.pass(10_000);
+        changes += (w.k.cur != running) as u32;
+    }
+    let counted = w.k.stats.switches.wrapping_sub(before);
+    println!("  note  six timer ticks with three tasks: the running task changed {changes} times, the kernel counted {counted}");
+    tally.check("six timer ticks with three tasks that never wait count six switches", changes == 6 && counted == 6);
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// A task that a timer wakes goes to the back of the queue: a task that was already waiting
+/// for its turn runs first.
+fn a_timer_wakeup_queues_at_the_back(tally: &mut Tally) {
+    tally.section("A task woken by the timer");
+    let mut w = World::boot(SMALL, true);
+    let (Ok(a), Ok(b)) = (w.spawn_task(0, &Spawn::PLAIN), w.spawn_task(0, &Spawn::PLAIN)) else {
+        tally.check("two tasks start", false);
+        return;
+    };
+    let asleep = w.sleep(a, 10).is_none() && w.k.tasks[a].state == State::Sleep;
+    let running = w.k.cur;
+    let waiting = if running == 0 { b } else { 0 };
+    tally.check("one of three tasks sleeps; one of the others runs, and the third waits for its turn", asleep && (running == 0 || running == b));
+    w.expire(a);
+    let woken = w.k.tasks[a].state == State::Ready && woke_with(&w, a, 0);
+    let first = w.k.cur;
+    w.ticks(1);
+    let second = w.k.cur;
+    println!("  note  task {running} ran and task {waiting} waited; after the wakeup task {first} runs, and a tick later task {second}");
+    tally.check("the tick that wakes the sleeper gives the processor to the task that was waiting, not to the sleeper", woken && first == waiting);
+    tally.check("the sleeper runs at the next tick, before the task that the tick interrupted", second == a);
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// What the kernel reports of its tables is what is in them.
+fn reported_table_counts(tally: &mut Tally) {
+    const REPORT: u32 = BUFFER + 0x400;
+    tally.section("The reported counts of tasks and endpoints");
+    let mut w = World::boot(SMALL, true);
+    let started = w.spawn_task(0, &Spawn::PLAIN).is_ok();
+    let made = w.ep_create(0).is_some_and(|slot| slot >= 0);
+    let mut reports = [[0u32; 13]; 2];
+    let mut asked = [None; 2];
+    let mut tables = [(0, 0, 0); 2];
+    for round in 0..2 {
+        if round == 1 {
+            asked[0] = asked[0].filter(|_| w.ep_create(0).is_some_and(|slot| slot >= 0));
+        }
+        asked[round] = w.syscall(0, nr::SYSINFO, [1, INFO_STATS, 0, REPORT]).or(asked[round]);
+        for (index, word) in reports[round].iter_mut().enumerate() {
+            *word = word_at(&w, 0, REPORT + index as u32 * 4);
+        }
+        tables[round] = (w.tasks() as u32, w.endpoints() as u32, w.k.stats.switches);
+    }
+    println!(
+        "  note  reported: {} tasks, {} endpoints, {} switches; after one more endpoint: {} endpoints",
+        reports[0][3], reports[0][4], reports[0][6], reports[1][4]
+    );
+    tally.check("the root task reads the kernel's counts twice, with one more endpoint the second time", started && made && asked == [Some(0); 2]);
+    tally.check(
+        "the reported number of tasks is the number of tasks there are",
+        reports[0][3] == tables[0].0 && reports[1][3] == tables[1].0 && tables[0].0 == 2,
+    );
+    tally.check(
+        "the reported number of endpoints is the number there are, and one more after one more is made",
+        reports[0][4] == tables[0].1 && reports[1][4] == tables[1].1 && tables[1].1 == tables[0].1 + 1,
+    );
+    tally.check("the reported number of switches is the kernel's count", reports[0][6] == tables[0].2 && reports[1][6] == tables[1].2);
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// A range of ports can be narrowed to any part of itself, its first port and its last
+/// included, and to nothing outside.
+fn narrowed_port_ranges(tally: &mut Tally) {
+    tally.section("Narrowing a range of ports");
+    let mut w = World::boot(SMALL, true);
+    let Some(serial) = slot_of(w.derive(0, 2, 0x3F8, 0x3FF, 0)) else {
+        tally.check("the eight ports of the serial line are derived from the capability for every port", false);
+        return;
+    };
+    let parts = [(0x3F8, 0x3F8), (0x3FF, 0x3FF), (0x3F8, 0x3FF), (0x3F9, 0x3FE)];
+    let derived = parts.map(|(first, last)| w.derive(0, serial, first, last, 0));
+    let exact = (0..parts.len()).all(|i| held(&w, derived[i]) == Cap::IoPort { first: parts[i].0 as u16, last: parts[i].1 as u16 });
+    tally.check("from a range its first port alone can be derived, its last alone, the whole of it, and its inside", exact);
+    let whole = w.derive(0, 2, 0, 0xFFFF, 0);
+    let lowest = w.derive(0, 2, 0, 0, 0);
+    tally.check(
+        "from the capability for every port, every port can be derived again, and port 0 alone",
+        held(&w, whole) == Cap::IoPort { first: 0, last: 0xFFFF } && held(&w, lowest) == Cap::IoPort { first: 0, last: 0 },
+    );
+    let outside = [(0x3F7, 0x3F8), (0x3F7, 0x3F7), (0x3FF, 0x400), (0x400, 0x400), (0x3F9, 0x3F8)];
+    let refused = outside.map(|(first, last)| w.derive(0, serial, first, last, 0));
+    tally.check(
+        "a range that begins one port below, ends one port above, or ends before it begins is refused with E_PERM",
+        refused == [Some(E_PERM); 5],
+    );
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
+/// The message of a waiting sender is checked when the call is made, and only the sender
+/// can unmap its own memory, so the kernel never finds it unreadable later. A forged page
+/// table gets there: the kernel fails the call and counts an anomaly.
+fn unreadable_message_of_a_waiting_sender(tally: &mut Tally) {
+    tally.section("A waiting sender whose message cannot be read");
+    let mut w = World::boot(SMALL, true);
+    let made = w.ep_create(0);
+    let Cap::Endpoint { ep, .. } = held(&w, made) else {
+        tally.check("the root task holds an endpoint", false);
+        return;
+    };
+    let Some(sending) = slot_of(w.derive(0, 6, R_SEND, 0, 0)) else {
+        tally.check("a capability to send is derived", false);
+        return;
+    };
+    let Ok(client) = w.spawn_task(0, &Spawn::PLAIN.with_caps(&[sending])) else {
+        tally.check("a client starts", false);
+        return;
+    };
+    let waits = w.call(client, 0, NO_CAP, FOREVER).is_none() && w.k.tasks[client].state == State::Send(ep);
+    tally.check("a client calls and waits for the root task to receive", waits && w.k.stats.anomalies == 0 && w.k.check() == 0);
+    let at = pte(&w, client, BUFFER);
+    let honest = entry(&w, at);
+    set_entry(at, 0);
+    let received = w.recv(0, 6, 0);
+    let (anomalies, rule) = (w.k.stats.anomalies, w.k.check());
+    println!("  note  with the page of the message forged away the kernel counts {anomalies} anomaly, and its checker reports rule {rule}");
+    tally.check(
+        "with the page of its message forged away, the client's call fails with E_FAULT and the receiver gets no message (E_TIMEOUT)",
+        received == Some(E_TIMEOUT) && woke_with(&w, client, E_FAULT),
+    );
+    tally.check("the kernel counts an anomaly, and its checker reports the state", anomalies == 1 && rule != 0);
+    set_entry(at, honest);
+    w.k.stats.anomalies = 0;
+    tally.check("with the forgery undone the kernel's checker reports nothing", w.k.check() == 0);
+    let again = w.call(client, 0, NO_CAP, FOREVER).is_none() && w.recv(0, 6, 0) == Some(0);
+    tally.check("the client calls again, and this time the root task receives its message", again);
+    tally.sound(&mut w, "the state afterwards is sound");
+}
+
 pub fn run() -> bool {
     let mut tally = Tally { passed: 0, failed: 0 };
     boot_facts(&mut tally);
@@ -1716,6 +1935,12 @@ pub fn run() -> bool {
     a_task_that_ends_itself(&mut tally);
     the_log_needs_its_capability(&mut tally);
     reported_capabilities(&mut tally);
+    a_bound_interrupt_line(&mut tally);
+    switches_counted(&mut tally);
+    a_timer_wakeup_queues_at_the_back(&mut tally);
+    reported_table_counts(&mut tally);
+    narrowed_port_ranges(&mut tally);
+    unreadable_message_of_a_waiting_sender(&mut tally);
     checker_sensitivity(&mut tally);
     let total = tally.passed + tally.failed;
     println!("MODEL tables: {} {}/{total}", if tally.failed == 0 { "PASS" } else { "FAIL" }, tally.passed);

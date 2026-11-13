@@ -1,34 +1,38 @@
 {
- "date": "2026-11-12T15:35:10+00:00",
+ "date": "2026-11-13T06:21:01+00:00",
  "command": "python build.py mutants-qemu",
- "source_sha256": "28af5a07f9e803888a4448a0c0098a185a85e566fce30ba24e4c1bb4039ebff5",
+ "source_sha256": "92415fb05c06d18c125e8c0b27e073402579598cdd3f86b8d055403eb7d92e8b",
  "options": {
   "fuzz": 200000,
   "runs": 2
  },
  "unchanged": {
-  "image_sha256": "c50687aac3966153e39925daebc75707fb447bcb2ade4ad6380e0b7c18b6195c",
+  "image_sha256": "b81e726ea6c54cb5a4ebc03e94ab9511a99948d4ec82ada5925ac23cb182d01a",
   "before": {
    "passed": true,
    "failed": [],
-   "checks": 32,
-   "seconds": 131,
-   "timed_out": false
+   "checks": 36,
+   "seconds": 119,
+   "timed_out": false,
+   "set_aside": 0
   },
   "after": {
    "passed": true,
    "failed": [],
-   "checks": 32,
-   "seconds": 128,
-   "timed_out": false
+   "checks": 36,
+   "seconds": 194,
+   "timed_out": false,
+   "set_aside": 1
   }
  },
  "time_limit_s": 600,
  "summary": {
   "tried": 21,
-  "caught": 9,
-  "same_image": 2,
-  "not_caught": 10,
+  "caught": 6,
+  "not_repeated": 0,
+  "not_counted": 5,
+  "same_image": 3,
+  "not_caught": 7,
   "does_not_build": 0
  },
  "mutants": [
@@ -40,10 +44,62 @@
    "operator": "+ becomes -",
    "before": "const ROOT: usize = KERNEL_TABLES + 1;",
    "after": "const ROOT: usize = KERNEL_TABLES - 1;",
-   "verdict": "not caught",
-   "how": "",
-   "by": [],
-   "seconds": 111
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "with 256 MiB: the run reached its end",
+    "with 256 MiB: no kernel panic anywhere in the serial log"
+   ],
+   "by_first_run": [
+    "with 256 MiB: the run reached its end",
+    "with 256 MiB: no kernel panic anywhere in the serial log"
+   ],
+   "by_repeat_run": [
+    "with 256 MiB: the run reached its end",
+    "with 256 MiB: no kernel panic anywhere in the serial log"
+   ],
+   "seconds": 345,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "with 256 MiB: the run reached its end",
+      "with 256 MiB: no kernel panic anywhere in the serial log"
+     ],
+     "timed_out": false,
+     "seconds": 110,
+     "set_aside": 0,
+     "logs": [
+      "first-21.serial.log",
+      "first-21.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 121,
+     "set_aside": 0,
+     "logs": []
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "with 256 MiB: the run reached its end",
+      "with 256 MiB: no kernel panic anywhere in the serial log"
+     ],
+     "timed_out": false,
+     "seconds": 114,
+     "set_aside": 0,
+     "logs": [
+      "first-21.repeat.serial.log",
+      "first-21.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
    "sample": "first",
@@ -53,13 +109,58 @@
    "operator": "condition inverted",
    "before": "if address == 0 {",
    "after": "if !(address == 0) {",
-   "verdict": "caught",
-   "how": "failed check",
-   "by": [
-    "the run reached its end",
-    "without the no-execute bit: the run reached its end"
-   ],
-   "seconds": 5
+   "verdict": "not counted",
+   "how": "",
+   "by": [],
+   "seconds": 249,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "without the no-execute bit: the run reached its end",
+      "with 256 MiB: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 4,
+     "set_aside": 0,
+     "logs": [
+      "first-24.serial.log",
+      "first-24.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": false,
+     "failed": [
+      "the guest clock keeps time against the host clock over 5 idle seconds"
+     ],
+     "timed_out": false,
+     "seconds": 241,
+     "set_aside": 0,
+     "logs": [
+      "first-24.unchanged.serial.log",
+      "first-24.unchanged.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "without the no-execute bit: the run reached its end",
+      "with 256 MiB: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 4,
+     "set_aside": 0,
+     "logs": [
+      "first-24.repeat.serial.log",
+      "first-24.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
    "sample": "first",
@@ -69,12 +170,21 @@
    "operator": "assignment removed",
    "before": "self.hint = word;",
    "after": "(line removed)",
-   "verdict": "caught",
-   "how": "failed check",
-   "by": [
-    "selftest after boot"
-   ],
-   "seconds": 126
+   "verdict": "not caught",
+   "how": "",
+   "by": [],
+   "seconds": 117,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 117,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "first",
@@ -87,7 +197,18 @@
    "verdict": "not caught",
    "how": "",
    "by": [],
-   "seconds": 123
+   "seconds": 118,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 118,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "first",
@@ -97,10 +218,72 @@
    "operator": "call removed",
    "before": "arch::write_cr3(pd); // drop stale translations and cached table addresses",
    "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": [],
-   "seconds": 107
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [
+    "selftest after boot",
+    "selftest after all faults",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed",
+    "with 256 MiB: the kernel boots and the selftest passes"
+   ],
+   "by_first_run": [
+    "selftest after boot",
+    "selftest after all faults",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed",
+    "with 256 MiB: the kernel boots and the selftest passes"
+   ],
+   "by_repeat_run": [
+    "selftest after boot",
+    "selftest after all faults",
+    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed",
+    "with 256 MiB: the kernel boots and the selftest passes"
+   ],
+   "seconds": 350,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "selftest after boot",
+      "selftest after all faults",
+      "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed",
+      "with 256 MiB: the kernel boots and the selftest passes"
+     ],
+     "timed_out": false,
+     "seconds": 117,
+     "set_aside": 0,
+     "logs": [
+      "first-31.serial.log",
+      "first-31.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 114,
+     "set_aside": 0,
+     "logs": []
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "selftest after boot",
+      "selftest after all faults",
+      "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed",
+      "with 256 MiB: the kernel boots and the selftest passes"
+     ],
+     "timed_out": false,
+     "seconds": 119,
+     "set_aside": 0,
+     "logs": [
+      "first-31.repeat.serial.log",
+      "first-31.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
    "sample": "first",
@@ -113,7 +296,18 @@
    "verdict": "not caught",
    "how": "",
    "by": [],
-   "seconds": 122
+   "seconds": 126,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 126,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "first",
@@ -126,7 +320,18 @@
    "verdict": "not caught",
    "how": "",
    "by": [],
-   "seconds": 106
+   "seconds": 121,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 121,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "held-out",
@@ -139,7 +344,18 @@
    "verdict": "not caught",
    "how": "",
    "by": [],
-   "seconds": 126
+   "seconds": 125,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 125,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "held-out",
@@ -165,7 +381,18 @@
    "verdict": "not caught",
    "how": "",
    "by": [],
-   "seconds": 122
+   "seconds": 137,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 137,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "fresh",
@@ -179,9 +406,63 @@
    "how": "failed check",
    "by": [
     "the run reached its end",
-    "without the no-execute bit: the run reached its end"
+    "without the no-execute bit: the run reached its end",
+    "with 256 MiB: the run reached its end"
    ],
-   "seconds": 3
+   "by_first_run": [
+    "the run reached its end",
+    "without the no-execute bit: the run reached its end",
+    "with 256 MiB: the run reached its end"
+   ],
+   "by_repeat_run": [
+    "the run reached its end",
+    "without the no-execute bit: the run reached its end",
+    "with 256 MiB: the run reached its end"
+   ],
+   "seconds": 130,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "without the no-execute bit: the run reached its end",
+      "with 256 MiB: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 3,
+     "set_aside": 0,
+     "logs": [
+      "fresh-23.serial.log",
+      "fresh-23.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 122,
+     "set_aside": 0,
+     "logs": []
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "without the no-execute bit: the run reached its end",
+      "with 256 MiB: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 5,
+     "set_aside": 0,
+     "logs": [
+      "fresh-23.repeat.serial.log",
+      "fresh-23.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
    "sample": "fresh",
@@ -194,7 +475,18 @@
    "verdict": "not caught",
    "how": "",
    "by": [],
-   "seconds": 108
+   "seconds": 125,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 125,
+     "set_aside": 0,
+     "logs": []
+    }
+   ]
   },
   {
    "sample": "fresh",
@@ -204,15 +496,64 @@
    "operator": "assignment removed",
    "before": "task.frame = TrapFrame::user(entry, STACK_TOP, start);",
    "after": "(line removed)",
-   "verdict": "caught",
-   "how": "failed check",
-   "by": [
-    "the run reached its end",
-    "no kernel panic anywhere in the serial log",
-    "without the no-execute bit: the run reached its end",
-    "without the no-execute bit: no kernel panic anywhere in the serial log"
-   ],
-   "seconds": 3
+   "verdict": "not counted",
+   "how": "",
+   "by": [],
+   "seconds": 135,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "no kernel panic anywhere in the serial log",
+      "without the no-execute bit: the run reached its end",
+      "without the no-execute bit: no kernel panic anywhere in the serial log",
+      "with 256 MiB: the run reached its end",
+      "with 256 MiB: no kernel panic anywhere in the serial log"
+     ],
+     "timed_out": false,
+     "seconds": 3,
+     "set_aside": 0,
+     "logs": [
+      "fresh-42.serial.log",
+      "fresh-42.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": false,
+     "failed": [
+      "fuzz: at least 200000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks"
+     ],
+     "timed_out": false,
+     "seconds": 129,
+     "set_aside": 0,
+     "logs": [
+      "fresh-42.unchanged.serial.log",
+      "fresh-42.unchanged.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "no kernel panic anywhere in the serial log",
+      "without the no-execute bit: the run reached its end",
+      "without the no-execute bit: no kernel panic anywhere in the serial log",
+      "with 256 MiB: the run reached its end",
+      "with 256 MiB: no kernel panic anywhere in the serial log"
+     ],
+     "timed_out": false,
+     "seconds": 3,
+     "set_aside": 0,
+     "logs": [
+      "fresh-42.repeat.serial.log",
+      "fresh-42.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
    "sample": "fresh",
@@ -228,71 +569,56 @@
     "the kernel enforces W^X: its boot log says the no-execute bit is in use",
     "without the no-execute bit: the kernel boots and says that W^X is not enforced"
    ],
-   "seconds": 145
-  },
-  {
-   "sample": "unseen",
-   "number": 19,
-   "file": "kernel/src/ipc.rs",
-   "line": 187,
-   "operator": "assignment removed",
-   "before": "self.stats.anomalies += 1;",
-   "after": "(line removed)",
-   "verdict": "not caught",
-   "how": "",
-   "by": [],
-   "seconds": 108
-  },
-  {
-   "sample": "unseen",
-   "number": 36,
-   "file": "kernel/src/sys.rs",
-   "line": 154,
-   "operator": "< becomes <=",
-   "before": "if a > b || a < first as u32 || b > last as u32 {",
-   "after": "if a > b || a <= first as u32 || b > last as u32 {",
-   "verdict": "caught",
-   "how": "failed check",
-   "by": [
-    "selftest after boot",
-    "selftest after all faults",
-    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+   "by_first_run": [
+    "the kernel enforces W^X: its boot log says the no-execute bit is in use",
+    "without the no-execute bit: the kernel boots and says that W^X is not enforced"
    ],
-   "seconds": 113
-  },
-  {
-   "sample": "unseen",
-   "number": 40,
-   "file": "kernel/src/sys.rs",
-   "line": 284,
-   "operator": "!= becomes ==",
-   "before": "if owner != NONE && owner as usize != me {",
-   "after": "if owner != NONE && owner as usize == me {",
-   "verdict": "caught",
-   "how": "failed check",
-   "by": [
-    "selftest after boot",
-    "selftest after all faults",
-    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+   "by_repeat_run": [
+    "the kernel enforces W^X: its boot log says the no-execute bit is in use",
+    "without the no-execute bit: the kernel boots and says that W^X is not enforced"
    ],
-   "seconds": 129
-  },
-  {
-   "sample": "unseen",
-   "number": 44,
-   "file": "kernel/src/sys.rs",
-   "line": 432,
-   "operator": "!= becomes ==",
-   "before": "let endpoints = self.eps.iter().filter(|endpoint| endpoint.refs != 0).count();",
-   "after": "let endpoints = self.eps.iter().filter(|endpoint| endpoint.refs == 0).count();",
-   "verdict": "caught",
-   "how": "failed check",
-   "by": [
-    "selftest after boot",
-    "selftest after all faults",
-    "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
-   ],
-   "seconds": 113
+   "seconds": 373,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the kernel enforces W^X: its boot log says the no-execute bit is in use",
+      "without the no-execute bit: the kernel boots and says that W^X is not enforced"
+     ],
+     "timed_out": false,
+     "seconds": 128,
+     "set_aside": 1,
+     "logs": [
+      "fresh-46.serial.log",
+      "fresh-46.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 117,
+     "set_aside": 0,
+     "logs": []
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the kernel enforces W^X: its boot log says the no-execute bit is in use",
+      "without the no-execute bit: the kernel boots and says that W^X is not enforced"
+     ],
+     "timed_out": false,
+     "seconds": 128,
+     "set_aside": 0,
+     "logs": [
+      "fresh-46.repeat.serial.log",
+      "fresh-46.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
    "sample": "unseen",
@@ -308,33 +634,306 @@
    "seconds": 0
   },
   {
-   "sample": "unseen",
-   "number": 48,
-   "file": "kernel/src/task.rs",
-   "line": 387,
-   "operator": "!= becomes ==",
-   "before": "if best != self.cur && best != IDLE {",
-   "after": "if best != self.cur && best == IDLE {",
-   "verdict": "not caught",
+   "sample": "fifth",
+   "number": 16,
+   "file": "kernel/src/ipc.rs",
+   "line": 83,
+   "operator": "assignment removed",
+   "before": "self.tasks[me].deadline = self.deadline(timeout);",
+   "after": "(line removed)",
+   "verdict": "not counted",
    "how": "",
    "by": [],
-   "seconds": 119
+   "seconds": 858,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "without the no-execute bit: the run reached its end",
+      "with 256 MiB: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 366,
+     "set_aside": 0,
+     "logs": [
+      "fifth-16.serial.log",
+      "fifth-16.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": false,
+     "failed": [
+      "the guest clock keeps time against the host clock over 5 idle seconds"
+     ],
+     "timed_out": false,
+     "seconds": 129,
+     "set_aside": 1,
+     "logs": [
+      "fifth-16.unchanged.serial.log",
+      "fifth-16.unchanged.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the run reached its end",
+      "without the no-execute bit: the run reached its end",
+      "with 256 MiB: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 363,
+     "set_aside": 0,
+     "logs": [
+      "fifth-16.repeat.serial.log",
+      "fifth-16.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   },
   {
-   "sample": "unseen",
-   "number": 51,
+   "sample": "fifth",
+   "number": 21,
+   "file": "kernel/src/mem.rs",
+   "line": 49,
+   "operator": "&& becomes ||",
+   "before": "const _: () = assert!(MAX_RAM <= 1 << 30 && USER_BASE >= 1 << 30);",
+   "after": "const _: () = assert!(MAX_RAM <= 1 << 30 || USER_BASE >= 1 << 30);",
+   "verdict": "same image",
+   "how": "",
+   "by": [],
+   "seconds": 0
+  },
+  {
+   "sample": "fifth",
+   "number": 26,
+   "file": "kernel/src/mem.rs",
+   "line": 282,
+   "operator": "< becomes <=",
+   "before": "assert!(self.managed(table) && index < ENTRIES);",
+   "after": "assert!(self.managed(table) && index <= ENTRIES);",
+   "verdict": "caught",
+   "how": "failed check",
+   "by": [],
+   "by_first_run": [
+    "selftest after all faults"
+   ],
+   "by_repeat_run": [
+    "without the no-execute bit: the run reached its end"
+   ],
+   "seconds": 424,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "selftest after all faults"
+     ],
+     "timed_out": false,
+     "seconds": 132,
+     "set_aside": 0,
+     "logs": [
+      "fifth-26.serial.log",
+      "fifth-26.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 117,
+     "set_aside": 0,
+     "logs": []
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "without the no-execute bit: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 175,
+     "set_aside": 0,
+     "logs": [
+      "fifth-26.repeat.serial.log",
+      "fifth-26.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
+  },
+  {
+   "sample": "fifth",
+   "number": 27,
+   "file": "kernel/src/mem.rs",
+   "line": 322,
+   "operator": ">= becomes >",
+   "before": "if n >= USER_TABLES {",
+   "after": "if n > USER_TABLES {",
+   "verdict": "not counted",
+   "how": "",
+   "by": [],
+   "seconds": 1534,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the guest clock keeps time against the host clock over 5 idle seconds"
+     ],
+     "timed_out": false,
+     "seconds": 351,
+     "set_aside": 0,
+     "logs": [
+      "fifth-27.serial.log",
+      "fifth-27.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": false,
+     "failed": [],
+     "timed_out": true,
+     "seconds": 666,
+     "set_aside": 1,
+     "logs": [
+      "fifth-27.unchanged.serial.log",
+      "fifth-27.unchanged.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "selftest after boot",
+      "a server that dies again and again is restarted with a growing delay and still comes back",
+      "selftest after all faults",
+      "with 256 MiB: the kernel boots and the selftest passes"
+     ],
+     "timed_out": false,
+     "seconds": 517,
+     "set_aside": 5,
+     "logs": [
+      "fifth-27.repeat.serial.log",
+      "fifth-27.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
+  },
+  {
+   "sample": "fifth",
+   "number": 58,
    "file": "kernel/src/task.rs",
-   "line": 507,
-   "operator": "call removed",
-   "before": "self.preempt(t);",
+   "line": 728,
+   "operator": "assignment removed",
+   "before": "self.tasks[t].deadline = u64::MAX;",
+   "after": "(line removed)",
+   "verdict": "not counted",
+   "how": "",
+   "by": [],
+   "seconds": 607,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "the guest clock keeps time against the host clock over 5 idle seconds"
+     ],
+     "timed_out": false,
+     "seconds": 200,
+     "set_aside": 1,
+     "logs": [
+      "fifth-58.serial.log",
+      "fifth-58.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": false,
+     "failed": [
+      "fuzz: at least 200000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks"
+     ],
+     "timed_out": false,
+     "seconds": 204,
+     "set_aside": 0,
+     "logs": [
+      "fifth-58.unchanged.serial.log",
+      "fifth-58.unchanged.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "mutant",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 203,
+     "set_aside": 3,
+     "logs": []
+    }
+   ]
+  },
+  {
+   "sample": "fifth",
+   "number": 60,
+   "file": "kernel/src/task.rs",
+   "line": 771,
+   "operator": "assignment removed",
+   "before": "task.fault_ep = NONE;",
    "after": "(line removed)",
    "verdict": "caught",
    "how": "failed check",
-   "by": [
+   "by": [],
+   "by_first_run": [
+    "without the no-execute bit: the run reached its end"
+   ],
+   "by_repeat_run": [
     "selftest after boot",
     "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
    ],
-   "seconds": 140
+   "seconds": 606,
+   "runs": [
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "without the no-execute bit: the run reached its end"
+     ],
+     "timed_out": false,
+     "seconds": 236,
+     "set_aside": 1,
+     "logs": [
+      "fifth-60.serial.log",
+      "fifth-60.fullmem.serial.log"
+     ]
+    },
+    {
+     "kind": "unchanged",
+     "passed": true,
+     "failed": [],
+     "timed_out": false,
+     "seconds": 151,
+     "set_aside": 0,
+     "logs": []
+    },
+    {
+     "kind": "mutant",
+     "passed": false,
+     "failed": [
+      "selftest after boot",
+      "without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed"
+     ],
+     "timed_out": false,
+     "seconds": 219,
+     "set_aside": 2,
+     "logs": [
+      "fifth-60.repeat.serial.log",
+      "fifth-60.repeat.fullmem.serial.log"
+     ]
+    }
+   ]
   }
  ]
 }
