@@ -1,10 +1,10 @@
 {
   "passed": true,
-  "date": "2026-11-16T13:22:10+07:00",
-  "duration_s": 466,
+  "date": "2026-11-16T18:07:29+07:00",
+  "duration_s": 420,
   "emulator": "QEMU 11.1.0 (TCG, no hardware virtualisation)",
   "host": "Windows 10",
-  "image_sha256": "5d8f814448ea0d3adc7ef851aaa5d05f17ac03202b0c60254e830c52c44813e4",
+  "image_sha256": "a467a9d72087ff0717eeaba28b2b9df657271fa7e8a8d311804ce7a3323b50c4",
   "options": {
     "cuts": 60,
     "fuzz": 40,
@@ -45,12 +45,12 @@
     {
       "name": "power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
       "ok": true,
-      "detail": "24 cuts before the first write, 27 between the first write and the switch to the new version, 9 after it"
+      "detail": "22 cuts before the first write, 27 between the first write and the switch to the new version, 11 after it"
     },
     {
       "name": "the cuts landed in all three phases of a change (before, during, after)",
       "ok": true,
-      "detail": "{\"before\": 24, \"during\": 27, \"after\": 9, \"broken\": 0}"
+      "detail": "{\"before\": 22, \"during\": 27, \"after\": 11, \"broken\": 0}"
     },
     {
       "name": "after every cut the machine lists the same files as the image holds",
@@ -60,7 +60,7 @@
     {
       "name": "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
       "ok": true,
-      "detail": "31 comparisons (2 of them after the last cut); wrong: []"
+      "detail": "42 comparisons (2 of them after the last cut); wrong: []"
     },
     {
       "name": "a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too",
@@ -280,27 +280,27 @@
     {
       "name": "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
       "ok": true,
-      "detail": "the write took 14.91 s"
+      "detail": "the write took 15.42 s"
     },
     {
       "name": "a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later)",
       "ok": true,
-      "detail": "reported after 30.11 s"
+      "detail": "reported after 30.06 s"
     },
     {
       "name": "after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
       "ok": true,
-      "detail": "the read took 0.06 s; files on the disk: a.txt, b.txt, e.txt"
+      "detail": "the read took 0.12 s; files on the disk: a.txt, b.txt, e.txt"
     },
     {
       "name": "a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards)",
       "ok": true,
-      "detail": "reported after 30.09 s"
+      "detail": "reported after 30.01 s"
     },
     {
       "name": "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
       "ok": true,
-      "detail": "the read took 1.88 s; files on the disk: a.txt, b.txt, e.txt"
+      "detail": "the read took 3.44 s; files on the disk: a.txt, b.txt, e.txt"
     },
     {
       "name": "the recorded writes, replayed on the starting image, give the image the machine left, byte for byte",
@@ -361,23 +361,23 @@
       },
       "blocks": 254,
       "free_blocks_at_start": 253,
-      "ready_us": 10641
+      "ready_us": 17436
     },
     "timing": {
       "what": "host time from the typed line to the next prompt, serial port included",
       "median_ms": {
-        "copy 80 KiB from the archive": 76.2,
-        "copy 80 KiB from the disk": 130.0,
-        "write a small file": 8.4,
-        "append a line": 11.0,
-        "remove a file": 4.6
+        "copy 80 KiB from the archive": 87.6,
+        "copy 80 KiB from the disk": 146.7,
+        "write a small file": 10.6,
+        "append a line": 14.1,
+        "remove a file": 6.1
       },
       "max_ms": {
-        "copy 80 KiB from the archive": 86.4,
-        "copy 80 KiB from the disk": 133.2,
-        "write a small file": 10.4,
-        "append a line": 12.4,
-        "remove a file": 5.7
+        "copy 80 KiB from the archive": 104.4,
+        "copy 80 KiB from the disk": 150.9,
+        "write a small file": 11.7,
+        "append a line": 14.5,
+        "remove a file": 6.3
       },
       "runs": 5,
       "copy_bytes": 81920
@@ -385,9 +385,9 @@
     "power_cuts": {
       "cuts": 60,
       "seed": 20261114,
-      "before": 24,
+      "before": 22,
       "during": 27,
-      "after": 9,
+      "after": 11,
       "broken": 0,
       "by_kind": {
         "copy 80 KiB from the archive": {
@@ -403,15 +403,15 @@
           "broken": 0
         },
         "append a line": {
-          "before": 3,
-          "during": 8,
-          "after": 1,
+          "before": 4,
+          "during": 6,
+          "after": 2,
           "broken": 0
         },
         "write a small file": {
-          "before": 6,
-          "during": 3,
-          "after": 2,
+          "before": 3,
+          "during": 5,
+          "after": 3,
           "broken": 0
         },
         "copy 80 KiB from the disk": {
@@ -421,11 +421,11 @@
           "broken": 0
         }
       },
-      "texts_compared": 31,
+      "texts_compared": 42,
       "files_at_the_end": {
         "big2.bin": 81920,
         "big.bin": 81920,
-        "log.txt": 54,
+        "log.txt": 59,
         "b.txt": 12
       }
     },
@@ -565,15 +565,15 @@
     },
     "slow": {
       "slow": {
-        "slow_write_s": 14.91
+        "slow_write_s": 15.42
       },
       "stopped": {
-        "error_after_s": 30.11,
-        "next_read_s": 0.06
+        "error_after_s": 30.06,
+        "next_read_s": 0.12
       },
       "busy": {
-        "error_after_s": 30.09,
-        "next_read_s": 1.88
+        "error_after_s": 30.01,
+        "next_read_s": 3.44
       }
     },
     "recorded": {

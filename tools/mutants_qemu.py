@@ -51,6 +51,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -142,11 +143,11 @@ def build_image(env: dict[str, str]) -> str:
 
 
 def set_aside() -> int:
-    """Share measurements the self-test set aside in the run just made, because the machine changed speed."""
+    """Share measurements the self-test set aside in the run just made: the machine lost ticks or changed speed."""
     log = COPY / "evidence" / "test_serial.log"
     if not log.exists():
         return 0
-    return log.read_text(encoding="utf-8", errors="replace").count("set aside: the machine changed speed")
+    return len(re.findall(r"try \d+ of \d+ set aside: the machine", log.read_text(encoding="utf-8", errors="replace")))
 
 
 def run_suite(env: dict[str, str], fuzz: int, runs: int, limit: float) -> dict:

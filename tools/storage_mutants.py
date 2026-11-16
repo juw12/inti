@@ -17,7 +17,11 @@ reason for each.
 
 The verdicts:
 
-    caught             the test failed on the changed disk server twice
+    caught             the test failed on the changed disk server twice, and both runs ended by
+                       themselves with a report of the checks that failed
+    timed out          a run was ended at the time limit: no verdict, counted neither as caught
+                       nor as not caught. A test that is slow because the computer is busy looks
+                       the same as one that hangs, so the limit says nothing about the fault
     not repeated       the test failed once and passed when it was run again; not counted
     not caught         a different image, and every check passed: a hole in the test, or a
                        change that makes no difference; the note of the mutant says which
@@ -59,8 +63,8 @@ TARGET = "user/src/bin/disk.rs"
 CUTS = 6
 FUZZ = 40
 BUILD_LIMIT = 1800  # seconds for building one image
-LIMIT_FLOOR = 900  # seconds: the least time one run of the test gets
-LIMIT_FACTOR = 3  # a run gets this many times what the unchanged disk server took
+LIMIT_FLOOR = 1800  # seconds: the least time one run of the test gets
+LIMIT_FACTOR = 6  # a run gets this many times what the unchanged disk server took
 
 # (name, what is planted, the text taken out, the text put in, what is expected and why)
 MUTANTS = (
@@ -223,14 +227,17 @@ def judge(mutant: tuple[str, str, str, str, str], env: dict[str, str], unchanged
         if image == unchanged_image:
             return {**result, "verdict": "same image", "by": [], "runs": []}
         first = run_test(env, cuts, fuzz, limit)
+        if first["timed_out"]:  # slow or hanging, the limit cannot tell which: no verdict
+            return {**result, "verdict": "timed out", "by": [], "runs": [first]}
         if first["passed"]:
             return {**result, "verdict": "not caught", "by": [], "runs": [first]}
         second = run_test(env, cuts, fuzz, limit)
+        if second["timed_out"]:
+            return {**result, "verdict": "timed out", "by": [], "runs": [first, second]}
         if second["passed"]:
             return {**result, "verdict": "not repeated", "by": first["failed"], "runs": [first, second]}
         both = [check for check in first["failed"] if check in second["failed"]]
-        return {**result, "verdict": "caught", "by": both or first["failed"] or ["the time limit"],
-                "runs": [first, second]}
+        return {**result, "verdict": "caught", "by": both or first["failed"], "runs": [first, second]}
     finally:
         path.write_bytes(original)
 
@@ -292,7 +299,9 @@ def main() -> int:
           f"{after['checks']} checks, {after['seconds']} s {after['failed']}", flush=True)
     sound = after["passed"] and rebuilt == unchanged_image and fingerprint() == sources
     caught = sum(result["verdict"] == "caught" for result in results)
-    print(f"storage-mutants: {caught} of {len(results)} caught, {round(time.monotonic() - began)} s", flush=True)
+    timed_out = sum(result["verdict"] == "timed out" for result in results)
+    print(f"storage-mutants: {caught} of {len(results)} caught, {timed_out} without a verdict (time limit "
+          f"{round(limit)} s), {round(time.monotonic() - began)} s", flush=True)
     if not sound:
         print("storage-mutants: the unchanged copy did not pass or did not build to the same image afterwards, "
               "or the sources changed during the run; nothing is written", flush=True)
@@ -321,6 +330,7 @@ def main() -> int:
         "sources_sha256": sources,
         "image_sha256": unchanged_image,
         "options": {"cuts": options.cuts, "fuzz": options.fuzz},
+        "limit_s": round(limit),
         "unchanged": {"before": before, "after": after},
         "planted": len(results),
         "caught": caught,

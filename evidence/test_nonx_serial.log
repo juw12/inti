@@ -1,12 +1,12 @@
 
-Inti 0.1.0 kernel
+Inti 0.2.1 kernel
 kernel: 596 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X NOT enforced (this processor has no no-execute bit)
 init: started console with 6 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
 init: started shell with 13 capabilities, 15480 pages
-Inti 0.1.0 shell ready at t=13608 us
+Inti 0.2.1 shell ready at t=22678 us
 Type help for the list of commands, or tour for a guided tour.
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -101,14 +101,21 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 61% of its speed when they
-       shared 20% of the processor, and 22% when they had no share of their own;
-       the kernel charged the group 35% and 74% of a second
-       alone, half a second: 78876 rounds, 50 ticks of which 50 found this program running, 63 task switches
-       beside the group held to 20%, two seconds: 192892 rounds, 200 ticks of which 129 found this program running, 302 task switches
-       alone, half a second: 71761 rounds, 50 ticks of which 50 found this program running, 58 task switches
-       beside the group without a share, two seconds: 72304 rounds, 200 ticks of which 50 found this program running, 356 task switches
-       alone, half a second: 70249 rounds, 50 ticks of which 50 found this program running, 59 task switches
+       try 1 of 5 set aside: the machine changed speed during it, from 96046 to 16232 rounds
+       per hundred ticks of this program's own
+       set aside: by itself for half a second: 48023 rounds, 50 ticks of which 50 found this program running, 60 task switches
+       set aside: next to the group held to 20% for two seconds: 21034 rounds, 201 ticks of which 127 found this program running, 300 task switches
+       set aside: by itself for half a second: 8333 rounds, 50 ticks of which 50 found this program running, 60 task switches
+       set aside: next to the group without a share for two seconds: 8116 rounds, 200 ticks of which 50 found this program running, 353 task switches
+       set aside: by itself for half a second: 8347 rounds, 51 ticks of which 51 found this program running, 67 task switches
+       beside three spinning tasks this program kept 65% of its speed when they
+       shared 20% of the processor, and 24% when they had no share of their own;
+       the kernel charged the group 34% and 73% of a second
+       alone, half a second: 8074 rounds, 50 ticks of which 50 found this program running, 63 task switches
+       beside the group held to 20%, two seconds: 21164 rounds, 202 ticks of which 131 found this program running, 293 task switches
+       alone, half a second: 8075 rounds, 50 ticks of which 50 found this program running, 57 task switches
+       beside the group without a share, two seconds: 7775 rounds, 196 ticks of which 49 found this program running, 350 task switches
+       alone, half a second: 8169 rounds, 50 ticks of which 50 found this program running, 56 task switches
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
