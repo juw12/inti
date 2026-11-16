@@ -1732,6 +1732,8 @@ struct Stretch {
     own: u32,
     /// Times the kernel went from one task to another.
     switches: u32,
+    /// Timer interrupts that were due in the time the stretch took.
+    due: u32,
 }
 
 impl Stretch {
@@ -1745,6 +1747,14 @@ impl Stretch {
     fn speed(&self) -> u64 {
         u64::from(self.rounds) * 100 / u64::from(self.own.max(1))
     }
+
+    /// Whether the kernel counted the timer ticks that were due. The time a stretch takes
+    /// is read from the timer chip's counter, the ticks are its interrupts: a machine that
+    /// stood still for a while (an emulator whose host took its processor away) has the
+    /// time pass and the ticks, and this program's rounds, missing.
+    fn whole(&self) -> bool {
+        u64::from(self.ticks) * 100 >= u64::from(self.due) * WHOLE_PERCENT
+    }
 }
 
 /// How often the share measurement is taken at most before the subtest fails for want of
@@ -1753,6 +1763,9 @@ const SHARE_TRIES: u32 = 5;
 /// A measurement is steady when the slowest of its five stretches ran this program at
 /// this percentage of the speed of the fastest, or more.
 const STEADY_PERCENT: u64 = 75;
+/// A stretch is whole when the kernel counted this percentage of the timer ticks that were
+/// due in it, or more.
+const WHOLE_PERCENT: u64 = 90;
 
 /// This program's speed beside a group held to 20% and beside one without a share, and
 /// alone before, between and after.
@@ -1783,6 +1796,24 @@ impl Measurement {
         let (slowest, fastest) = self.speeds();
         slowest * 100 >= fastest * STEADY_PERCENT
     }
+
+    /// The stretch that got the smallest part of the timer ticks that were due in it.
+    fn least_whole(&self) -> Stretch {
+        let mut least = self.before;
+        for stretch in [self.capped, self.between, self.free, self.after] {
+            if u64::from(stretch.ticks) * u64::from(least.due) < u64::from(least.ticks) * u64::from(stretch.due) {
+                least = stretch;
+            }
+        }
+        least
+    }
+
+    /// Whether the machine ran through all five stretches without standing still. A
+    /// stretch that lost ticks lost rounds with them, and its rounds are compared with
+    /// those of stretches that lost none.
+    fn whole(&self) -> bool {
+        self.least_whole().whole()
+    }
 }
 
 /// Counts rounds of a fixed piece of arithmetic until `ms` milliseconds have passed: how
@@ -1805,6 +1836,7 @@ fn spins_in(me: u32, ms: u32) -> Stretch {
         ticks: stats_after.ticks.wrapping_sub(stats_before.ticks),
         own: task(me).cpu_ticks.wrapping_sub(own_before),
         switches: stats_after.switches.wrapping_sub(stats_before.switches),
+        due: ms / 10,
     }
 }
 
@@ -1861,12 +1893,15 @@ fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
 
     let mut c = Check::new();
     // This program's speed with nothing beside it, taken before, between and after the
-    // two runs. Under an emulator on a busy host the machine can stall for a while, and
-    // a stall only ever makes a figure smaller: the largest of the three is the reference.
+    // two runs. A measurement during which the machine lost timer ticks or changed speed
+    // is set aside, said so, and taken again, SHARE_TRIES times at most. The conditions
+    // below are the same for every try; without a whole and steady measurement the subtest
+    // fails.
     //
-    // A measurement during which the machine changed speed is set aside, said so, and
-    // taken again, SHARE_TRIES times at most. The conditions below are the same for every
-    // try; without a steady measurement the subtest fails.
+    // The reference is the middle one of the three figures. A measurement that is kept can
+    // still drift inside the band the steadiness limit allows, to either side: the largest
+    // of the three then sits a quarter above the speed the run beside the group was made
+    // at, and a kernel that holds the group to its share fails the first condition.
     let mut steady = None;
     for attempt in 1..=SHARE_TRIES {
         let before = spins_in(me, 500);
@@ -1875,14 +1910,20 @@ fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
         let (free, free_used) = beside_hogs(&mut c, kids, 0)?;
         let after = spins_in(me, 500);
         let measurement = Measurement { before, capped, capped_used, between, free, free_used, after };
-        if measurement.steady() {
+        if measurement.whole() && measurement.steady() {
             steady = Some(measurement);
             break;
         }
-        let (slowest, fastest) = measurement.speeds();
-        outln!("       try ", attempt, " of ", SHARE_TRIES, " set aside: the machine changed speed during it, from ",
-               fastest as u32, " to ", slowest as u32, " rounds");
-        outln!("       per hundred ticks of this program's own");
+        if measurement.whole() {
+            let (slowest, fastest) = measurement.speeds();
+            outln!("       try ", attempt, " of ", SHARE_TRIES, " set aside: the machine changed speed during it, from ",
+                   fastest as u32, " to ", slowest as u32, " rounds");
+            outln!("       per hundred ticks of this program's own");
+        } else {
+            let least = measurement.least_whole();
+            outln!("       try ", attempt, " of ", SHARE_TRIES, " set aside: the machine lost timer ticks during it, one stretch");
+            outln!("       got ", least.ticks, " of the ", least.due, " that were due");
+        }
         measurement.before.show("set aside: by itself for half a second");
         measurement.capped.show("set aside: next to the group held to 20% for two seconds");
         measurement.between.show("set aside: by itself for half a second");
@@ -1892,12 +1933,14 @@ fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
     let Measurement { before, capped, capped_used, between, free, free_used, after } = match steady {
         Some(measurement) => measurement,
         None => {
-            c.yes("the machine kept one speed through at least one of the measurements", false);
+            c.yes("the machine kept its ticks and one speed through at least one of the measurements", false);
             test.done("three spinning tasks with a 20% share leave the rest of the processor to others", c);
             return Some(());
         }
     };
-    let alone = u64::from(before.rounds.max(between.rounds).max(after.rounds)).max(1);
+    let lower = before.rounds.min(between.rounds);
+    let upper = before.rounds.max(between.rounds);
+    let alone = u64::from(lower.max(upper.min(after.rounds))).max(1);
     // Rounds per second, as a percentage of the rate with nothing else running.
     let capped_rate = (u64::from(capped.rounds) * 25 / alone) as u32;
     let free_rate = (u64::from(free.rounds) * 25 / alone) as u32;

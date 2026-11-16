@@ -3,7 +3,7 @@
 
 Inti does not try to beat mainstream operating systems at what they are good at. It picks three weaknesses that their own makers and the research literature document, and shows a design in which each one is absent. For each weakness this page gives the evidence, what Inti does, what was measured, and what Inti does **not** solve.
 
-The measurements are from the gate run of 2026-11-16 in QEMU 11.1.0 (TCG, no hardware virtualisation). `python build.py gates` repeats them. They are emulator figures.
+The measurements are from the gate run of 2026-11-17 in QEMU 11.1.0 (TCG, no hardware virtualisation). `python build.py gates` repeats them. They are emulator figures.
 
 ## Drivers that can take the whole system down
 
@@ -20,21 +20,21 @@ The measurements are from the gate run of 2026-11-16 in QEMU 11.1.0 (TCG, no har
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 7.0 ms | 4.1 to 116 ms | 14 ms | 2.9 ms |
-| file server crashes (page fault) | 5 | 2.9 ms | 2.1 to 4.0 ms | 6 ms | 1.4 ms |
-| disk server crashes (page fault) | 5 | 114 ms | 20.5 to 166 ms | 178 ms | 60.6 ms |
-| console driver hangs (stops answering) | 5 | 695 ms | 646 to 801 ms | 699 ms | 1.6 ms |
-| file server hangs (stops answering) | 5 | 714 ms | 670 to 745 ms | 718 ms | 0.8 ms |
-| disk server hangs (stops answering) | 5 | 773 ms | 674 to 893 ms | 832 ms | 13.9 ms |
-| file server hangs right after a restart | 3 | 1139 ms | 1127 to 1183 ms | 1145 ms | 0.8 ms |
+| console driver crashes (page fault) | 5 | 50.7 ms | 7.4 to 54.8 ms | 95 ms | 26.3 ms |
+| file server crashes (page fault) | 5 | 4.7 ms | 4.3 to 86.6 ms | 11 ms | 2.5 ms |
+| disk server crashes (page fault) | 5 | 24.5 ms | 21.1 to 26.0 ms | 28 ms | 3.9 ms |
+| console driver hangs (stops answering) | 5 | 708 ms | 691 to 769 ms | 738 ms | 1.9 ms |
+| file server hangs (stops answering) | 5 | 777 ms | 727 to 782 ms | 808 ms | 5.0 ms |
+| disk server hangs (stops answering) | 5 | 779 ms | 725 to 818 ms | 784 ms | 2.1 ms |
+| file server hangs right after a restart | 3 | 1155 ms | 1118 to 1198 ms | 1158 ms | 0.7 ms |
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 39.5 ms and the console driver after 691 ms. The disk server is replaced in the same way, and because what it knows is on the disk, the files are still there afterwards ([Files that last](storage.md)). The log is in [How Inti works](design.md).
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 50.9 ms and the console driver after 798 ms. The disk server is replaced in the same way, and because what it knows is on the disk, the files are still there afterwards ([Files that last](storage.md)). The log is in [How Inti works](design.md).
 
 ```log
 inti> crash fs
-init: fs crashed: page fault at address 0x10, eip 0x400019aa
-init: fs restarted after 1556 us (restart 1)
-RECOVERY: fs crash -> answering again after 2850 us
+init: fs crashed: page fault at address 0x10, eip 0x40001ba6
+init: fs restarted after 11990 us (restart 1)
+RECOVERY: fs crash -> answering again after 23341 us
 ```
 
 ```log
@@ -42,24 +42,23 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init:init: console restarted after 5385 us (restart 6)
- console restarted after 5385 us (restart 6)
-RECOVERY: console hang -> answering again after 801056 us
+init: console restarted after 426 us (restart 6)
+RECOVERY: console hang -> answering again after 733728 us
 ```
 
 The same two faults in the browser demo, where the emulator is slower:
 
 ```weblog
 inti> crash console
-init: console crashed: page fault at address 0x10, eip 0x400020d6
+init: console crashed: page fault at address 0x10, eip 0x400022e0
 [console restarted]
-init: console restarted after 1500 us (restart 1)
-RECOVERY: console crash -> answering again after 3901 us
+init: console restarted after 1699 us (restart 1)
+RECOVERY: console crash -> answering again after 4899 us
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 1400 us (restart 1)
-RECOVERY: fs hang -> answering again after 577908 us
+init: fs restarted after 1501 us (restart 1)
+RECOVERY: fs hang -> answering again after 567208 us
 ```
 
 **What Inti does not solve.**
@@ -84,25 +83,25 @@ RECOVERY: fs hang -> answering again after 577908 us
 
 ```log
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 174711041.
-   10%  101028 calls, 215 tasks ended, 465 checks
+Fuzzing the kernel with 1000000 random system calls, seed 163415397.
+   10%  100294 calls, 208 tasks ended, 454 checks
 ...
-  100%  1000430 calls, 2151 tasks ended, 4574 checks
-FUZZ: 1000754 random system calls from 2153 tasks in 105377 ms
-FUZZ: 4577 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 541 exited, 1229 were stopped, 383 hit a CPU exception
+  100%  1000126 calls, 2280 tasks ended, 4649 checks
+FUZZ: 1000769 random system calls from 2283 tasks in 111995 ms
+FUZZ: 4653 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 597 exited, 1264 were stopped, 422 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14244 /   14244    io_in           14240 /    2009
-  exit              414 /     414    io_out          14173 /    1919
-  call            14157 /    2172    irq_bind        14236 /     839
-  recv            14263 /     309    irq_ack         14286 /     565
-  reply           14287 /      47    spawn           14347 /     934
-  ep_create       14455 /    5823    task_kill       13849 /      48
-  cap_derive      14233 /    2469    sleep           14105 /   14105
-  cap_drop        13823 /    3523    time            14110 /   14110
-  map             14237 /    2464    log             14385 /       0
-  unmap           14057 /    3850    sysinfo         13890 /    2032
-  map_mem         14200 /    1571    cap_revoke      14129 /    5854
+  yield           14257 /   14257    io_in           14439 /    2124
+  exit              468 /     468    io_out          14090 /    2086
+  call            14444 /    2131    irq_bind        14421 /     850
+  recv            14466 /     311    irq_ack         14198 /     540
+  reply           14540 /      39    spawn           14488 /     971
+  ep_create       14463 /    5988    task_kill       14347 /      45
+  cap_derive      14592 /    2552    sleep           14201 /   14201
+  cap_drop        13856 /    3540    time            14401 /   14401
+  map             14300 /    2434    log             14431 /       0
+  unmap           14149 /    3892    sysinfo         14468 /    2053
+  map_mem         14317 /    1526    cap_revoke      14571 /    6128
 FUZZ: PASS
 ```
 
@@ -111,7 +110,7 @@ FUZZ: PASS
 - Rust's guarantees end where `unsafe` begins. The 42 blocks were written and reviewed by one author; they are not verified.
 - Memory safety does not rule out logic errors. The checker and the fuzzer found none in this run, which is evidence and not proof. seL4 has machine-checked proofs of functional correctness ([seL4 FAQ](https://sel4.systems/About/FAQ.html)); Inti has nothing of that kind.
 - The checks on the build machine have holes, and some are known by name. A tool plants small defects in the kernel one at a time and counts how many the model notices. In a sample of 59 that no test was written for, the model caught 53 and missed 6, and 1 of those it missed was judged to change what the kernel does where no check on the build machine asks: with it a receive that asked for a time limit waits without one. The misses are listed under "The mutation check" in [How Inti works](design.md), no test was written for them, and they are open work. None of them was judged, by reading, to be a fault in the kernel as it stands, and a reading can be wrong. Twenty-three holes named earlier in the other four samples were gone through again: new tests catch twenty-two, and those very mutants were run again to show it; one was read through and left open. The latest five of them, a task binding an interrupt line that another task holds among them, were closed in this version, which is why the sample they came from no longer counts as unseen. Holes named before the list of places last changed lie at places that no sample holds now, and they were not measured again. The 21 planted defects that the model missed in the five samples were also run against a shortened test suite in QEMU. A defect counts as caught there only if it fails twice with the unchanged kernel passing in between: 4 were caught by the same check both times, and 17 were noticed neither by the model nor in QEMU. The defects that the model caught were not run in QEMU.
-- The tests in QEMU have checks of timing that fail now and then on a kernel nobody has changed: the subtest that measures how much of the processor a program keeps beside a group held to a share, and the check of the guest clock against the host clock. The cause of the first is known in part. On a build machine saturated by other work the emulator runs the guest slower for seconds at a time while the guest's clock keeps the host's time: 6 of 64 runs of the self-test on the unchanged kernel failed that way, all in the share subtest, and with a guest clock that counts instructions the subtest passed in 2 runs, every stretch within a round of the others. That is a small number of runs. Whether a stall comes from processors taken by other work or from the processor's frequency dropping was not separated. The subtest was changed in answer, and the change is a weakening: a measurement during which the program's speed per tick of its own changed by more than a quarter is set aside and taken again, 5 times at most, with the pass conditions as they were. The limit was chosen after seeing the data. A kernel fault that made that speed jump about would now be measured again and would fail only if it showed in every try. The guard does not end the failures: with three tries 2 of 64 runs still failed, and the 32 runs with 5 tries that all passed were made while the machine was steady. The clock check is unchanged. So one failed timing check is still weak evidence of a defect, and a gate can still fail for this reason on an unchanged kernel. In the run of the planted defects in QEMU the unchanged kernel was run 11 times beside them and failed 5: 2 in the clock check, 1 by running out of time and 2 in the fuzzer's count of page frames, never in the share subtest; the whole run set 16 measurements aside. The failures in the fuzzer's count were a race in the test and not a leak in the kernel: the fuzzer could take its first reading while the shell that started it still held the pages of its file. A delay put into the shell brought the failure about on demand with the same figures, the fuzzer and the self-test now sleep 50 ms before their first reading, and with the delay still in place both then pass. That run of planted defects was not repeated after the correction, so its count of catches is lower than the suite could give. How often the full suite fails was not measured. In this version the subtest also failed for a second reason, once in a loop of a hundred and twenty starts: the emulator stalled, the guest lost clock ticks and work together, and the guard, which looks at work per tick, took the measurement for steady. The guard does not count lost ticks, and [the hardware page](hardware.md) has the figures. `docs/design.md` gives the figures and the old and the new form of the check.
+- The tests in QEMU have checks of timing that fail now and then on a kernel nobody has changed: the subtest that measures how much of the processor a program keeps beside a group held to a share, and the check of the guest clock against the host clock. The cause of the first is known in part. On a build machine saturated by other work the emulator runs the guest slower for seconds at a time while the guest's clock keeps the host's time: 6 of 64 runs of the self-test on the unchanged kernel failed that way, all in the share subtest, and with a guest clock that counts instructions the subtest passed in 2 runs, every stretch within a round of the others. That is a small number of runs. Whether a stall comes from processors taken by other work or from the processor's frequency dropping was not separated. The subtest was changed in answer, and the change is a weakening: a measurement during which the program's speed per tick of its own changed by more than a quarter is set aside and taken again, 5 times at most, with the pass conditions as they were. The limit was chosen after seeing the data. A kernel fault that made that speed jump about would now be measured again and would fail only if it showed in every try. The guard does not end the failures: with three tries 2 of 64 runs still failed, and the 32 runs with 5 tries that all passed were made while the machine was steady. The clock check is unchanged. So one failed timing check is still weak evidence of a defect, and a gate can still fail for this reason on an unchanged kernel. In the run of the planted defects in QEMU the unchanged kernel was run 11 times beside them and failed 5: 2 in the clock check, 1 by running out of time and 2 in the fuzzer's count of page frames, never in the share subtest; the whole run set 16 measurements aside. The failures in the fuzzer's count were a race in the test and not a leak in the kernel: the fuzzer could take its first reading while the shell that started it still held the pages of its file. A delay put into the shell brought the failure about on demand with the same figures, the fuzzer and the self-test now sleep 50 ms before their first reading, and with the delay still in place both then pass. That run of planted defects was not repeated after the correction, so its count of catches is lower than the suite could give. How often the full suite fails was not measured. In version `0.2.0` the subtest also failed for a second reason, once in a loop of a hundred and twenty starts: the emulator stalled, the guest lost clock ticks and work together, and the guard, which looked at work per tick, took the measurement for steady; [the hardware page](hardware.md) has the figures. The guard now counts ticks as well, and a measurement in which a stretch got fewer than 90% of its ticks is set aside. With that in place a third reason showed, in 1 of 72 runs: the speed drifted inside the band the guard allows, and the check compared against the fastest of its three reference figures. It now compares against the middle one. Both changes are weakenings made after seeing the data. They did not end the failures either. On the image of this version 7 of 96 runs in a loop failed, 7 of them because every one of the 5 tries was set aside and nothing was left to judge, and 0 on a figure. A failure of this subtest now says that the host was too busy to measure on, and it is still a failure; how often it happens depends on the host and was not measured. `docs/design.md` gives the figures and the old and the new form of the check.
 - Two holes in the tests in QEMU are known by name. No test gives the emulated machine all the memory the kernel can manage and then uses the top of it, so a planted defect that spoils the kernel's map of the top of memory ran through. No test touches a page after unmapping it and expects a fault, so a planted defect that leaves stale translations in the processor ran through.
 - The fuzzer is random, not guided by coverage, and its programs hold no capability for the kernel log, so that one call is fuzzed only up to its capability check.
 - W^X stops a program from running code it wrote into its own data, but only on a processor with the no-execute bit, and Inti has only run in emulators. It does nothing against the reuse of code that is already in the program, and there is no address-space randomisation.
@@ -209,7 +208,7 @@ kernel invariants: all hold
 
 ## The sources, checked
 
-`python tools/check_sources.py` fetched every source on 2026-11-10 and looked for the quoted words in its text: the visible text of a web page, or the text of a PDF as far as a small reader in the script can extract it. Some publishers refuse automated requests, and one site could not be reached from the machine that ran the check. For those the script looked in a second copy, which the table names: the paper's abstract in its OpenAlex record, or the same text on a university or project site. 18 of 18 sources were confirmed this way, 11 at the cited address itself and 7 on a second copy. A source that cannot be confirmed is listed as such rather than dropped. Finding the words shows that the source says them; it is not a substitute for reading the source.
+`python tools/check_sources.py` fetched every source on 2026-11-17 and looked for the quoted words in its text: the visible text of a web page, or the text of a PDF as far as a small reader in the script can extract it. Some publishers refuse automated requests, and one site could not be reached from the machine that ran the check. For those the script looked in a second copy, which the table names: the paper's abstract in its OpenAlex record, or the same text on a university or project site. 18 of 18 sources were confirmed this way, 11 at the cited address itself and 7 on a second copy. A source that cannot be confirmed is listed as such rather than dropped. Finding the words shows that the source says them; it is not a substitute for reading the source.
 
 | Source | What is taken from it | Words the script looked for | What the script found |
 |---|---|---|---|

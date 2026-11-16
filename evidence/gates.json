@@ -1,8 +1,8 @@
 {
   "rubric": "inti-os-v1",
   "mode": "full",
-  "date": "2026-11-16T14:42:09+07:00",
-  "image_sha256": "5d8f814448ea0d3adc7ef851aaa5d05f17ac03202b0c60254e830c52c44813e4",
+  "date": "2026-11-17T03:20:53+07:00",
+  "image_sha256": "a467a9d72087ff0717eeaba28b2b9df657271fa7e8a8d311804ce7a3323b50c4",
   "sizes": {
     "boot_sector_bytes": 512,
     "kernel_bytes": 70400,
@@ -33,7 +33,7 @@
     "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
     "python": "3.13.2"
   },
-  "build_seconds": 94,
+  "build_seconds": 36,
   "tries": {
     "qemu_test": [
       0
@@ -47,13 +47,13 @@
       "id": "G1",
       "title": "One command builds the disk image from a clean tree",
       "ok": true,
-      "detail": "clean build in 94 s wrote build/inti.img (2,097,152 bytes)"
+      "detail": "clean build in 36 s wrote build/inti.img (2,097,152 bytes)"
     },
     {
       "id": "G2",
       "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
       "ok": true,
-      "detail": "shell prompt 193 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
+      "detail": "shell prompt 144 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
     },
     {
       "id": "G3",
@@ -65,7 +65,7 @@
       "id": "G4",
       "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
       "ok": true,
-      "detail": "console crash 7.0 ms, fs crash 2.9 ms, disk crash 114.5 ms, console hang 695.4 ms, fs hang 714.2 ms, disk hang 772.6 ms, fs crash during a console hang: fs 39.5 ms and console 690.9 ms (median of 5 runs each, guest clock); the shell answered after every run"
+      "detail": "console crash 50.7 ms, fs crash 4.7 ms, disk crash 24.5 ms, console hang 708.1 ms, fs hang 777.2 ms, disk hang 778.6 ms, fs crash during a console hang: fs 50.9 ms and console 798.1 ms (median of 5 runs each, guest clock); the shell answered after every run"
     },
     {
       "id": "G5",
@@ -77,7 +77,7 @@
       "id": "G6",
       "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
       "ok": true,
-      "detail": "1,000,754 random system calls from 2,153 tasks, 4,577 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
+      "detail": "1,000,769 random system calls from 2,283 tasks, 4,653 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
     },
     {
       "id": "G7",
@@ -89,7 +89,7 @@
       "id": "G8",
       "title": "The same disk image boots to the shell prompt in a web browser",
       "ok": true,
-      "detail": "shell prompt after 1.69 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 11 commands answered; byte-for-byte the image of the QEMU test"
+      "detail": "shell prompt after 0.64 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 11 commands answered; byte-for-byte the image of the QEMU test"
     },
     {
       "id": "G9",

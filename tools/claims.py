@@ -1291,6 +1291,114 @@ def add_timing(put: Put, timing: dict) -> None:
         put(f"timing.{name}.set_aside", tried["set_aside_measurements"], SHARE_TIMING)
 
 
+SELFTEST_SOURCE = "user/src/bin/selftest.rs"
+SHARE_LOOP = "evidence/timing/share-loop.jsonl"
+SHARE_LARGEST = "evidence/timing/share-largest-reference"
+SHARE_CONDITION = "this program keeps at least 45% of its speed beside a group held to 20%"
+USED_STRETCH = re.compile(r"^\s+(alone, half a second|beside the group[^:]*): (\d+) rounds", re.M)
+
+
+def middle(figures: list[int]) -> int:
+    return sorted(figures)[len(figures) // 2]
+
+
+def add_share_loop(put: Put) -> None:
+    """The share subtest in a loop, on a machine with two processors and on one with one, in turn.
+
+    Two loops: one on an image that had the guard for lost ticks and still took the largest of
+    the three alone figures for its reference (twelve serial logs), and one on the image of this
+    version (evidence/timing/share-loop.jsonl, written by evidence/timing/share_loop.py).
+    """
+    put("timing.whole.percent", constant(SELFTEST_SOURCE, "WHOLE_PERCENT"), SELFTEST_SOURCE)
+
+    logs = sorted((ROOT / SHARE_LARGEST).glob("*.serial.log"))
+    runs, failed = 0, []
+    for log in logs:
+        pieces = re.split(r"SELFTEST: (PASS|FAIL) \d+/\d+", log.read_text(encoding="utf-8", errors="replace"))
+        for text, result in zip(pieces[0::2], pieces[1::2]):
+            runs += 1
+            if result == "FAIL":
+                failed.append(text)
+    if len(failed) != 1:
+        raise ValueError(f"{SHARE_LARGEST}: the documents tell of one failed run, and there are {len(failed)}")
+    text = failed[0][failed[0].rfind("beside three spinning tasks"):]
+    if re.findall(r"not true: ([^\r\n]*)", text) != [SHARE_CONDITION]:
+        raise ValueError(f"{SHARE_LARGEST}: the failed run did not fail the one condition the documents name")
+    stretches = [(name, int(rounds)) for name, rounds in USED_STRETCH.findall(text)]
+    alone = [rounds for name, rounds in stretches if name.startswith("alone")]
+    capped = [rounds for name, rounds in stretches if "held to" in name]
+    if len(alone) != 3 or len(capped) != 1:
+        raise ValueError(f"{SHARE_LARGEST}: the failed run does not show its five stretches")
+    kept = int(re.search(r"kept (\d+)% of its speed", text).group(1))
+    if kept != capped[0] * 25 // max(alone):
+        raise ValueError(f"{SHARE_LARGEST}: the figure the failed run printed is not the one its stretches give")
+    put("timing.largest.boots", len(logs), SHARE_LARGEST)
+    put("timing.largest.runs", runs, SHARE_LARGEST)
+    put("timing.largest.failed", len(failed), SHARE_LARGEST)
+    put("timing.largest.kept", kept, SHARE_LARGEST)
+    put("timing.largest.kept_by_middle", capped[0] * 25 // middle(alone), SHARE_LARGEST)
+    put("timing.largest.fastest_over_middle", round(100 * max(alone) / middle(alone)) - 100, SHARE_LARGEST)
+
+    records = [json.loads(line) for line in (ROOT / SHARE_LOOP).read_text(encoding="utf-8").splitlines() if line]
+    if any("error" in record for record in records):
+        raise ValueError(f"{SHARE_LOOP}: a boot did not reach the prompt, and the documents say that all did")
+    counts = {"two processors": [0, 0], "one processor": [0, 0]}
+    with_set_aside = for_ticks = for_speed = 0
+    kept_figures, free_figures, failed_checks = [], [], []
+    failed_measured = failed_unmeasured = 0
+    tries = constant(SELFTEST_SOURCE, "SHARE_TRIES")
+    for record in records:
+        for run in record["runs"]:
+            counts[record["machine"]][0] += 1
+            passed = re.fullmatch(r"SELFTEST: PASS (\d+)/(\d+)", (run["result"] or [""])[0])
+            if not passed or passed.group(1) != passed.group(2):
+                counts[record["machine"]][1] += 1
+                failed_checks += run["failed"]
+                if run["stretches"]:
+                    failed_measured += 1
+                elif len(run["set_aside_for_ticks"]) + len(run["set_aside_for_speed"]) == tries:
+                    failed_unmeasured += 1
+                else:
+                    raise ValueError(f"{SHARE_LOOP}: a run failed with no measurement and with tries left")
+            for_ticks += len(run["set_aside_for_ticks"])
+            for_speed += len(run["set_aside_for_speed"])
+            with_set_aside += bool(run["set_aside_for_ticks"] or run["set_aside_for_speed"])
+            rounds = {"alone": [], "held": [], "free": []}
+            for name, figure, *_ in run["stretches"]:
+                kind = "alone" if name.startswith("alone") else "held" if "held to" in name else "free"
+                rounds[kind].append(figure)
+            if len(rounds["alone"]) == 3 and rounds["held"] and rounds["free"]:
+                reference = max(middle(rounds["alone"]), 1)
+                kept_figures.append(rounds["held"][0] * 25 // reference)
+                free_figures.append(rounds["free"][0] * 25 // reference)
+    put("timing.loop.boots", len(records), SHARE_LOOP)
+    put("timing.loop.runs", sum(runs for runs, _ in counts.values()), SHARE_LOOP)
+    put("timing.loop.failed", sum(failed for _, failed in counts.values()), SHARE_LOOP)
+    last_rounds = sorted({record["round"] for record in records})[-2:]
+    failed_late = sum(
+        bool(run["failed"]) for record in records if record["round"] in last_rounds for run in record["runs"]
+    )
+    if 2 * failed_late <= failed_measured + failed_unmeasured:
+        raise ValueError(f"{SHARE_LOOP}: the documents say most failed runs were in the last two rounds")
+    if failed_measured:
+        raise ValueError(f"{SHARE_LOOP}: the documents say that no run failed with a measurement in hand")
+    all_runs = sum(runs for runs, _ in counts.values())
+    put("timing.loop.failed_unmeasured", failed_unmeasured, SHARE_LOOP)
+    put("timing.loop.failed_measured", failed_measured, SHARE_LOOP)
+    put("timing.loop.failed_percent", round(100 * (failed_measured + failed_unmeasured) / all_runs), SHARE_LOOP)
+    put("timing.loop.failed_share", sum("20% share" in line for line in failed_checks), SHARE_LOOP)
+    put("timing.loop.two.runs", counts["two processors"][0], SHARE_LOOP)
+    put("timing.loop.two.failed", counts["two processors"][1], SHARE_LOOP)
+    put("timing.loop.one.runs", counts["one processor"][0], SHARE_LOOP)
+    put("timing.loop.one.failed", counts["one processor"][1], SHARE_LOOP)
+    put("timing.loop.runs_set_aside", with_set_aside, SHARE_LOOP)
+    put("timing.loop.set_aside_ticks", for_ticks, SHARE_LOOP)
+    put("timing.loop.set_aside_speed", for_speed, SHARE_LOOP)
+    put("timing.loop.measurements", len(kept_figures), SHARE_LOOP)
+    put("timing.loop.kept_min", min(kept_figures), SHARE_LOOP)
+    put("timing.loop.free_max", max(free_figures), SHARE_LOOP)
+
+
 # ---- the disk server and its volume ---------------------------------------------------------
 
 def cell(text: object) -> str:
@@ -1435,7 +1543,11 @@ def add_storage(put: Put, storage: dict, mutants: dict) -> None:
     planted = mutants["mutants"]
     caught = [mutant for mutant in planted if mutant["verdict"] == "caught"]
     survivors = [mutant for mutant in planted if mutant["verdict"] == "not caught"]
-    other = [mutant for mutant in planted if mutant["verdict"] not in ("caught", "not caught")]
+    timed_out = [mutant for mutant in planted if mutant["verdict"] == "timed out"]
+    other = [mutant for mutant in planted if mutant["verdict"] not in ("caught", "not caught", "timed out")]
+    for mutant in caught:  # a catch is a check that failed, never a run that was ended at the time limit
+        if not mutant["by"] or any(run["timed_out"] for run in mutant["runs"]):
+            raise ValueError(f"{STORAGE_MUTANTS}: {mutant['name']} is counted as caught without a failed check")
     unchanged = mutants["unchanged"]
     if mutants["planted"] != len(planted) or mutants["caught"] != len(caught):
         raise ValueError(f"{STORAGE_MUTANTS}: the counts do not match the list")
@@ -1449,8 +1561,13 @@ def add_storage(put: Put, storage: dict, mutants: dict) -> None:
         sum(1 for mutant in planted if mutant["expected"].startswith("not caught")), STORAGE_MUTANTS)
     put("storage.mutants.surprises", sum(
         1 for mutant in planted
-        if mutant["expected"].startswith("not caught") != (mutant["verdict"] != "caught")
+        if mutant["verdict"] != "timed out"  # no verdict is not a verdict that differs
+        and mutant["expected"].startswith("not caught") != (mutant["verdict"] != "caught")
     ), STORAGE_MUTANTS)
+    put("storage.mutants.timed_out", len(timed_out), STORAGE_MUTANTS)
+    put("storage.mutants.timed_out_list",
+        "; ".join(f"`{mutant['name']}`" for mutant in timed_out) or "none", STORAGE_MUTANTS)
+    put("storage.mutants.limit_minutes", round(mutants["limit_s"] / 60), STORAGE_MUTANTS)
     put("storage.mutants.cuts", mutants["options"]["cuts"], STORAGE_MUTANTS)
     put("storage.mutants.fuzz", mutants["options"]["fuzz"], STORAGE_MUTANTS)
     put("storage.mutants.checks", unchanged["before"]["checks"], STORAGE_MUTANTS)
@@ -1495,8 +1612,18 @@ def add_machines(put: Put, machines: dict) -> None:
     put("machines.no_storage", sum(1 for machine in reached if not machine["kept"]), MACHINES)
     put("machines.date", machines["date"][:10], MACHINES)
     put("machines.minutes", max(1, round(machines["duration_s"] / 60)), MACHINES)
+    minutes = max(1, round(machines["duration_s"] / 60))
+    put("machines.duration", "about a minute" if minutes == 1 else f"about {minutes} minutes", MACHINES)
     put("machines.emulator", machines["emulator"], MACHINES)
     put("machines.host", machines["host"], MACHINES)
+    not_passed = [machine["name"] for machine in reached
+                  if not (machine["selftest"] or "").startswith("PASS")]
+    if not_passed:
+        names = ", ".join(f"`{name}`" for name in not_passed)
+        sentence = f"In the table above `selftest` did not pass on: {names}."
+    else:
+        sentence = "In the table above `selftest` passed on every machine that reached the shell."
+    put("machines.selftest_sentence", sentence, MACHINES)
 
     def yes(value: bool) -> str:
         return "yes" if value else "no"
@@ -1569,6 +1696,7 @@ def collect() -> dict[str, dict]:
     add_mutants_qemu(put, gates.load("mutants-qemu.json"), samples)
     add_miri(put, gates.load("miri.json"))
     add_timing(put, gates.load("share-timing.json"))
+    add_share_loop(put)
     add_launch_race(put)
     add_storage(put, gates.load("storage.json"), gates.load("storage_mutants.json"))
     add_machines(put, gates.load("machines.json"))

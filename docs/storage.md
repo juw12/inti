@@ -3,7 +3,7 @@
 
 Inti keeps files on a disk. The driver for the disk and the file system on it are one ordinary program, `disk`, which runs in ring 3 with three capabilities and is restarted like any other server when it fails. This page says what it promises, how the volume is laid out, what was tested, and where it stops.
 
-Everything measured here is from the storage test of 2026-11-16 in QEMU 11.1.0 (TCG, no hardware virtualisation): **67 of 67 checks pass.** `python build.py storage` repeats it (about 8 minutes). No physical disk was involved at any point; [Inti on a real computer](hardware.md) says what that leaves open.
+Everything measured here is from the storage test of 2026-11-16 in QEMU 11.1.0 (TCG, no hardware virtualisation): **67 of 67 checks pass.** `python build.py storage` repeats it (about 7 minutes). No physical disk was involved at any point; [Inti on a real computer](hardware.md) says what that leaves open.
 
 ## What it promises
 
@@ -31,7 +31,7 @@ The promises hold under the assumptions in [what the tests model](#what-the-test
 
 `python build.py run` keeps the disk in `build/run.img` from one start to the next; `python build.py run --fresh` starts from the built image again. In the browser demo the files last until the page is reloaded.
 
-The built image carries the content of the folder `disk/` on its volume (files: 1; `welcome.txt`), which says how to try this. After the first start the disk server was ready 10.6 ms after it was started, and 253 of 254 data blocks were free.
+The built image carries the content of the folder `disk/` on its volume (files: 1; `welcome.txt`), which says how to try this. After the first start the disk server was ready 17.4 ms after it was started, and 253 of 254 data blocks were free.
 
 ## The volume
 
@@ -86,10 +86,10 @@ Every case boots a copy of the built image in QEMU, lets the machine change the 
 | after switching off and on again the files are listed with the same sizes | pass | 4 files |
 | after switching off and on again the text is the text that was written | pass |  |
 | after switching off and on again the program continues its count | pass |  |
-| power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version | pass | 24 cuts before the first write, 27 between the first write and the switch to the new version, 9 after it |
-| the cuts landed in all three phases of a change (before, during, after) | pass | {"before": 24, "during": 27, "after": 9, "broken": 0} |
+| power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version | pass | 22 cuts before the first write, 27 between the first write and the switch to the new version, 11 after it |
+| the cuts landed in all three phases of a change (before, during, after) | pass | {"before": 22, "during": 27, "after": 11, "broken": 0} |
 | after every cut the machine lists the same files as the image holds | pass |  |
-| after the cuts the machine shows a text file with the content the image holds, every time one was there to show | pass | 31 comparisons (2 of them after the last cut); wrong: [] |
+| after the cuts the machine shows a text file with the content the image holds, every time one was there to show | pass | 42 comparisons (2 of them after the last cut); wrong: [] |
 | a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |
 | a partition of another type (0x83) where the volume was: every attempt to write is answered with "no Inti volume on the disk", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |
 | a disk with an empty partition table: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |
@@ -133,11 +133,11 @@ Every case boots a copy of the built image in QEMU, lets the machine change the 
 | a file that does not fit is refused with "the disk is full", and the blocks it had taken are free again | pass | disk: 2 files, 2 of 254 blocks of 4 KiB free |
 | on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays | pass | 0 blocks free at the end |
 | files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes | pass | 2 restarts by the supervisor |
-| a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one | pass | the write took 14.91 s |
-| a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later) | pass | reported after 30.11 s |
-| after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 0.06 s; files on the disk: a.txt, b.txt, e.txt |
-| a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards) | pass | reported after 30.09 s |
-| after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 1.88 s; files on the disk: a.txt, b.txt, e.txt |
+| a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one | pass | the write took 15.42 s |
+| a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later) | pass | reported after 30.06 s |
+| after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 0.12 s; files on the disk: a.txt, b.txt, e.txt |
+| a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards) | pass | reported after 30.01 s |
+| after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 3.44 s; files on the disk: a.txt, b.txt, e.txt |
 | the recorded writes, replayed on the starting image, give the image the machine left, byte for byte | pass | 592 sector writes, 20 flushes |
 | the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both | pass | 9 flush periods of data, 11 of a meta block |
 | every data write went to a block that no file of the version on the disk used | pass |  |
@@ -150,14 +150,14 @@ Every case boots a copy of the built image in QEMU, lets the machine change the 
 
 ### Power cuts at random moments
 
-The emulator's process was killed 60 times in a row during a change, on the same disk, and the machine was started again each time. 24 cuts fell before the first write of the change, 27 between the first write and the switch to the new meta block, and 9 after it. The volume was broken after 0 of them. 31 file contents were compared with what they had to be.
+The emulator's process was killed 60 times in a row during a change, on the same disk, and the machine was started again each time. 22 cuts fell before the first write of the change, 27 between the first write and the switch to the new meta block, and 11 after it. The volume was broken after 0 of them. 42 file contents were compared with what they had to be.
 
 | Change under way | Cuts | Before the first write | Between the first write and the switch | After the switch | Broken |
 |---|---|---|---|---|---|
 | copy 80 KiB from the archive | 24 | 10 | 12 | 2 | 0 |
 | remove a file | 12 | 5 | 4 | 3 | 0 |
-| append a line | 12 | 3 | 8 | 1 | 0 |
-| write a small file | 11 | 6 | 3 | 2 | 0 |
+| append a line | 12 | 4 | 6 | 2 | 0 |
+| write a small file | 11 | 3 | 5 | 3 | 0 |
 | copy 80 KiB from the disk | 1 | 0 | 0 | 1 | 0 |
 
 ### Every cut point of a recorded run
@@ -197,9 +197,9 @@ Each of the 3,603 states is checked with `tools/intifs.py`: the volume must be s
 
 QEMU can hold back what a machine writes to its drive. Three sessions use that.
 
-- **Slow.** One write a second is let through. `write c.txt slow` took 14.91 s and went through, and the supervisor's log has no line about the disk server.
-- **Stopped, then free again.** One byte a second is let through, so the write does not finish. The error came after 30.11 s. Then the limit is lifted, and the next read took 0.06 s.
-- **Still busy.** Sixteen bytes a second are let through, and the limit stays in place while the next read is sent. The error came after 30.09 s and the read took 1.88 s.
+- **Slow.** One write a second is let through. `write c.txt slow` took 15.42 s and went through, and the supervisor's log has no line about the disk server.
+- **Stopped, then free again.** One byte a second is let through, so the write does not finish. The error came after 30.06 s. Then the limit is lifted, and the next read took 0.12 s.
+- **Still busy.** Sixteen bytes a second are let through, and the limit stays in place while the next read is sent. The error came after 30.01 s and the read took 3.44 s.
 
 In both of the last two the read gave the right file, the unfinished file was absent, in the machine's listing and in the image, a write after it landed, and the disk server was not restarted.
 
@@ -215,15 +215,15 @@ Measured as host time from the typed line to the next prompt, serial port includ
 
 | Change | Median | Slowest |
 |---|---|---|
-| copy 80 KiB from the archive | 76 ms | 86 ms |
-| copy 80 KiB from the disk | 130 ms | 133 ms |
-| write a small file | 8 ms | 10 ms |
-| append a line | 11 ms | 12 ms |
-| remove a file | 5 ms | 6 ms |
+| copy 80 KiB from the archive | 88 ms | 104 ms |
+| copy 80 KiB from the disk | 147 ms | 151 ms |
+| write a small file | 11 ms | 12 ms |
+| append a line | 14 ms | 14 ms |
+| remove a file | 6 ms | 6 ms |
 
 ## Faults planted in the disk server
 
-A test that passes says little unless it would fail on a broken server. `python build.py storage-mutants` plants 13 faults in the disk server, one at a time, and runs a shortened storage test (6 random cuts, 40 random meta blocks, 67 checks) against each. A fault counts as caught only if the test fails twice. The unchanged server passed before and after the batch. Run of 2026-11-16, about 175 minutes: **12 of 13 caught.**
+A test that passes says little unless it would fail on a broken server. `python build.py storage-mutants` plants 13 faults in the disk server, one at a time, and runs a shortened storage test (6 random cuts, 40 random meta blocks, 67 checks) against each. A fault counts as caught only if the test fails twice, and both times ends by itself with the names of the checks that failed. A run that is ended at the time limit, 39 minutes in this batch, gives no verdict. The unchanged server passed before and after the batch. Run of 2026-11-17, about 311 minutes: **12 of 13 caught.**
 
 | Fault | What is planted in the disk server | Verdict | Checks that failed both times |
 |---|---|---|---|
@@ -232,7 +232,7 @@ A test that passes says little unless it would fail on a broken server. `python 
 | `no-meta-flush` | publish does not flush after the meta block | caught | 3 |
 | `reuse-live-block` | a block counts as free when only the state being prepared does not use it | caught | 4 |
 | `mount-unchecked` | mount accepts a sealed meta block without checking that it describes a sound volume | caught | 11 |
-| `older-slot` | mount takes the older of two sealed meta blocks | caught | 8 |
+| `older-slot` | mount takes the older of two sealed meta blocks | caught | 7 |
 | `no-checksum` | a meta block counts as sealed without its checksum being compared | caught | 4 |
 | `publish-unchecked` | publish writes the meta block without checking it first | not caught | - |
 | `no-rollback` | a refused change leaves its half-made chains in the state being prepared | caught | 1 |
@@ -241,9 +241,9 @@ A test that passes says little unless it would fail on a broken server. `python 
 | `no-ping-while-waiting` | the disk server does not look at its requests while it waits for the drive | caught | 3 |
 | `no-reset-after-failure` | the next command is sent without a reset after a step of the drive failed | caught | 2 |
 
-Not caught, or not tested: `publish-unchecked` (publish writes the meta block without checking it first). Before the run, each fault was marked as expected to be caught or not. Expected to get through: 1, because it removes a second check behind one that already refuses the same input. Verdicts that differ from what was expected: 0.
+Not caught, or not tested: `publish-unchecked` (publish writes the meta block without checking it first). Without a verdict, because a run was ended at the time limit: none. Before the run, each fault was marked as expected to be caught or not. Expected to get through: 1, because it removes a second check behind one that already refuses the same input. Verdicts that differ from what was expected: 0.
 
-Three earlier runs of this batch are not counted. In the first, one fault (`older-slot`) was planted as text that did not compile, and one (`shared-block`) got through, because the only damaged volume of that kind in the test was also refused for a second reason. The planted text was corrected and a damaged volume that only the removed check refuses was added to the test. The second run had those corrections, and it went stale when the disk server was changed to wait for a slow drive: its figures were for a server that no longer exists. The third run was against the server as it is now, with two faults added for that change (`no-ping-while-waiting` and `no-reset-after-failure`). Before it, each of the two was run against the slow-drive case alone, to see that it fails the checks written for it and not some other one. That run was thrown away at its very end: the unchanged server, tested once more after the last fault, failed, and the rule of the batch is that nothing is written then. The cause was in the test harness, not in the server, and [the next section](#a-fault-in-the-test-harness) describes it. The figures above are from the fourth run: the same server, the same faults, the corrected harness. Planted again on their own after the batch: none.
+Five earlier runs of this batch are not counted. In the first, one fault (`older-slot`) was planted as text that did not compile, and one (`shared-block`) got through, because the only damaged volume of that kind in the test was also refused for a second reason. The planted text was corrected and a damaged volume that only the removed check refuses was added to the test. The second run had those corrections, and it went stale when the disk server was changed to wait for a slow drive: its figures were for a server that no longer exists. The third run was against the server as it is now, with two faults added for that change (`no-ping-while-waiting` and `no-reset-after-failure`). Before it, each of the two was run against the slow-drive case alone, to see that it fails the checks written for it and not some other one. That run was thrown away at its very end: the unchanged server, tested once more after the last fault, failed, and the rule of the batch is that nothing is written then. The cause was in the test harness, not in the server, and [the next section](#a-fault-in-the-test-harness) describes it. The fourth run had the same server, the same faults and the corrected harness. Its figures were published with version `0.2.0` and are in `evidence/storage_mutants.json` at the tag `v0.2.0`. They went stale with version `0.2.1`: the self-test was changed, so the image changed, and a batch belongs to the image it was run on. The check that says so was kept, and the batch was run again. The fifth run, on the new image, was stopped after about three and a half hours, because the harness was counting runs that had only been slow as catches; [a third fault](#a-third-fault-the-time-limit-counted-as-a-catch) describes it. The figures above are from the sixth run, with the harness as it is now. Planted again on their own after the batch: none.
 
 | Fault | First check that failed both times |
 |---|---|
@@ -289,7 +289,19 @@ The harness now works the other way round. It opens its two listening sockets it
 
 With that harness the same loop ran one thousand sessions with no failure and no start made a second time. If the old rate were exactly two in six hundred, a thousand clean sessions would turn up by chance about one time in thirty; this is good evidence and not a proof. Sessions that take many seconds still occur. Most take about one second and the slowest of the thousand took about twenty-one, and at which stage the time goes is not known. None of them failed.
 
-What this means for the figures above. The batch was run with the harness as it was before this second change, and it was not run again. The three failures of "the case reached its end" are what a lost start looks like, and are taken to be that. The failure of "shutdown switches the machine off" is not explained. None of the four is part of a verdict: every fault counted as caught failed both of its runs on the checks written for it, and the table names them. `tools/vm.py` starts the machine and does not decide what passes, and it is not among the files whose change makes the batch stale.
+What this meant for the fourth run. It was made with the harness as it was before this second change. Its three failures of "the case reached its end" are what a lost start looks like, and are taken to be that. Its failure of "shutdown switches the machine off" is not explained. None of the four was part of a verdict of that run: every fault it counted as caught failed both of its runs on the checks written for it.
+
+What it means for the figures above. They are from the sixth run, which used the harness that holds its own sockets. In that run neither of those two checks failed, in any run of any fault. Two other checks failed in one of a fault's two runs and passed in the other. One is the check that cuts the power at random moments, the same one as in the fourth run, this time for `older-slot` in its first run; it depends on where the cuts fall. The other is "files written before a crash and before a hang of the disk server are there when the restarted server answers", for `no-ping-while-waiting` in its second run. It is not one of the checks written for that fault, and why it failed once was not looked into. Neither is part of a verdict. A check is named in the table only if it failed in both runs, every fault counted as caught has such a check, and no run of the sixth batch was ended at the time limit. `tools/vm.py` starts the machine and does not decide what passes, and it is not among the files whose change makes the batch stale.
+
+### A third fault: the time limit counted as a catch
+
+The fifth run of the batch was made on the image of version `0.2.1`, while the build machine was at full load with other work. The first six faults were caught by the checks written for them. For the next three, both runs of the test were ended at the time limit, which was fifteen minutes, and the harness printed all three as caught. One of the three is `publish-unchecked`, the fault this test is known not to catch.
+
+The test had not hung. It was still working through its cases when it was ended, about three times slower than at the start of the batch. The fault was in `tools/storage_mutants.py`. A run ended at the limit was recorded as a failed run with no failed check, and two of those were counted as a catch "by the time limit". A limit cannot tell a slow test from one that hangs, so it says nothing about the fault that was planted. The run was stopped, and nothing of it was written.
+
+The harness was changed in three ways. A run ended at the limit now gives the verdict `timed out`, which is counted neither as caught nor as not caught and is listed on its own. A fault is caught only when both runs ended by themselves and named a check that failed, and `tools/claims.py` refuses a result in which that is not so. And the limit was raised from fifteen minutes to thirty, or to six times what the unchanged server took where it had been three times; the limit that was used is written into the result.
+
+The figures of the fourth run, published with `0.2.0`, are not affected. No run of that batch reached the limit, and every catch in it names its checks.
 
 ## What the tests model
 
