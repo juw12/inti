@@ -1,0 +1,604 @@
+{
+  "passed": true,
+  "date": "2026-11-16T13:22:10+07:00",
+  "duration_s": 466,
+  "emulator": "QEMU 11.1.0 (TCG, no hardware virtualisation)",
+  "host": "Windows 10",
+  "image_sha256": "5d8f814448ea0d3adc7ef851aaa5d05f17ac03202b0c60254e830c52c44813e4",
+  "options": {
+    "cuts": 60,
+    "fuzz": 40,
+    "seed": 20261114,
+    "only": null
+  },
+  "checks": [
+    {
+      "name": "a program that was not given the disk is refused it, and says so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a program that was given the disk counts its runs in a file",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "after shutdown the image holds exactly the files that were written, byte for byte (read on the build machine)",
+      "ok": true,
+      "detail": "note.txt 23, copy.txt 1007, big.bin 81920, counter.txt 2"
+    },
+    {
+      "name": "after switching off and on again the files are listed with the same sizes",
+      "ok": true,
+      "detail": "4 files"
+    },
+    {
+      "name": "after switching off and on again the text is the text that was written",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "after switching off and on again the program continues its count",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
+      "ok": true,
+      "detail": "24 cuts before the first write, 27 between the first write and the switch to the new version, 9 after it"
+    },
+    {
+      "name": "the cuts landed in all three phases of a change (before, during, after)",
+      "ok": true,
+      "detail": "{\"before\": 24, \"during\": 27, \"after\": 9, \"broken\": 0}"
+    },
+    {
+      "name": "after every cut the machine lists the same files as the image holds",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
+      "ok": true,
+      "detail": "31 comparisons (2 of them after the last cut); wrong: []"
+    },
+    {
+      "name": "a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "no partition of the Inti type (0x7F)"
+    },
+    {
+      "name": "a partition of another type (0x83) where the volume was: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a disk with an empty partition table: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "no partition of the Inti type (0x7F)"
+    },
+    {
+      "name": "a disk with an empty partition table: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "an Inti partition that is all zeros: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "the Inti partition holds no volume"
+    },
+    {
+      "name": "an Inti partition that is all zeros: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "an Inti partition full of other data: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "the Inti partition holds no volume"
+    },
+    {
+      "name": "an Inti partition full of other data: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "an Inti partition that reaches past the end of the disk: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "the Inti partition does not fit in the disk"
+    },
+    {
+      "name": "an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "both meta blocks with a wrong checksum: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: neither meta block is whole"
+    },
+    {
+      "name": "both meta blocks with a wrong checksum: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with a chain of blocks that loops: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: big.bin: block 6 is used twice; block 7 is marked used by no file"
+    },
+    {
+      "name": "a meta block with a chain of blocks that loops: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with a file with a block outside the volume: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: two.bin: block 300 is outside the volume; block 5 is marked used by no file"
+    },
+    {
+      "name": "a meta block with a file with a block outside the volume: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with the same file name twice: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: note.txt: listed twice"
+    },
+    {
+      "name": "a meta block with the same file name twice: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with one block in two files: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: note.txt: block 2 is used twice; block 11 is marked used by no file"
+    },
+    {
+      "name": "a meta block with one block in two files: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with one block in two files and no block left over: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: note.txt: block 2 is used twice"
+    },
+    {
+      "name": "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with a block marked as used that no file uses: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: block 40 is marked used by no file"
+    },
+    {
+      "name": "a meta block with a block marked as used that no file uses: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with a file longer than its chain of blocks: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: two.bin: block 65535 is outside the volume"
+    },
+    {
+      "name": "a meta block with a file longer than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with a file shorter than its chain of blocks: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: big.bin: the chain does not end where the size says; block 7 is marked used by no file"
+    },
+    {
+      "name": "a meta block with a file shorter than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with a file name with a character that is not allowed: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: bad name b'no/te.txt\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'; block 11 is marked used by no file"
+    },
+    {
+      "name": "a meta block with a file name with a character that is not allowed: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with more blocks than the partition has: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: neither meta block is whole"
+    },
+    {
+      "name": "a meta block with more blocks than the partition has: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a meta block with meta blocks that are not marked in the chain table: the reader on the build machine refuses it too",
+      "ok": true,
+      "detail": "damaged: the meta blocks are not marked in the chain table"
+    },
+    {
+      "name": "a meta block with meta blocks that are not marked in the chain table: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+      "ok": true,
+      "detail": "image unchanged: True; answers with the reason: 8 of 8"
+    },
+    {
+      "name": "a newer meta block whose last sector was never written is ignored: the older one is used, no file is lost",
+      "ok": true,
+      "detail": "6 files"
+    },
+    {
+      "name": "the next change then overwrites the torn meta block and the volume is sound",
+      "ok": true,
+      "detail": "meta block 1, sequence 8, 7 files"
+    },
+    {
+      "name": "of two whole meta blocks the one with the higher sequence number is used",
+      "ok": true,
+      "detail": "5 files"
+    },
+    {
+      "name": "the sequence number may wrap around: 0 is newer than 4294967295",
+      "ok": true,
+      "detail": "5 files"
+    },
+    {
+      "name": "40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not",
+      "ok": true,
+      "detail": "22 sound, 18 damaged"
+    },
+    {
+      "name": "a directory with 48 files refuses one more, still replaces a file, and takes a new one after one was removed",
+      "ok": true,
+      "detail": "write: extra.txt: the directory is full"
+    },
+    {
+      "name": "a file that does not fit is refused with \"the disk is full\", and the blocks it had taken are free again",
+      "ok": true,
+      "detail": "disk: 2 files, 2 of 254 blocks of 4 KiB free"
+    },
+    {
+      "name": "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
+      "ok": true,
+      "detail": "0 blocks free at the end"
+    },
+    {
+      "name": "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
+      "ok": true,
+      "detail": "2 restarts by the supervisor"
+    },
+    {
+      "name": "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
+      "ok": true,
+      "detail": "the write took 14.91 s"
+    },
+    {
+      "name": "a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later)",
+      "ok": true,
+      "detail": "reported after 30.11 s"
+    },
+    {
+      "name": "after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
+      "ok": true,
+      "detail": "the read took 0.06 s; files on the disk: a.txt, b.txt, e.txt"
+    },
+    {
+      "name": "a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards)",
+      "ok": true,
+      "detail": "reported after 30.09 s"
+    },
+    {
+      "name": "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
+      "ok": true,
+      "detail": "the read took 1.88 s; files on the disk: a.txt, b.txt, e.txt"
+    },
+    {
+      "name": "the recorded writes, replayed on the starting image, give the image the machine left, byte for byte",
+      "ok": true,
+      "detail": "592 sector writes, 20 flushes"
+    },
+    {
+      "name": "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+      "ok": true,
+      "detail": "9 flush periods of data, 11 of a meta block"
+    },
+    {
+      "name": "every data write went to a block that no file of the version on the disk used",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "every new meta block went, whole, to the slot that did not hold the version in use",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "each of the 11 changes switched the volume to its next version exactly once",
+      "ok": true,
+      "detail": "version 11 after 11 meta blocks"
+    },
+    {
+      "name": "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "started on 18 of these states, the machine lists the same files as the reader on the build machine",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the built image was not changed by any case",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "measured": {
+    "persistence": {
+      "seeded_files": {
+        "welcome.txt": 160
+      },
+      "files": {
+        "note.txt": 23,
+        "copy.txt": 1007,
+        "big.bin": 81920,
+        "counter.txt": 2
+      },
+      "blocks": 254,
+      "free_blocks_at_start": 253,
+      "ready_us": 10641
+    },
+    "timing": {
+      "what": "host time from the typed line to the next prompt, serial port included",
+      "median_ms": {
+        "copy 80 KiB from the archive": 76.2,
+        "copy 80 KiB from the disk": 130.0,
+        "write a small file": 8.4,
+        "append a line": 11.0,
+        "remove a file": 4.6
+      },
+      "max_ms": {
+        "copy 80 KiB from the archive": 86.4,
+        "copy 80 KiB from the disk": 133.2,
+        "write a small file": 10.4,
+        "append a line": 12.4,
+        "remove a file": 5.7
+      },
+      "runs": 5,
+      "copy_bytes": 81920
+    },
+    "power_cuts": {
+      "cuts": 60,
+      "seed": 20261114,
+      "before": 24,
+      "during": 27,
+      "after": 9,
+      "broken": 0,
+      "by_kind": {
+        "copy 80 KiB from the archive": {
+          "before": 10,
+          "during": 12,
+          "after": 2,
+          "broken": 0
+        },
+        "remove a file": {
+          "before": 5,
+          "during": 4,
+          "after": 3,
+          "broken": 0
+        },
+        "append a line": {
+          "before": 3,
+          "during": 8,
+          "after": 1,
+          "broken": 0
+        },
+        "write a small file": {
+          "before": 6,
+          "during": 3,
+          "after": 2,
+          "broken": 0
+        },
+        "copy 80 KiB from the disk": {
+          "before": 0,
+          "during": 0,
+          "after": 1,
+          "broken": 0
+        }
+      },
+      "texts_compared": 31,
+      "files_at_the_end": {
+        "big2.bin": 81920,
+        "big.bin": 81920,
+        "log.txt": 54,
+        "b.txt": 12
+      }
+    },
+    "refusals": [
+      {
+        "what": "a partition of another type (0x83) where the volume was",
+        "says": "no Inti volume on the disk",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "no partition of the Inti type (0x7F)"
+      },
+      {
+        "what": "a disk with an empty partition table",
+        "says": "no Inti volume on the disk",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "no partition of the Inti type (0x7F)"
+      },
+      {
+        "what": "an Inti partition that is all zeros",
+        "says": "no Inti volume on the disk",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "the Inti partition holds no volume"
+      },
+      {
+        "what": "an Inti partition full of other data",
+        "says": "no Inti volume on the disk",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "the Inti partition holds no volume"
+      },
+      {
+        "what": "an Inti partition that reaches past the end of the disk",
+        "says": "no Inti volume on the disk",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "the Inti partition does not fit in the disk"
+      },
+      {
+        "what": "both meta blocks with a wrong checksum",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: neither meta block is whole"
+      },
+      {
+        "what": "a meta block with a chain of blocks that loops",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: big.bin: block 6 is used twice; block 7 is marked used by no file"
+      },
+      {
+        "what": "a meta block with a file with a block outside the volume",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: two.bin: block 300 is outside the volume; block 5 is marked used by no file"
+      },
+      {
+        "what": "a meta block with the same file name twice",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: note.txt: listed twice"
+      },
+      {
+        "what": "a meta block with one block in two files",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: note.txt: block 2 is used twice; block 11 is marked used by no file"
+      },
+      {
+        "what": "a meta block with one block in two files and no block left over",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: note.txt: block 2 is used twice"
+      },
+      {
+        "what": "a meta block with a block marked as used that no file uses",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: block 40 is marked used by no file"
+      },
+      {
+        "what": "a meta block with a file longer than its chain of blocks",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: two.bin: block 65535 is outside the volume"
+      },
+      {
+        "what": "a meta block with a file shorter than its chain of blocks",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: big.bin: the chain does not end where the size says; block 7 is marked used by no file"
+      },
+      {
+        "what": "a meta block with a file name with a character that is not allowed",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: bad name b'no/te.txt\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'; block 11 is marked used by no file"
+      },
+      {
+        "what": "a meta block with more blocks than the partition has",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: neither meta block is whole"
+      },
+      {
+        "what": "a meta block with meta blocks that are not marked in the chain table",
+        "says": "the Inti volume is damaged",
+        "image_unchanged": true,
+        "attempts": 8,
+        "host": "damaged: the meta blocks are not marked in the chain table"
+      }
+    ],
+    "differential": {
+      "cases": 40,
+      "seed": 20261114,
+      "sound": 22,
+      "damaged": 18,
+      "disagreements": 0
+    },
+    "limits": {
+      "directory_entries": 48,
+      "data_blocks": 254,
+      "max_blocks": 1024,
+      "block_bytes": 4096
+    },
+    "slow": {
+      "slow": {
+        "slow_write_s": 14.91
+      },
+      "stopped": {
+        "error_after_s": 30.11,
+        "next_read_s": 0.06
+      },
+      "busy": {
+        "error_after_s": 30.09,
+        "next_read_s": 1.88
+      }
+    },
+    "recorded": {
+      "changes": [
+        "write a.txt amber birch cedar",
+        "append a.txt delta ember",
+        "cp selftest big.bin",
+        "cp shell big.bin",
+        "cp big.bin big2.bin",
+        "rm a.txt",
+        "counter +disk",
+        "write a.txt jade",
+        "rm big.bin",
+        "cp selftest big3.bin",
+        "append welcome.txt I was here"
+      ],
+      "sector_writes": 592,
+      "flushes": 20,
+      "data_periods": 9,
+      "meta_periods": 11,
+      "cut_states": 593,
+      "lost_meta_states": 2794,
+      "lost_data_states": 216,
+      "machine_starts": 18,
+      "seed": 20261114
+    }
+  }
+}

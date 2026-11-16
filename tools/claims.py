@@ -23,12 +23,16 @@ from typing import Callable
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import gates  # noqa: E402
+import intifs  # noqa: E402
 
 TEMPLATES = {
     "docs/src/README.md": "README.md",
     "docs/src/design.md": "docs/design.md",
     "docs/src/weaknesses.md": "docs/weaknesses.md",
     "docs/src/scorecard.md": "docs/scorecard.md",
+    "docs/src/storage.md": "docs/storage.md",
+    "docs/src/apps.md": "docs/apps.md",
+    "docs/src/hardware.md": "docs/hardware.md",
 }
 CLAIMS = gates.EVIDENCE / "claims.json"
 SERIAL_LOG = gates.EVIDENCE / "test_serial.log"
@@ -58,12 +62,19 @@ MUTANTS_FIFTH = "evidence/mutants-fifth.json"
 MUTANTS_QEMU = "evidence/mutants-qemu.json"
 MIRI = "evidence/miri.json"
 MUTANTS_PREVIOUS = "evidence/mutants-previous.json"
+STORAGE = "evidence/storage.json"
+STORAGE_MUTANTS = "evidence/storage_mutants.json"
+MACHINES = "evidence/machines.json"
+DISK_SERVER = "user/src/bin/disk.rs"
+DISK_READER = "tools/intifs.py"
 
 FAULTS = {
     "console_crash": "console driver crashes (page fault)",
     "fs_crash": "file server crashes (page fault)",
+    "disk_crash": "disk server crashes (page fault)",
     "console_hang": "console driver hangs (stops answering)",
     "fs_hang": "file server hangs (stops answering)",
+    "disk_hang": "disk server hangs (stops answering)",
     "fs_hang_just_restarted": "file server hangs right after a restart",
 }
 BENCH = {
@@ -428,7 +439,8 @@ def add_tables(put: Put, test: dict, result: dict) -> None:
     sizes = result["sizes"]
     rows = [["boot sector", sizes["boot_sector_bytes"]], ["kernel", sizes["kernel_bytes"]]]
     rows += [[f"`{name}`", size] for name, size in sizes["files"].items()]
-    rows += [["disk image, padded", sizes["image_bytes"]]]
+    rows += [[f"volume for files that last, with {len(sizes['disk_files'])} files in it", sizes["volume_bytes"]]]
+    rows += [["disk image, the volume included", sizes["image_bytes"]]]
     put("table.sizes", table(["Part of the disk image", "Bytes"], rows), GATES)
 
     rows = []
@@ -1279,6 +1291,248 @@ def add_timing(put: Put, timing: dict) -> None:
         put(f"timing.{name}.set_aside", tried["set_aside_measurements"], SHARE_TIMING)
 
 
+# ---- the disk server and its volume ---------------------------------------------------------
+
+def cell(text: object) -> str:
+    """A text as one cell of a table."""
+    return str(text).replace("|", "/").replace("\n", " ")
+
+
+def add_storage(put: Put, storage: dict, mutants: dict) -> None:
+    """The volume format, the storage test in QEMU, and the faults planted in the disk server."""
+    if not storage:
+        raise KeyError(f"{STORAGE} is missing; run python build.py storage")
+    if not mutants:
+        raise KeyError(f"{STORAGE_MUTANTS} is missing; run python build.py storage-mutants")
+
+    # The format: the disk server and the reader on the build machine must describe the same volume.
+    proto = "user/src/proto.rs"
+    block = constant(proto, "DISK_BLOCK")
+    same = (
+        ("the block size", block, intifs.BLOCK),
+        ("the sector size", constant(DISK_SERVER, "SECTOR"), intifs.SECTOR),
+        ("the directory entries", constant(DISK_SERVER, "ENTRIES"), intifs.ENTRIES),
+        ("the entry size", constant(DISK_SERVER, "ENTRY"), intifs.ENTRY),
+        ("the name field", constant(DISK_SERVER, "NAME"), intifs.NAME),
+        ("the most blocks", constant(DISK_SERVER, "MAX_BLOCKS"), intifs.MAX_BLOCKS),
+        ("the partition type", constant(DISK_SERVER, "PARTITION_TYPE"), intifs.PARTITION_TYPE),
+        ("the place of the partition table", constant(DISK_SERVER, "PARTITION_TABLE"), intifs.PARTITION_TABLE),
+        ("the place of the directory", constant(DISK_SERVER, "DIRECTORY_AT"), intifs.DIRECTORY_AT),
+    )
+    for what, server, reader in same:
+        if server != reader:
+            raise ValueError(f"{DISK_SERVER} and {DISK_READER} disagree on {what}: {server} and {reader}")
+    put("disk.block_bytes", block, proto)
+    put("disk.block_kib", block // 1024, proto)
+    put("disk.sector_bytes", intifs.SECTOR, DISK_SERVER)
+    put("disk.block_sectors", block // intifs.SECTOR, DISK_SERVER)
+    put("disk.max_files", intifs.ENTRIES, DISK_SERVER)
+    put("disk.name_bytes", intifs.NAME - 1, DISK_SERVER)
+    put("disk.max_blocks", intifs.MAX_BLOCKS, DISK_SERVER)
+    put("disk.max_volume_mib", intifs.MAX_BLOCKS * block // 2**20, DISK_SERVER)
+    put("disk.partition_type", f"0x{intifs.PARTITION_TYPE:02X}", DISK_SERVER)
+    put("disk.seed_blocks", intifs.VOLUME_BLOCKS, DISK_READER)
+    put("disk.seed_data_blocks", intifs.VOLUME_BLOCKS - 2, DISK_READER)
+    put("disk.seed_mib", intifs.VOLUME_BLOCKS * block // 2**20, DISK_READER)
+    put("disk.seed_start_sector", intifs.VOLUME_START_SECTOR, DISK_READER)
+    put("disk.seed_start_mib", intifs.VOLUME_START_SECTOR * intifs.SECTOR // 2**20, DISK_READER)
+    put("disk.reasons", len(re.findall(r"(?m)^pub const D_\w+: u32 = \d+;", source_text(proto))), proto)
+    put("disk.requests", len(re.findall(r"(?m)^pub const DISK_(?!BLOCK)\w+: u32 = \d+;", source_text(proto))), proto)
+    put("disk.server_lines", gates.count_code_lines(ROOT / DISK_SERVER), DISK_SERVER)
+    put("disk.reader_lines", len(source_text(DISK_READER).splitlines()), DISK_READER)
+
+    # The run of the storage test.
+    checks = storage["checks"]
+    options = storage["options"]
+    measured = storage["measured"]
+    if options.get("only"):
+        raise ValueError(f"{STORAGE}: a partial run was saved")
+    put("storage.passed", storage["passed"], STORAGE)
+    put("storage.checks", len(checks), STORAGE)
+    put("storage.checks_ok", sum(1 for check in checks if check["ok"]), STORAGE)
+    put("storage.checks_failed", sum(1 for check in checks if not check["ok"]), STORAGE)
+    put("storage.date", storage["date"][:10], STORAGE)
+    put("storage.minutes", round(storage["duration_s"] / 60), STORAGE)
+    put("storage.emulator", storage["emulator"], STORAGE)
+    put("storage.seed", options["seed"], STORAGE)
+    put("table.storage_checks", table(
+        ["Check", "Result", "Detail"],
+        [[cell(check["name"]), "pass" if check["ok"] else "FAIL", cell(check.get("detail") or "")[:240]]
+         for check in checks],
+    ), STORAGE)
+
+    persistence = measured["persistence"]
+    put("storage.seeded_files", len(persistence["seeded_files"]), STORAGE)
+    put("storage.seeded_list", ", ".join(f"`{name}`" for name in persistence["seeded_files"]), STORAGE)
+    put("storage.files_after", len(persistence["files"]), STORAGE)
+    put("storage.ready_ms", milliseconds(persistence["ready_us"]), STORAGE)
+    put("storage.free_blocks_at_start", persistence["free_blocks_at_start"], STORAGE)
+
+    cuts = measured["power_cuts"]
+    if cuts["cuts"] != options["cuts"] or cuts["cuts"] != sum(cuts[key] for key in ("before", "during", "after", "broken")):
+        raise ValueError(f"{STORAGE}: the power cuts do not add up")
+    put("storage.cuts", cuts["cuts"], STORAGE)
+    for key in ("before", "during", "after", "broken"):
+        put(f"storage.cuts_{key}", cuts[key], STORAGE)
+    put("storage.cuts_texts", cuts["texts_compared"], STORAGE)
+    put("storage.cuts_files_at_end", len(cuts["files_at_the_end"]), STORAGE)
+    put("table.storage_cuts", table(
+        ["Change under way", "Cuts", "Before the first write", "Between the first write and the switch",
+         "After the switch", "Broken"],
+        [[kind, sum(row.values()), row["before"], row["during"], row["after"], row["broken"]]
+         for kind, row in cuts["by_kind"].items()],
+    ), STORAGE)
+
+    refusals = measured["refusals"]
+    put("storage.refusals", len(refusals), STORAGE)
+    put("storage.refusals_unchanged", sum(1 for entry in refusals if entry["image_unchanged"]), STORAGE)
+    put("storage.refusal_attempts", refusals[0]["attempts"], STORAGE)
+    if any(entry["attempts"] != refusals[0]["attempts"] for entry in refusals):
+        raise ValueError(f"{STORAGE}: the refused disks were not all tried the same number of times")
+    put("table.storage_refusals", table(
+        ["The disk", "What the disk server answers", "Image file unchanged", "What the reader on the build machine says"],
+        [[cell(entry["what"]), cell(entry["says"]), entry["image_unchanged"], cell(entry["host"])]
+         for entry in refusals],
+    ), STORAGE)
+
+    differential = measured["differential"]
+    if differential["cases"] != differential["sound"] + differential["damaged"]:
+        raise ValueError(f"{STORAGE}: the random changes do not add up")
+    put("storage.fuzz_cases", differential["cases"], STORAGE)
+    put("storage.fuzz_sound", differential["sound"], STORAGE)
+    put("storage.fuzz_damaged", differential["damaged"], STORAGE)
+    put("storage.fuzz_disagreements", differential["disagreements"], STORAGE)
+
+    recorded = measured["recorded"]
+    put("storage.recorded_changes", len(recorded["changes"]), STORAGE)
+    put("storage.recorded_list", "; ".join(f"`{line}`" for line in recorded["changes"]), STORAGE)
+    for key in ("sector_writes", "flushes", "data_periods", "meta_periods", "cut_states", "lost_meta_states",
+                "lost_data_states", "machine_starts"):
+        put(f"storage.{key}", recorded[key], STORAGE)
+    put("storage.states", recorded["cut_states"] + recorded["lost_meta_states"] + recorded["lost_data_states"], STORAGE)
+
+    timing = measured["timing"]
+    put("storage.timing_runs", timing["runs"], STORAGE)
+    put("storage.timing_what", timing["what"], STORAGE)
+    put("storage.copy_kib", round(timing["copy_bytes"] / 1024), STORAGE)
+    put("table.storage_timing", table(
+        ["Change", "Median", "Slowest"],
+        [[kind.replace("80 KiB", f"{round(timing['copy_bytes'] / 1024)} KiB"),
+          f"{round(timing['median_ms'][kind])} ms", f"{round(timing['max_ms'][kind])} ms"]
+         for kind in timing["median_ms"]],
+    ), STORAGE)
+
+    # A drive that is slow, or stops in the middle of a write.
+    slow = measured["slow"]
+    if set(slow) != {"slow", "stopped", "busy"}:
+        raise ValueError(f"{STORAGE}: a session with a slow drive did not reach its end")
+    put("storage.slow_write_s", slow["slow"]["slow_write_s"], STORAGE)
+    for session in ("stopped", "busy"):
+        put(f"storage.{session}_error_s", slow[session]["error_after_s"], STORAGE)
+        put(f"storage.{session}_read_s", slow[session]["next_read_s"], STORAGE)
+
+    # The faults planted in the disk server.
+    planted = mutants["mutants"]
+    caught = [mutant for mutant in planted if mutant["verdict"] == "caught"]
+    survivors = [mutant for mutant in planted if mutant["verdict"] == "not caught"]
+    other = [mutant for mutant in planted if mutant["verdict"] not in ("caught", "not caught")]
+    unchanged = mutants["unchanged"]
+    if mutants["planted"] != len(planted) or mutants["caught"] != len(caught):
+        raise ValueError(f"{STORAGE_MUTANTS}: the counts do not match the list")
+    if not (unchanged["before"]["passed"] and unchanged["after"]["passed"]):
+        raise ValueError(f"{STORAGE_MUTANTS}: the unchanged disk server did not pass")
+    put("storage.mutants.planted", len(planted), STORAGE_MUTANTS)
+    put("storage.mutants.caught", len(caught), STORAGE_MUTANTS)
+    put("storage.mutants.not_caught", len(survivors), STORAGE_MUTANTS)
+    put("storage.mutants.other", len(other), STORAGE_MUTANTS)
+    put("storage.mutants.expected_not_caught",
+        sum(1 for mutant in planted if mutant["expected"].startswith("not caught")), STORAGE_MUTANTS)
+    put("storage.mutants.surprises", sum(
+        1 for mutant in planted
+        if mutant["expected"].startswith("not caught") != (mutant["verdict"] != "caught")
+    ), STORAGE_MUTANTS)
+    put("storage.mutants.cuts", mutants["options"]["cuts"], STORAGE_MUTANTS)
+    put("storage.mutants.fuzz", mutants["options"]["fuzz"], STORAGE_MUTANTS)
+    put("storage.mutants.checks", unchanged["before"]["checks"], STORAGE_MUTANTS)
+    put("storage.mutants.date", mutants["date"][:10], STORAGE_MUTANTS)
+    put("storage.mutants.minutes", round(mutants["duration_s"] / 60), STORAGE_MUTANTS)
+    put("storage.mutants.survivors",
+        "; ".join(f"`{mutant['name']}` ({mutant['what']})" for mutant in survivors + other) or "none", STORAGE_MUTANTS)
+    put("table.storage_mutants", table(
+        ["Fault", "What is planted in the disk server", "Verdict", "Checks that failed both times"],
+        [[f"`{mutant['name']}`", cell(mutant["what"]), mutant["verdict"], len(mutant["by"]) if mutant["verdict"] == "caught" else "-"]
+         for mutant in planted],
+    ), STORAGE_MUTANTS)
+    put("table.storage_mutants_by", table(
+        ["Fault", "First check that failed both times"],
+        [[f"`{mutant['name']}`", cell(mutant["by"][0])[:200]] for mutant in caught],
+    ), STORAGE_MUTANTS)
+    # Faults that were planted again on their own after the batch (for example one that did not build).
+    redone = mutants.get("redone", [])
+    names = {mutant["name"] for mutant in planted}
+    for entry in redone:
+        if entry["name"] not in names:
+            raise ValueError(f"{STORAGE_MUTANTS}: {entry['name']} was planted again but is not in the list")
+    put("storage.mutants.redone", len(redone), STORAGE_MUTANTS)
+    put("storage.mutants.redone_list", "; ".join(
+        f"`{entry['name']}` (in the batch: {entry['verdict_before']})" for entry in redone
+    ) or "none", STORAGE_MUTANTS)
+
+
+def add_machines(put: Put, machines: dict) -> None:
+    """The built image on emulated machines that differ in processor, memory and disk controller."""
+    if not machines:
+        raise KeyError(f"{MACHINES} is missing; run python build.py machines")
+    tried = machines["machines"]
+    reached = [machine for machine in tried if machine["prompt"]]
+    put("machines.passed", machines["passed"], MACHINES)
+    put("machines.count", len(tried), MACHINES)
+    put("machines.started", sum(1 for machine in tried if machine["started"]), MACHINES)
+    put("machines.prompt", len(reached), MACHINES)
+    put("machines.no_prompt", len(tried) - len(reached), MACHINES)
+    put("machines.selftest_pass", sum(1 for machine in tried if (machine["selftest"] or "").startswith("PASS")), MACHINES)
+    put("machines.kept", sum(1 for machine in tried if machine["kept"]), MACHINES)
+    put("machines.no_storage", sum(1 for machine in reached if not machine["kept"]), MACHINES)
+    put("machines.date", machines["date"][:10], MACHINES)
+    put("machines.minutes", max(1, round(machines["duration_s"] / 60)), MACHINES)
+    put("machines.emulator", machines["emulator"], MACHINES)
+    put("machines.host", machines["host"], MACHINES)
+
+    def yes(value: bool) -> str:
+        return "yes" if value else "no"
+
+    put("table.machines", table(
+        ["Machine", "What differs", "QEMU arguments", "Memory", "Reaches the shell", "`selftest`",
+         "What the disk server says", "Keeps a file", "Note"],
+        [[f"`{machine['name']}`", cell(machine["what"]), f"`{machine['arguments']}`", f"{machine['memory_mib']} MiB",
+          f"yes, after {machine['prompt_s']} s" if machine["prompt"] else "no",
+          machine["selftest"] or "-", cell(machine["disk"] or "-"), yes(machine["kept"]), cell(machine["note"] or "")]
+         for machine in tried],
+    ), MACHINES)
+
+
+APP_EXAMPLE = "user/src/bin/counter.rs"
+SHELL = "user/src/bin/shell.rs"
+
+
+def add_apps(put: Put) -> None:
+    """What an ordinary program gets from the shell, and the example program, taken from the sources."""
+    pages = constant(SHELL, "APP_PAGES")
+    stack = constant(SHELL, "APP_STACK_PAGES")
+    put("app.pages", pages, SHELL)
+    put("app.stack_pages", stack, SHELL)
+    put("app.memory_kib", pages * 4, SHELL)
+    put("app.stack_kib", stack * 4, SHELL)
+    example = source_text(APP_EXAMPLE)
+    if "```" in example:
+        raise ValueError(f"{APP_EXAMPLE} holds a code fence and cannot be shown in a document")
+    put("app.counter_source", example.rstrip("\n"), APP_EXAMPLE)
+    put("app.counter_lines", len(example.splitlines()), APP_EXAMPLE)
+    put("app.programs", len(list((ROOT / "user/src/bin").glob("*.rs"))), "user/src/bin")
+    put("disk.step_s", constant(DISK_SERVER, "STEP_US") // 1_000_000, DISK_SERVER)
+    put("disk.find_s", constant(DISK_SERVER, "FIND_US") // 1_000_000, DISK_SERVER)
+
+
 def collect() -> dict[str, dict]:
     """Every claim, as key -> {"value": ..., "source": the file it was computed from}."""
     claims: dict[str, dict] = {}
@@ -1316,6 +1570,9 @@ def collect() -> dict[str, dict]:
     add_miri(put, gates.load("miri.json"))
     add_timing(put, gates.load("share-timing.json"))
     add_launch_race(put)
+    add_storage(put, gates.load("storage.json"), gates.load("storage_mutants.json"))
+    add_machines(put, gates.load("machines.json"))
+    add_apps(put)
     return claims
 
 

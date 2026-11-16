@@ -16,6 +16,9 @@ if there is none. It checks six things:
 6. The figures of the model and of all three samples of mutants were measured on the sources as
    they are now. Each of those results carries a fingerprint of every Rust file in
    kernel/src, abi/src and model/src; a result with another fingerprint is refused.
+   The storage test must have passed on the disk image as it is built now, and the faults
+   planted in the disk server must have been judged with the disk server, the reader on the
+   build machine and the storage test as they are now.
 """
 from __future__ import annotations
 
@@ -30,6 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import claims  # noqa: E402
 import gates  # noqa: E402
+import storage_mutants  # noqa: E402
 
 PAGE = "docs/index.html"
 SOURCE_FOLDERS = ("kernel", "abi", "boot", "user")
@@ -249,6 +253,32 @@ def check_fresh() -> list[Problem]:
                 source, 0,
                 f"not measured on the kernel and model source as they are now; run {command}",
             ))
+    storage = gates.load("storage.json")
+    if not gates.IMAGE.exists() or storage.get("image_sha256") != gates.sha256(gates.IMAGE):
+        problems.append((claims.STORAGE, 0, "not measured on the disk image as it is built now; run python build.py storage"))
+    elif not storage.get("passed"):
+        problems.append((claims.STORAGE, 0, "the storage test did not pass; run python build.py storage"))
+    planted = gates.load("storage_mutants.json")
+    if planted.get("sources_sha256") != storage_mutants.fingerprint():
+        problems.append((
+            claims.STORAGE_MUTANTS, 0,
+            "not judged with the disk server, the reader and the storage test as they are now; "
+            "run python build.py storage-mutants",
+        ))
+    elif planted.get("image_sha256") != storage.get("image_sha256"):
+        problems.append((
+            claims.STORAGE_MUTANTS, 0,
+            "the unchanged copy was not the disk image the storage test ran on; run python build.py storage-mutants",
+        ))
+    machines = gates.load("machines.json")
+    if not gates.IMAGE.exists() or machines.get("image_sha256") != gates.sha256(gates.IMAGE):
+        problems.append((claims.MACHINES, 0, "not measured on the disk image as it is built now; run python build.py machines"))
+    elif not machines.get("passed"):
+        problems.append((
+            claims.MACHINES, 0,
+            "the machine every test uses did not reach the shell, pass selftest and keep a file; "
+            "run python build.py machines",
+        ))
     return problems
 
 

@@ -25,7 +25,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 EVIDENCE = ROOT / "evidence"
 PROMPT = "inti> "
-DEFAULT_COMMANDS = ["hello", "selftest", "rogue", "crash console", "hang fs", "tour", "uptime"]
+DEFAULT_COMMANDS = ["hello", "selftest", "rogue", "crash console", "hang fs", "df",
+                    "write note.txt kept", "crash disk", "cat note.txt", "tour", "uptime"]
 TOUR_LIMIT_S = 60  # the page says the guided tour takes under a minute
 
 # What a command's output must contain. A command not listed here only has to come back
@@ -38,6 +39,11 @@ EXPECT = {
     "uptime": r"kernel invariants: all hold",
     "crash console": r"RECOVERY: console crash -> answering again after \d+ us",
     "hang fs": r"RECOVERY: fs hang -> answering again after \d+ us",
+    # The disk in the browser is the image held in memory: what is written lasts until the page
+    # is loaded again. It must still outlast the disk server, which is crashed in between.
+    "df": r"disk: \d+ files?, \d+ of \d+ blocks",
+    "crash disk": r"RECOVERY: disk crash -> answering again after \d+ us",
+    "cat note.txt": r"(?m)^kept\s*$",
     "tour": r"TOUR: done",
 }
 

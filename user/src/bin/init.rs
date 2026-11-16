@@ -36,7 +36,7 @@ const STACK_PAGES: u32 = 8;
 const SHELL_TASKS: u32 = 26;
 const SHELL_ENDPOINTS: u32 = 48;
 /// The shell's share of the processor in percent, for itself and every program started from
-/// it. The rest is always there for `init` and the two servers when they have work.
+/// it. The rest is always there for `init` and the three servers when they have work.
 const SHELL_SHARE: u32 = 80;
 /// Service number `n` reports its end with fault badge `FAULT_BADGE + n`.
 const FAULT_BADGE: u32 = 0x100;
@@ -53,7 +53,7 @@ const GRACE_US: u64 = 500_000;
 const QUICK_END_US: u64 = 2_000_000;
 const RETRY_US: u64 = 100_000;
 
-const SERVICES: usize = 3;
+const SERVICES: usize = 4;
 /// The console is service number 0. `init` reports through it while it answers.
 const CONSOLE: usize = 0;
 
@@ -65,9 +65,10 @@ struct Service {
     endpoints: u32,
     /// Its share of the processor in percent; 0 = no limit of its own.
     cpu: u32,
-    /// The capabilities the service starts with (slot numbers in `init`).
+    /// The capabilities the service starts with (slot numbers in `init`). For a server,
+    /// slot 0 stays empty here: the receive right for its endpoint is made for each start.
     caps: [u32; SPAWN_CAPS],
-    /// Capability used to ping the service, or `NO_CAP` if it is not pinged.
+    /// The endpoint of a server, which `init` pings; `NO_CAP` for the shell.
     ping: u32,
     /// Task capability while the service runs, otherwise `NO_CAP`.
     task: u32,
@@ -84,7 +85,8 @@ struct Service {
 impl Service {
     fn new(name: &'static str, pages: u32, grants: &[u32], ping: u32) -> Service {
         let mut caps = [NO_CAP; SPAWN_CAPS];
-        caps[..grants.len()].copy_from_slice(grants);
+        let first = if ping == NO_CAP { 0 } else { 1 };
+        caps[first..first + grants.len()].copy_from_slice(grants);
         Service {
             name,
             pages,
@@ -171,11 +173,29 @@ impl Supervisor {
         spawn.fault_ep = self.control;
         spawn.fault_badge = FAULT_BADGE + index as u32;
         spawn.caps = service.caps;
+        // A server receives on its endpoint through a right that exists in `init` only for
+        // the moment of the start. Between starts `init` holds no copy of it.
+        let mut receive = NO_CAP;
+        if service.ping != NO_CAP {
+            match sys::cap_derive(service.ping, R_RECV, 0, 0) {
+                Ok(cap) => receive = cap,
+                Err(code) => {
+                    outln!("init: no receive right for ", service.name, ": ", errname(code));
+                    service.start_at = now + RETRY_US;
+                    return;
+                }
+            }
+            spawn.caps[0] = receive;
+        }
         spawn.tasks = service.tasks;
         spawn.endpoints = service.endpoints;
         spawn.cpu = service.cpu;
         spawn.args = [service.starts, self.root_starts, self.archive_pages, service.pages];
-        match sys::spawn(image, &spawn) {
+        let started = sys::spawn(image, &spawn);
+        if receive != NO_CAP {
+            let _ = sys::cap_drop(receive);
+        }
+        match started {
             Ok(task) => {
                 service.task = task;
                 service.started_at = sys::time();
@@ -183,7 +203,7 @@ impl Supervisor {
                     report_through_console(service.ping, true);
                 }
                 if service.starts == 0 {
-                    let granted = service.caps.iter().filter(|&&cap| cap != NO_CAP).count();
+                    let granted = spawn.caps.iter().filter(|&&cap| cap != NO_CAP).count();
                     outln!(
                         "init: started ", service.name, " with ", granted, " capabilities, ",
                         service.pages, " pages"
@@ -417,32 +437,38 @@ pub fn main() {
     // a restarted shell can never take memory that a server needs to restart.
     let me = need(sys::task_info(INFO, 0), "read its own memory quota");
     let free = me.quota.saturating_sub(me.charged);
-    let shell_pages = free.saturating_sub(2 * SERVER_PAGES + RESERVE_PAGES);
+    let shell_pages = free.saturating_sub(3 * SERVER_PAGES + RESERVE_PAGES);
 
     let control = need(sys::ep_create(), "create the control endpoint");
     let console = need(sys::ep_create(), "create the console endpoint");
     let files = need(sys::ep_create(), "create the file endpoint");
+    let disk = need(sys::ep_create(), "create the disk endpoint");
     let derive = |slot: u32, a: u32, b: u32, c: u32| {
         need(sys::cap_derive(slot, a, b, c), "derive a capability")
     };
 
-    // The console driver: its request endpoint, the serial port, the keyboard data port,
-    // the cursor registers, two interrupt lines and the one page of screen memory.
+    // Every server also gets the receive right for its own endpoint, in slot 0; see
+    // `Supervisor::start`.
+    // The console driver: the serial port, the keyboard data port, the cursor registers,
+    // two interrupt lines and the one page of screen memory.
     let console_caps = [
-        derive(console, R_RECV, 0, 0),
         derive(PORTS, 0x3F8, 0x3FF, 0),
         derive(PORTS, 0x60, 0x60, 0),
         derive(PORTS, 0x3D4, 0x3D5, 0),
         derive(IRQS, (1 << 1) | (1 << 4), 0, 0),
         derive(VGA, 0, 1, 1),
     ];
-    // The file server: its request endpoint and the read-only archive. Nothing else.
-    let files_caps = [derive(files, R_RECV, 0, 0), ARCHIVE];
+    // The file server: the read-only archive. Nothing else.
+    let files_caps = [ARCHIVE];
+    // The disk server: the eight ports of the first disk controller and its control port.
+    // No interrupt line and no memory besides its own.
+    let disk_caps = [derive(PORTS, 0x1F0, 0x1F7, 0), derive(PORTS, 0x3F6, 0x3F6, 0)];
     // The shell: badged send rights to the servers for itself and for the programs it
     // starts, the read-only kernel statistics, the control endpoint of `init`, and five
     // harmless capabilities that the self-test and the fuzzer use as test objects. The
     // last one is the eighth page of video memory, which the text screen never shows:
-    // writable device memory for the self-test, which only ever maps it.
+    // writable device memory for the self-test, which only ever maps it. The two send
+    // rights for the disk come last, so the older slot numbers stay what they were.
     let shell_caps = [
         derive(console, R_SEND, B_SHELL, 0),
         derive(files, R_SEND, B_SHELL, 0),
@@ -455,6 +481,8 @@ pub fn main() {
         derive(IRQS, 1 << 5, 0, 0),
         LOG,
         derive(VGA, 7, 1, 1),
+        derive(disk, R_SEND, B_SHELL, 0),
+        derive(disk, R_SEND, B_APP, 0),
     ];
     // For itself `init` keeps the two power-off ports. Then it gives up the three broad
     // capabilities it was started with: every I/O port, every interrupt line and all of
@@ -476,6 +504,7 @@ pub fn main() {
         services: [
             Service::new("console", SERVER_PAGES, &console_caps, console),
             Service::new("fs", SERVER_PAGES, &files_caps, files),
+            Service::new("disk", SERVER_PAGES, &disk_caps, disk),
             Service::new("shell", shell_pages, &shell_caps, NO_CAP)
                 .with_tables(SHELL_TASKS, SHELL_ENDPOINTS)
                 .with_share(SHELL_SHARE),

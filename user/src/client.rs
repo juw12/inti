@@ -1,8 +1,12 @@
 //! Client side of the server protocols, with retry across server restarts.
 
 use crate::proto::{BUSY, CON_READLINE, CON_REPORT, CON_WRITE, FS_LIST, FS_READ, FS_STAT, OK};
+use crate::proto::{DISK_APPEND, DISK_COMMIT, DISK_CREATE, DISK_DELETE, DISK_INFO, DISK_WRITE};
+use crate::proto::{D_BAD_NAME, D_DAMAGED, D_DENIED, D_DIR_FULL, D_FULL, D_GONE, D_IO, D_MOVED};
+use crate::proto::{D_NO_DRIVE, D_NO_FILE, D_NO_VOLUME, D_STALE, ERR};
 use crate::sys;
-use abi::{Msg, ARCHIVE_NAME, E_DEAD, E_PERM, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE, ST_ZOMBIE};
+use abi::{Msg, ARCHIVE_NAME, E_DEAD, E_NOCAP, E_PERM, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE};
+use abi::ST_ZOMBIE;
 
 /// The number of the first running task called `name`, read through an Info capability. The
 /// test programs use it to look up their own entry in the task table; an ended task that
@@ -153,4 +157,138 @@ pub fn load(fs: u32, name: &[u8], base: u32) -> Option<Mapping> {
         offset += count;
     }
     Some(mapping)
+}
+
+/// Why a disk request failed, in words.
+pub fn disk_error(reason: u32) -> &'static str {
+    match reason {
+        D_NO_DRIVE => "no ATA disk found",
+        D_NO_VOLUME => "no Inti volume on the disk",
+        D_DAMAGED => "the Inti volume is damaged",
+        D_NO_FILE => "no such file",
+        D_FULL => "the disk is full",
+        D_DIR_FULL => "the directory is full",
+        D_BAD_NAME => "bad file name (1 to 23 of A-Z a-z 0-9 . _ -)",
+        D_STALE => "another writer started first",
+        D_MOVED => "the file changed in the meantime",
+        D_IO => "the disk reported an error",
+        D_DENIED => "no capability for the disk",
+        D_GONE => "the disk server does not answer",
+        _ => "unknown error",
+    }
+}
+
+/// One request to the disk server. Like `request`, but it also tells whether the request
+/// had to be sent again because the server died while it held it. Such a request may have
+/// been carried out by the server that died.
+fn disk_request(disk: u32, msg: &mut Msg) -> Result<bool, u32> {
+    let mut resent = false;
+    let mut retries = 0;
+    loop {
+        match sys::call(disk, msg, FOREVER) {
+            Ok(()) => break,
+            Err(E_DEAD) if retries < 8 => {
+                resent = true;
+                retries += 1;
+                sys::sleep(2);
+            }
+            Err(E_PERM | E_NOCAP) => return Err(D_DENIED),
+            Err(_) => return Err(D_GONE),
+        }
+    }
+    match msg.label {
+        OK => Ok(resent),
+        ERR if resent && msg.words[1] != 0 => Err(msg.words[1] | RESENT),
+        ERR if msg.words[1] != 0 => Err(msg.words[1]),
+        _ => Err(D_DENIED),
+    }
+}
+
+/// Marks, inside this file only, the error of a request that was sent twice.
+const RESENT: u32 = 1 << 31;
+
+/// Start a new version of a file on the disk; returns the transaction number for `write`
+/// and `commit`. Readers see the old version until `commit` succeeds.
+pub fn create(disk: u32, name: &[u8]) -> Result<u32, u32> {
+    let mut msg = with_data(DISK_CREATE, name);
+    disk_request(disk, &mut msg).map_err(|reason| reason & !RESENT)?;
+    Ok(msg.words[0])
+}
+
+/// Add bytes to the new version of a file.
+pub fn write(disk: u32, transaction: u32, bytes: &[u8]) -> Result<(), u32> {
+    for chunk in bytes.chunks(MSG_DATA) {
+        let mut msg = with_data(DISK_WRITE, chunk);
+        msg.words[0] = transaction;
+        disk_request(disk, &mut msg).map_err(|reason| reason & !RESENT)?;
+    }
+    Ok(())
+}
+
+/// Replace the file by its new version, in one step.
+pub fn commit(disk: u32, transaction: u32) -> Result<(), u32> {
+    let mut msg = Msg::new(DISK_COMMIT);
+    msg.words[0] = transaction;
+    disk_request(disk, &mut msg).map_err(|reason| reason & !RESENT)?;
+    Ok(())
+}
+
+/// Write a whole file. After a power cut or a crash of the disk server the file is either
+/// the old version or this one, never a mixture. If the server is restarted on the way, or
+/// another writer cuts in, everything is sent again.
+pub fn save(disk: u32, name: &[u8], bytes: &[u8]) -> Result<(), u32> {
+    let mut tries = 0;
+    loop {
+        let sent = create(disk, name).and_then(|transaction| {
+            write(disk, transaction, bytes)?;
+            commit(disk, transaction)
+        });
+        match sent {
+            Err(D_STALE) if tries < 3 => tries += 1,
+            result => return result,
+        }
+    }
+}
+
+/// Add bytes to the end of a file, creating it if needed. Each piece of up to 256 bytes
+/// minus the length of the name is added in one step: after a power cut the file ends
+/// before or after a piece, never inside one.
+pub fn append(disk: u32, name: &[u8], bytes: &[u8]) -> Result<(), u32> {
+    if name.is_empty() || name.len() >= ARCHIVE_NAME {
+        return Err(D_BAD_NAME);
+    }
+    let mut size = stat(disk, name).unwrap_or(0);
+    for chunk in bytes.chunks(MSG_DATA - name.len()) {
+        let mut msg = with_data(DISK_APPEND, name);
+        msg.data[name.len()..name.len() + chunk.len()].copy_from_slice(chunk);
+        msg.len = (name.len() + chunk.len()) as u32;
+        msg.words = [name.len() as u32, size, 0, 0];
+        size += chunk.len() as u32;
+        match disk_request(disk, &mut msg) {
+            Ok(_) => {}
+            // The server that died had already added this piece.
+            Err(reason) if reason == D_MOVED | RESENT && msg.words[0] == size => {}
+            Err(reason) => return Err(reason & !RESENT),
+        }
+    }
+    Ok(())
+}
+
+/// Remove a file from the disk.
+pub fn remove(disk: u32, name: &[u8]) -> Result<(), u32> {
+    let mut msg = with_data(DISK_DELETE, name);
+    match disk_request(disk, &mut msg) {
+        Ok(_) => Ok(()),
+        // The server that died had already removed it.
+        Err(reason) if reason == D_NO_FILE | RESENT => Ok(()),
+        Err(reason) => Err(reason & !RESENT),
+    }
+}
+
+/// Data blocks, free blocks, number of files and the microseconds the disk server's
+/// start-up took; or the reason why there is no volume.
+pub fn disk_info(disk: u32) -> Result<[u32; 4], u32> {
+    let mut msg = Msg::new(DISK_INFO);
+    disk_request(disk, &mut msg).map_err(|reason| reason & !RESENT)?;
+    Ok(msg.words)
 }

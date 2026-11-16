@@ -17,7 +17,7 @@ How to read it: figures and failure behaviour of other systems carry a link in t
 
 Reading this table fairly:
 
-- Against Linux and Windows, Inti shows the property it was built for: a failing driver is contained and replaced while everything else keeps running. It shows it with one driver and one file server, in an emulator, under no real workload.
+- Against Linux and Windows, Inti shows the property it was built for: a failing driver is contained and replaced while everything else keeps running. It shows it with a console driver, a disk driver and a file server, in an emulator, under no real workload.
 - Against seL4, MINIX 3 and Redox, Inti shows nothing they do not already do better. MINIX 3 has restartable user-mode drivers at real scale, seL4 has capabilities with proofs, and Redox is a Rust microkernel system with real applications.
 - Inti's kernel is small because it does little, not because it does the same with less. The line counts in the table are not a like-for-like comparison.
 
@@ -25,12 +25,12 @@ Reading this table fairly:
 
 | | Inti | Real systems |
 |---|---|---|
-| Hardware | one emulated PC, in QEMU and in v86; it has never run on a real machine | Linux and Windows run on almost everything; seL4 has proofs for configurations on Arm, x86 and RISC-V ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) |
+| Hardware | one emulated PC, in QEMU and in v86, and a few other emulated machines started once each ([Other machines](hardware.md)); it has never run on a real machine | Linux and Windows run on almost everything; seL4 has proofs for configurations on Arm, x86 and RISC-V ([seL4 FAQ](https://sel4.systems/About/FAQ.html)) |
 | Processors | one, in 32-bit mode | many, in 64-bit mode |
 | Network | none | yes |
-| Storage | a read-only archive loaded at boot; nothing is saved | real file systems |
+| Storage | a read-only archive loaded at boot, and one small volume on an ATA disk: at most {{disk.max_volume_mib}} MiB, {{disk.max_files}} files, one directory. Checked against power cuts only in an emulator ([Files that last](storage.md)) | real file systems |
 | Programs | {{size.programs}} small ones, and a shell without pipes or scripts | everything people use computers for |
-| Drivers | one, for the screen, the keyboard and the serial port | thousands |
+| Drivers | two: one for the screen, the keyboard and the serial port, one for an ATA disk | thousands |
 | Assurance | tests, a fuzzer, a run-time checker and a bounded exploration on a host, by one author | decades of use; for seL4, proofs |
 | Age | built in one session on {{gates.date}} | years to decades |
 
@@ -42,7 +42,7 @@ Reading this table fairly:
 
 ## Where Inti loses
 
-- **Hardware and software.** No real hardware, no network, no persistent storage, no applications, one processor.
+- **Hardware and software.** No real hardware, no network, storage of a few megabytes on one kind of disk, no applications but its own small programs, one processor.
 - **Assurance.** No formal verification, one author, one day. The exploration of the kernel on a host covers small configurations to a small depth and proves nothing beyond them. seL4's proofs are in a different class.
 - **Security mechanisms.** W^X is enforced only on processors with the no-execute bit and has only been shown in emulators; there is no address-space randomisation, no IOMMU and no defence against side channels. Revocation takes back everything copied from one capability, so cutting off one client needs a capability derived for that client beforehand, and neither revocation nor delegation is proven correct. The supervisor is trusted with everything.
 - **Robustness.** A hang is found only by a ping; the kernel is not pre-emptible; shares of the processor are enforced in one-second windows, are no ceiling, are not passed from a client to the server working for it, and have been measured only in QEMU.

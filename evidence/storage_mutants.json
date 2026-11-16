@@ -1,0 +1,535 @@
+{
+  "date": "2026-11-16T11:46:57+07:00",
+  "duration_s": 10526,
+  "sources_sha256": {
+    "user/src/bin/disk.rs": "91451f92e52a2d3885c1fad5a55f4d31b430ce937154dcc78e5a390abb1b01c2",
+    "tools/intifs.py": "53cbf933ba41d161ea4926745a9d225c218f193c67c18173bad7b0d84636083c",
+    "tools/storage_test.py": "8ab6df916acd3068f2ee5bf754691f0d274d2e74dd78e9266748231cd4130134"
+  },
+  "image_sha256": "5d8f814448ea0d3adc7ef851aaa5d05f17ac03202b0c60254e830c52c44813e4",
+  "options": {
+    "cuts": 6,
+    "fuzz": 40
+  },
+  "unchanged": {
+    "before": {
+      "passed": true,
+      "failed": [],
+      "checks": 67,
+      "seconds": 233,
+      "timed_out": false
+    },
+    "after": {
+      "passed": true,
+      "failed": [],
+      "checks": 67,
+      "seconds": 384,
+      "timed_out": false
+    }
+  },
+  "planted": 13,
+  "caught": 12,
+  "mutants": [
+    {
+      "name": "slot-in-use",
+      "what": "publish writes the new meta block over the one in use instead of the other slot",
+      "expected": "caught: a cut inside those 8 sectors leaves no sealed meta block of the old state",
+      "file": "user/src/bin/disk.rs",
+      "line": 638,
+      "verdict": "caught",
+      "by": [
+        "the next change then overwrites the torn meta block and the volume is sound",
+        "every new meta block went, whole, to the slot that did not hold the version in use",
+        "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+        "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+        "recorded: the case reached its end"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "power cut during a change, 6 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
+            "the next change then overwrites the torn meta block and the volume is sound",
+            "every new meta block went, whole, to the slot that did not hold the version in use",
+            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+            "recorded: the case reached its end"
+          ],
+          "checks": 67,
+          "seconds": 220,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "the next change then overwrites the torn meta block and the volume is sound",
+            "every new meta block went, whole, to the slot that did not hold the version in use",
+            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+            "recorded: the case reached its end"
+          ],
+          "checks": 67,
+          "seconds": 260,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "no-data-flush",
+      "what": "publish does not flush the data blocks before it writes the meta block",
+      "expected": "caught: the meta block can reach the disk before the data it points to",
+      "file": "user/src/bin/disk.rs",
+      "line": 635,
+      "verdict": "caught",
+      "by": [
+        "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+        "every new meta block went, whole, to the slot that did not hold the version in use",
+        "writes since the last flush lost in any combination: all 724 ways to lose part of a meta block and 0 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+        "started on 4 of these states, the machine lists the same files as the reader on the build machine"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+            "every new meta block went, whole, to the slot that did not hold the version in use",
+            "writes since the last flush lost in any combination: all 724 ways to lose part of a meta block and 0 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+            "started on 4 of these states, the machine lists the same files as the reader on the build machine"
+          ],
+          "checks": 67,
+          "seconds": 244,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+            "every new meta block went, whole, to the slot that did not hold the version in use",
+            "writes since the last flush lost in any combination: all 724 ways to lose part of a meta block and 0 random ways to lose data writes leave the volume sound with the files from before or from after the change",
+            "started on 4 of these states, the machine lists the same files as the reader on the build machine"
+          ],
+          "checks": 67,
+          "seconds": 357,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "no-meta-flush",
+      "what": "publish does not flush after the meta block",
+      "expected": "caught: a change the shell was told is done can still be lost",
+      "file": "user/src/bin/disk.rs",
+      "line": 639,
+      "verdict": "caught",
+      "by": [
+        "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+        "every new meta block went, whole, to the slot that did not hold the version in use",
+        "writes since the last flush lost in any combination: all 954 ways to lose part of a meta block and 24 random ways to lose data writes leave the volume sound with the files from before or from after the change"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+            "every new meta block went, whole, to the slot that did not hold the version in use",
+            "writes since the last flush lost in any combination: all 954 ways to lose part of a meta block and 24 random ways to lose data writes leave the volume sound with the files from before or from after the change"
+          ],
+          "checks": 67,
+          "seconds": 378,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
+            "every new meta block went, whole, to the slot that did not hold the version in use",
+            "writes since the last flush lost in any combination: all 954 ways to lose part of a meta block and 24 random ways to lose data writes leave the volume sound with the files from before or from after the change"
+          ],
+          "checks": 67,
+          "seconds": 424,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "reuse-live-block",
+      "what": "a block counts as free when only the state being prepared does not use it",
+      "expected": "caught: data is written over blocks the state on the disk still points to",
+      "file": "user/src/bin/disk.rs",
+      "line": 702,
+      "verdict": "caught",
+      "by": [
+        "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
+        "every data write went to a block that no file of the version on the disk used",
+        "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+        "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
+            "every data write went to a block that no file of the version on the disk used",
+            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change"
+          ],
+          "checks": 67,
+          "seconds": 468,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "refusal: shutdown switches the machine off",
+            "refusal: shutdown switches the machine off",
+            "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
+            "every data write went to a block that no file of the version on the disk used",
+            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change"
+          ],
+          "checks": 69,
+          "seconds": 478,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "mount-unchecked",
+      "what": "mount accepts a sealed meta block without checking that it describes a sound volume",
+      "expected": "caught: a sealed but unsound meta block must be refused",
+      "file": "user/src/bin/disk.rs",
+      "line": 581,
+      "verdict": "caught",
+      "by": [
+        "a meta block with a chain of blocks that loops: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with a file with a block outside the volume: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with the same file name twice: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with one block in two files: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with a block marked as used that no file uses: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with a file longer than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with a file shorter than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with a file name with a character that is not allowed: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a meta block with meta blocks that are not marked in the chain table: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "a meta block with a chain of blocks that loops: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file with a block outside the volume: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with the same file name twice: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with one block in two files: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a block marked as used that no file uses: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file longer than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file shorter than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file name with a character that is not allowed: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with meta blocks that are not marked in the chain table: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not"
+          ],
+          "checks": 67,
+          "seconds": 584,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "a meta block with a chain of blocks that loops: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file with a block outside the volume: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with the same file name twice: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with one block in two files: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a block marked as used that no file uses: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file longer than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file shorter than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with a file name with a character that is not allowed: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a meta block with meta blocks that are not marked in the chain table: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not"
+          ],
+          "checks": 67,
+          "seconds": 361,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "older-slot",
+      "what": "mount takes the older of two sealed meta blocks",
+      "expected": "caught: the last change is gone after a restart",
+      "file": "user/src/bin/disk.rs",
+      "line": 571,
+      "verdict": "caught",
+      "by": [
+        "after switching off and on again the files are listed with the same sizes",
+        "power cut during a change, 6 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
+        "after every cut the machine lists the same files as the image holds",
+        "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
+        "of two whole meta blocks the one with the higher sequence number is used",
+        "the sequence number may wrap around: 0 is newer than 4294967295",
+        "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
+        "started on 18 of these states, the machine lists the same files as the reader on the build machine"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "after switching off and on again the files are listed with the same sizes",
+            "power cut during a change, 6 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
+            "after every cut the machine lists the same files as the image holds",
+            "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
+            "of two whole meta blocks the one with the higher sequence number is used",
+            "the sequence number may wrap around: 0 is newer than 4294967295",
+            "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
+            "started on 18 of these states, the machine lists the same files as the reader on the build machine"
+          ],
+          "checks": 67,
+          "seconds": 424,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "after switching off and on again the files are listed with the same sizes",
+            "power cut during a change, 6 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
+            "after every cut the machine lists the same files as the image holds",
+            "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
+            "of two whole meta blocks the one with the higher sequence number is used",
+            "the sequence number may wrap around: 0 is newer than 4294967295",
+            "differential: the case reached its end",
+            "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
+            "started on 18 of these states, the machine lists the same files as the reader on the build machine"
+          ],
+          "checks": 67,
+          "seconds": 374,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "no-checksum",
+      "what": "a meta block counts as sealed without its checksum being compared",
+      "expected": "caught: a torn meta block is taken for a whole one",
+      "file": "user/src/bin/disk.rs",
+      "line": 198,
+      "verdict": "caught",
+      "by": [
+        "both meta blocks with a wrong checksum: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+        "a newer meta block whose last sector was never written is ignored: the older one is used, no file is lost",
+        "the next change then overwrites the torn meta block and the volume is sound",
+        "started on 18 of these states, the machine lists the same files as the reader on the build machine"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "both meta blocks with a wrong checksum: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a newer meta block whose last sector was never written is ignored: the older one is used, no file is lost",
+            "the next change then overwrites the torn meta block and the volume is sound",
+            "started on 18 of these states, the machine lists the same files as the reader on the build machine"
+          ],
+          "checks": 67,
+          "seconds": 400,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "both meta blocks with a wrong checksum: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "a newer meta block whose last sector was never written is ignored: the older one is used, no file is lost",
+            "the next change then overwrites the torn meta block and the volume is sound",
+            "started on 18 of these states, the machine lists the same files as the reader on the build machine"
+          ],
+          "checks": 67,
+          "seconds": 557,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "publish-unchecked",
+      "what": "publish writes the meta block without checking it first",
+      "expected": "not caught: the guard is a second line of defence; no known request makes the server prepare an unsound meta block, so removing it changes nothing a test can see",
+      "file": "user/src/bin/disk.rs",
+      "line": 632,
+      "verdict": "not caught",
+      "by": [],
+      "runs": [
+        {
+          "passed": true,
+          "failed": [],
+          "checks": 67,
+          "seconds": 367,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "no-rollback",
+      "what": "a refused change leaves its half-made chains in the state being prepared",
+      "expected": "caught: the next change publishes blocks of the refused one",
+      "file": "user/src/bin/disk.rs",
+      "line": 620,
+      "verdict": "caught",
+      "by": [
+        "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays"
+          ],
+          "checks": 67,
+          "seconds": 322,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays"
+          ],
+          "checks": 67,
+          "seconds": 355,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "shared-block",
+      "what": "the soundness check lets two files share a block",
+      "expected": "caught: the disk server and intifs.py disagree on such a meta block",
+      "file": "user/src/bin/disk.rs",
+      "line": 231,
+      "verdict": "caught",
+      "by": [
+        "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "differential: the case reached its end"
+          ],
+          "checks": 67,
+          "seconds": 285,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
+          ],
+          "checks": 67,
+          "seconds": 369,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "partition-past-end",
+      "what": "mount accepts a partition that reaches past the end of the drive",
+      "expected": "caught: such a disk must be refused, not written to",
+      "file": "user/src/bin/disk.rs",
+      "line": 564,
+      "verdict": "caught",
+      "by": [
+        "an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte",
+            "differential: the case reached its end"
+          ],
+          "checks": 67,
+          "seconds": 378,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
+          ],
+          "checks": 67,
+          "seconds": 353,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "no-ping-while-waiting",
+      "what": "the disk server does not look at its requests while it waits for the drive",
+      "expected": "caught: the supervisor takes a disk server that waits for a slow drive for a hung one and ends it",
+      "file": "user/src/bin/disk.rs",
+      "line": 294,
+      "verdict": "caught",
+      "by": [
+        "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
+        "slow, stopped: the session reached its end",
+        "slow, busy: the session reached its end"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
+            "slow, stopped: the session reached its end",
+            "slow, busy: the session reached its end"
+          ],
+          "checks": 65,
+          "seconds": 483,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
+            "slow, stopped: the session reached its end",
+            "slow, busy: the session reached its end"
+          ],
+          "checks": 65,
+          "seconds": 480,
+          "timed_out": false
+        }
+      ]
+    },
+    {
+      "name": "no-reset-after-failure",
+      "what": "the next command is sent without a reset after a step of the drive failed",
+      "expected": "caught: the drive takes the next command for part of the write it was left in",
+      "file": "user/src/bin/disk.rs",
+      "line": 389,
+      "verdict": "caught",
+      "by": [
+        "after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
+        "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted"
+      ],
+      "runs": [
+        {
+          "passed": false,
+          "failed": [
+            "after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
+            "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted"
+          ],
+          "checks": 67,
+          "seconds": 351,
+          "timed_out": false
+        },
+        {
+          "passed": false,
+          "failed": [
+            "after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
+            "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted"
+          ],
+          "checks": 67,
+          "seconds": 325,
+          "timed_out": false
+        }
+      ]
+    }
+  ]
+}

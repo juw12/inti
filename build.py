@@ -2,9 +2,16 @@
 """Build Inti.
 
     python build.py          compile everything and write build/inti.img
-    python build.py run      build, then boot the image in a QEMU window
+    python build.py run      build, then boot the image in a QEMU window; files written to
+                             the disk are kept from one run to the next (--fresh: start again)
     python build.py test     build, then run the whole test script in QEMU
     python build.py gates    build, test, and check every hard gate of rubric.md
+    python build.py storage  build, then test the disk server and the file system in QEMU: power
+                             cuts, damaged volumes, limits (--cuts N, --fuzz N, --only CASE)
+    python build.py storage-mutants  plant defects in a copy of the disk server and of the host's
+                             reader of the format, count how many the storage test catches
+    python build.py machines build, then boot the image on several emulated machines (other
+                             processors, memory sizes, disk controllers) and record what works on each
     python build.py model    compile the kernel for this computer and run its model checks
     python build.py mutants  plant defects in a copy of the kernel, count how many the model catches
                              (--held-out: a second sample of places; --fresh: a third, drawn after tests
@@ -16,7 +23,7 @@
     python build.py clean    remove build/ and target/
 
 Needs Rust with the i586-unknown-linux-gnu target and Python 3.9 or newer. Nothing else:
-no assembler, no C compiler, no make. `run`, `test` and `gates` also need QEMU. `model` and
+no assembler, no C compiler, no make. `run`, `test`, `storage`, `machines` and `gates` also need QEMU. `model` and
 `mutants` build an ordinary program, so they need a Rust toolchain that can link one for
 this computer (on Windows the GNU toolchain, or the MSVC one with Visual Studio's linker);
 INTI_HOST_TOOLCHAIN names the toolchain to use, for example stable-x86_64-pc-windows-gnu.
@@ -32,6 +39,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "tools"))
+import intifs  # noqa: E402
+
 BUILD = ROOT / "build"
 TARGET = "i586-unknown-linux-gnu"
 PROGRAMS = sorted(path.stem for path in (ROOT / "user" / "src" / "bin").glob("*.rs"))
@@ -191,9 +201,18 @@ def build() -> Path:
         sys.exit(f"build.py: kernel + archive is {len(payload)} bytes; the boot sector can load {MAX_CHUNKS * CHUNK}")
     struct.pack_into("<H", boot, CHUNK_COUNT_AT, chunks)
 
-    image = bytes(boot) + payload.ljust(chunks * CHUNK, b"\0")
-    megabyte = 1024 * 1024
-    image = image.ljust(max(2, -(-len(image) // megabyte)) * megabyte, b"\0")
+    # The second half of the image is a partition with a formatted volume, for the files
+    # that the `disk` server keeps. The boot sector is also the partition table.
+    volume_at = intifs.VOLUME_START_SECTOR * SECTOR
+    table = slice(intifs.PARTITION_TABLE, intifs.PARTITION_TABLE + 64)
+    if any(boot[CHUNK_COUNT_AT + 2:510]) or SECTOR + chunks * CHUNK > volume_at:
+        sys.exit("build.py: the boot sector or the payload reaches into the partition table or the volume")
+    sectors = intifs.VOLUME_BLOCKS * intifs.SECTORS_PER_BLOCK
+    boot[table] = intifs.partition_entry(intifs.VOLUME_START_SECTOR, sectors).ljust(64, b"\0")
+    seed = [(path.name, path.read_bytes().replace(b"\r\n", b"\n")) for path in sorted((ROOT / "disk").glob("*"))]
+    volume = intifs.format_volume(intifs.VOLUME_BLOCKS, seed)
+
+    image = (bytes(boot) + payload).ljust(volume_at, b"\0") + volume
 
     BUILD.mkdir(exist_ok=True)
     image_path = BUILD / "inti.img"
@@ -208,7 +227,9 @@ def build() -> Path:
         "archive_bytes": len(archive),
         "payload_bytes": len(payload),
         "image_bytes": len(image),
+        "volume_bytes": len(volume),
         "files": {name: len(data) for name, data in files},
+        "disk_files": {name: len(data) for name, data in seed},
     }
     (BUILD / "sizes.json").write_text(json.dumps(sizes, indent=2) + "\n", encoding="utf-8")
     print(f"build.py: kernel {len(kernel)} bytes, archive {len(archive)} bytes ({len(files)} files), "
@@ -244,19 +265,33 @@ def main() -> int:
         return run_tool("mutants.py", sys.argv[2:])
     if command == "mutants-qemu":
         return run_tool("mutants_qemu.py", sys.argv[2:])
+    if command == "storage-mutants":
+        return run_tool("storage_mutants.py", sys.argv[2:])
     if command == "miri":
         return run_tool("miri.py", sys.argv[2:])
     if command == "all":
         return run_tool("all.py", sys.argv[2:])
-    if command not in ("build", "run", "test", "gates"):
+    if command not in ("build", "run", "test", "storage", "machines", "gates"):
         sys.exit(__doc__)
     image = build()
     if command == "run":
-        qemu = [find_qemu(), "-cpu", QEMU_CPU, "-drive", f"format=raw,file={image},if=ide",
+        # build/inti.img is rewritten by every build and must stay exactly what the tests
+        # measured, so the machine runs on a copy. The copy keeps its volume from run to
+        # run and takes only the system (everything in front of the volume) from the build.
+        disk = BUILD / "run.img"
+        built = image.read_bytes()
+        volume_at = intifs.VOLUME_START_SECTOR * SECTOR
+        kept = disk.read_bytes()[volume_at:] if disk.exists() and "--fresh" not in sys.argv else b""
+        disk.write_bytes(built[:volume_at] + (kept if len(kept) == len(built) - volume_at else built[volume_at:]))
+        qemu = [find_qemu(), "-cpu", QEMU_CPU, "-drive", f"format=raw,file={disk},if=ide",
                 "-m", "64", "-serial", "stdio"]
         return subprocess.run(qemu).returncode
     if command == "test":
         return run_tool("test.py", sys.argv[2:])
+    if command == "storage":
+        return run_tool("storage_test.py", sys.argv[2:])
+    if command == "machines":
+        return run_tool("machines.py", sys.argv[2:])
     if command == "gates":
         return run_tool("gates.py", sys.argv[2:])
     return 0

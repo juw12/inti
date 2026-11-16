@@ -6,7 +6,7 @@ Inti (Indonesian for "core") is a boot sector, a capability microkernel of {{loc
 
 **[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of {{tour.steps}} announced steps that takes under a minute ({{web.tour_seconds}} s in the last browser check): a hostile program, a crashed driver, a hung file server, two failures at once and the kernel's counters. Other buttons do each of these on its own and fuzz the kernel.
 
-Inti is not the best operating system in the world, and nothing here says so. It is a research toy: no network, no disk file system, no applications, one processor, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
+Inti is not the best operating system in the world, and nothing here says so. It is a small research system: no network, one processor, a file system that holds a few megabytes on one kind of disk, a handful of small programs, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
 
 | A hostile program is denied | A driver fails and is replaced |
 |---|---|
@@ -50,6 +50,14 @@ The hostile program (a sample; `...` marks lines left out, and the full list is 
 {{log.rogue_short}}
 ```
 
+## Files, programs and other machines
+
+Three things were added after the gates above were fixed. Each has its own page and its own evidence, and none of them is a gate.
+
+- **Files that last.** The disk server keeps files on a disk so that after a power cut a change is whole or absent, and it never writes to a disk that holds no Inti volume. Storage test of {{storage.date}} in QEMU: {{storage.checks_ok}} of {{storage.checks}} checks pass, among them {{storage.cuts}} power cuts at random moments, after which the volume was broken {{storage.cuts_broken}} times, {{storage.states}} disk states built from every sector write of a recorded run, and a drive that the emulator slows down or stops in the middle of a write. Of {{storage.mutants.planted}} faults planted in the disk server, a shortened run of that test caught {{storage.mutants.caught}}. See [files that last](docs/storage.md).
+- **Programs.** A program is one Rust file in `user/src/bin/`. The build puts it in the image, the shell starts it by name and hands it capabilities. [Write a program for Inti](docs/apps.md) walks through one of {{app.counter_lines}} lines that counts its own runs in a file.
+- **Other machines.** The image was started on {{machines.count}} emulated machines that differ in processor, memory and disk controller: {{machines.prompt}} reach the shell and {{machines.kept}} keep a file from one start to the next. [Inti on a real computer](docs/hardware.md) has the table, says what a physical machine would need and how to try one from a USB stick. No physical machine has been tried.
+
 ## Try it
 
 In the browser: open the [live demo](https://juw12.github.io/inti/) and press "Take the guided tour" or any other button, or click the screen and type.
@@ -68,6 +76,12 @@ On your own machine, with QEMU installed, `python build.py run` builds the image
 | `selftest` | {{selftest.checks}} promises of the kernel, checked one by one from an ordinary program |
 | `crash init` | the supervisor itself dies; the kernel starts every program again |
 | `svc`, `ps`, `caps <task>`, `mem`, `uptime` | what is running, who holds which capabilities and what each was copied from, quotas, memory, counters |
+| `ls`, `cat FILE` | the files in the boot archive and on the disk; print one |
+| `write FILE TEXT`, `append FILE TEXT`, `edit FILE` | save a line as a file on the disk, add a line to one, or type a new text for one |
+| `cp FROM TO`, `rm FILE`, `df` | copy a file to the disk, remove one, show how much room is left |
+| `crash disk`, `hang disk` | the disk server fails and is replaced; the files are still there |
+| `counter +disk` | a program that is handed the disk and counts its own runs in a file |
+| `shutdown` | switches the emulated machine off; in `python build.py run` the files are kept for the next start |
 
 ## Build and test
 
@@ -77,7 +91,11 @@ You need Rust with the `i586-unknown-linux-gnu` target, Python {{build.python_mi
 rustup target add i586-unknown-linux-gnu
 python build.py          # compile everything and write build/inti.img
 python build.py run      # boot the image in a QEMU window
+python build.py run --fresh  # the same, starting from the built disk again
 python build.py test     # run every test in QEMU
+python build.py storage  # the storage test: power cuts, disks that must not be touched
+python build.py storage-mutants     # plant faults in the disk server and see whether that test notices (over an hour)
+python build.py machines # start the image on other emulated machines
 python build.py gates    # every check, from a clean build
 python build.py model    # the kernel's source on this machine: directed tests, bounded exploration
 python build.py mutants  # break the kernel on purpose and see which checks notice
@@ -87,7 +105,7 @@ python build.py mutants --unseen    # and in a fourth, drawn after tests were ai
 python build.py mutants --fifth     # and in a fifth, which no test has been aimed at
 python build.py mutants-qemu        # the broken kernels the model let through, booted in QEMU
 python build.py miri                # the directed tests under Miri (needs a nightly toolchain with Miri)
-python build.py all                 # the model and the gates; with --mutants also the five samples and the QEMU run (hours)
+python build.py all                 # the model, the gates, the storage test and the machines; with --mutants also the five samples and the QEMU run (hours)
 ```
 
 The model and the mutation check need a Rust toolchain for the build machine itself; on Windows `build.py` uses the GNU one. They are not part of `gates`. The browser check also needs Playwright with Chromium (`pip install playwright`, then `playwright install chromium`). The last gate run used {{gates.rustc}}, Python {{gates.python}} and {{test.emulator}}; its test run took {{test.duration_s}} s.
@@ -98,7 +116,7 @@ The model and the mutation check need a Rust toolchain for the build machine its
 - **Kernel.** {{loc.kernel_total}} lines of Rust, {{size.kernel_kib}} KiB when built. It hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts, through {{count.syscalls}} system calls. It has no heap, no drivers and no file system. It uses PAE paging and, where the processor has the no-execute bit, enforces W^X: no page is both writable and executable, for programs and for the kernel itself.
 - **Capabilities.** A program can only name what it holds: {{count.cap_types}} kinds of capability (endpoints, I/O ports, interrupt lines, memory, tasks, the kernel log, kernel information). No system call takes a global name such as a process id or a path. A capability can be copied with fewer rights but never more, passed on in a message when both sides hold the grant right, and revoked: whoever handed it out takes back every copy while the holders keep running.
 - **Quotas.** Memory, tasks and endpoints are lent by a parent to its children and returned when they end, so a program can exhaust its own share and nothing else. Processor time is shared out as well: a task gets its parent's percentage or a smaller one, everything it starts counts against it, and a task that has used its percentage of a second runs only when no task within its share wants the processor. In QEMU a program beside three spinning tasks kept {{shares.boot.kept_held}}% of its speed when they were held to {{shares.boot.limit}}% and {{shares.boot.kept_free}}% when they were not.
-- **Drivers.** The console driver (screen, keyboard, serial port) and the file server are ordinary programs, each started with a handful of capabilities.
+- **Drivers.** The console driver (screen, keyboard, serial port), the file server for the boot archive and the disk server (the ATA driver and the file system on the disk, in one program) are ordinary programs, each started with a handful of capabilities.
 - **Supervisor.** `init` holds every capability at boot, hands each server the few it needs, drops its own capabilities for all ports, all interrupt lines and the screen, and restarts a server that crashes or stops answering. If `init` itself dies, the kernel starts user space again.
 - **Self-checking.** `selftest` checks the kernel's promises from user space, the invariant checker inside the kernel recounts every frame, capability and queue, and `fuzz` throws random system calls at the kernel while that checker runs.
 
@@ -106,7 +124,7 @@ The model and the mutation check need a Rust toolchain for the build machine its
 
 ## Where it loses
 
-Inti leads only on the narrow things it was built to show, against systems that were built to do far more. It supports no hardware beyond an emulated PC, and it has no network, no persistent storage, no applications and one processor. Its kernel is tested, self-checking and explored on a host to a small depth, but not proven: seL4 is formally verified and Inti is not. MINIX 3 showed restartable user-mode drivers at real scale years ago, and Redox is a Rust microkernel system that runs real programs. The [scorecard](docs/scorecard.md) goes through this point by point.
+Inti leads only on the narrow things it was built to show, against systems that were built to do far more. It supports no hardware beyond an emulated PC, and it has no network and one processor. Its storage is one small volume on one kind of disk, tested against power cuts only in an emulator, and its programs are the few small ones in this repository. Its kernel is tested, self-checking and explored on a host to a small depth, but not proven: seL4 is formally verified and Inti is not. MINIX 3 showed restartable user-mode drivers at real scale years ago, and Redox is a Rust microkernel system that runs real programs. The [scorecard](docs/scorecard.md) goes through this point by point.
 
 ## About the numbers
 
@@ -122,8 +140,9 @@ No number in these documents is typed by hand unless a source link stands next t
 | `user/` | the runtime library, the supervisor, the drivers, the shell and the test programs ({{loc.user}} lines) |
 | `model/` | the kernel's source compiled for the build machine, with directed tests and a bounded explorer ({{loc.model}} lines) |
 | `build.py`, `tools/` | the build, test, gate and document scripts ({{loc.tools}} lines of Python) |
+| `disk/` | the files that the built image carries on its disk |
 | `evidence/` | the raw logs and every measured number of the last gate run, the last model run and the last mutation run |
-| `docs/` | the browser demo, these documents and their templates |
+| `docs/` | the browser demo, these documents and their templates: [how it works](docs/design.md), [files that last](docs/storage.md), [write a program](docs/apps.md), [a real computer](docs/hardware.md), [weaknesses and sources](docs/weaknesses.md), [the scorecard](docs/scorecard.md) |
 | `rubric.md`, `refine_log.md` | the criteria this project was built against, and the log of the run that built it |
 
 ## Licence

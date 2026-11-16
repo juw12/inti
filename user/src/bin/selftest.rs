@@ -1920,24 +1920,44 @@ fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
 
 /// What `init` handed out by name is all the device authority there is.
 fn authority(test: &mut Test, kids: &mut Kids) -> Option<()> {
-    // The keyboard data port, the test port, the cursor registers, the serial port and the
-    // two power-off ports; the last two stay with `init`.
-    const PORT_RANGES: [(u32, u32); 6] =
-        [(0x60, 0x60), (0x80, 0x80), (0x3D4, 0x3D5), (0x3F8, 0x3FF), (0x604, 0x605), (0xB004, 0xB005)];
+    // The keyboard data port, the test port, the cursor registers and the serial port; the
+    // two power-off ranges, which stay with `init`; and the eight ports of the first disk
+    // controller with its control port, which `init` keeps to restart the disk server and
+    // which one server that `init` started holds besides.
+    const PORT_RANGES: [(u32, u32); 8] = [
+        (0x60, 0x60),
+        (0x80, 0x80),
+        (0x3D4, 0x3D5),
+        (0x3F8, 0x3FF),
+        (0x604, 0x605),
+        (0xB004, 0xB005),
+        (0x1F0, 0x1F7),
+        (0x3F6, 0x3F6),
+    ];
+    const POWER_OFF: core::ops::Range<usize> = 4..6;
+    const DISK: core::ops::Range<usize> = 6..8;
     let archive = cap(kids.me, ARCHIVE);
     let mut c = Check::new();
-    let (mut ranges, mut lines, mut strays) = (0u32, 0u32, 0u32);
+    let (mut ranges, mut lines, mut strays, mut disk_servers) = (0u32, 0u32, 0u32, 0u32);
     for index in 0..MAX_TASKS as u32 {
         if task(index).state == ST_FREE {
             continue;
         }
+        let mut holds_disk_ports = false;
         for slot in 0..CAP_SLOTS as u32 {
             let found = cap(index, slot);
             let listed = match found.kind {
                 CAP_IOPORT => match PORT_RANGES.iter().position(|&(first, last)| found.a >= first && found.b <= last) {
                     Some(range) => {
                         ranges |= 1 << range;
-                        range < 4 || index == 0
+                        if POWER_OFF.contains(&range) {
+                            index == 0
+                        } else if DISK.contains(&range) {
+                            holds_disk_ports |= index != 0;
+                            index == 0 || task(index).parent == 0
+                        } else {
+                            true
+                        }
                     }
                     None => false,
                 },
@@ -1958,9 +1978,11 @@ fn authority(test: &mut Test, kids: &mut Kids) -> Option<()> {
                 outln!("       task ", index, " slot ", slot, ": kind ", found.kind, ", ", Hex(found.a), " to ", Hex(found.b));
             }
         }
+        disk_servers += u32::from(holds_disk_ports);
     }
     c.eq("device capabilities that are not on the list", strays, 0);
-    c.eq("port ranges of the list that somebody holds", ranges, 0b11_1111);
+    c.eq("port ranges of the list that somebody holds", ranges, 0b1111_1111);
+    c.eq("tasks besides `init` that hold ports of the disk controller", disk_servers, 1);
     c.eq("interrupt lines that somebody holds", lines, 1 << 1 | 1 << 4 | 1 << 5);
     test.done("every port, interrupt line and page of device memory that any task holds was handed out by name", c);
     Some(())

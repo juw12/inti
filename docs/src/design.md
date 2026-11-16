@@ -7,8 +7,8 @@ This document describes the system as it is built. Every number in it comes from
 A mainstream kernel contains its drivers, its file systems and its network stack, all running with full control of the machine. Inti's kernel contains none of them. It does five things: it hands out memory, switches between tasks, passes messages, checks capabilities and forwards interrupts. Everything else is an ordinary program.
 
 ```
-ring 3   shell, hello, rogue, selftest, fuzz, bench     programs
-         console driver, file server                    servers: restarted when they fail
+ring 3   shell, hello, counter, rogue, selftest, ...    programs
+         console driver, file server, disk server       servers: restarted when they fail
          init                                           supervisor: starts with every capability
 ------------------------------ system calls ------------------------------
 ring 0   kernel: memory, tasks, messages, capabilities, interrupts
@@ -92,7 +92,7 @@ One mechanism carries everything. A client calls an endpoint and blocks until th
 - The server answers through a reply token that works once. A task cannot answer a call it did not receive.
 - Interrupts, and the ends of supervised tasks, arrive on endpoints as messages from the kernel. Their labels are reserved: a program that tries to send one is refused.
 - A caller whose server dies while handling its request is told so (`E_DEAD`), and the client library sends the request again to the new server. A request that was still waiting in the queue just waits for the new server.
-- A call or a reply can carry one capability. The kernel copies it into a free slot of the receiver only if the capability used for sending and the capability used for receiving both carry the grant right; otherwise the sender gets `E_PERM` and nothing is delivered. The copy has the same rights and is linked to the sender's capability, so the sender can take it back with `cap_revoke`. If the receiver's table is full, the sender gets `E_NOSLOT`. In the shipped system `init` gives clients send-only capabilities and servers receive-only ones, so nobody can push a capability into the console driver, the file server or `init`.
+- A call or a reply can carry one capability. The kernel copies it into a free slot of the receiver only if the capability used for sending and the capability used for receiving both carry the grant right; otherwise the sender gets `E_PERM` and nothing is delivered. The copy has the same rights and is linked to the sender's capability, so the sender can take it back with `cap_revoke`. If the receiver's table is full, the sender gets `E_NOSLOT`. In the shipped system `init` gives clients send-only capabilities and servers receive-only ones, so nobody can push a capability into the console driver, the file server, the disk server or `init`.
 
 ## System calls
 
@@ -106,7 +106,8 @@ This is the complete kernel interface: {{count.syscalls}} calls through interrup
 
 - **`console`** drives the screen, the keyboard and the serial port. It holds its request endpoint, the serial ports `0x3F8` to `0x3FF`, the keyboard data port `0x60`, the cursor ports `0x3D4` and `0x3D5`, two interrupt lines and one page of screen memory. It does not hold the keyboard controller's command port `0x64`, which can reset the machine; after start-up no task does, `init` included, and the self-test walks every task's capabilities to check it.
 - **`fs`** serves the files of the boot archive. It holds its request endpoint and the archive as read-only memory. It keeps no state between requests, so a restart loses nothing.
-- **`shell`** is the command line. A program it starts gets one capability, the right to send text to the console, and a small memory quota. The test programs (`selftest`, `fuzz`, `bench`) get a few more, listed at the top of their source files.
+- **`disk`** is the driver for the disk and the file system on it, in one task. It holds three capabilities: its request endpoint, the ports `0x1F0` to `0x1F7` of the primary ATA channel and that channel's control port `0x3F6`. It holds no interrupt line, because it polls the drive, and no capability to print. What it knows is on the disk, so a restart loses no file. While it waits for a slow drive it goes on answering the supervisor's pings, so that it is not taken for a hung server. [Files that last](storage.md) describes the format and how it was tested.
+- **`shell`** is the command line. A program it starts gets one capability, the right to send text to the console, and a small memory quota. A program started as `NAME +disk` gets a second one, the right to send requests to the disk server. The test programs (`selftest`, `fuzz`, `bench`) get a few more, listed at the top of their source files.
 
 The serial line has one writer at a time. While a console driver is running and answering, `init` does not write its reports through the kernel log; it hands each line to the console as a request (`CON_REPORT`, which goes to the serial port only and is accepted only from the supervisor's badge), with a limit of {{console.report_ms}} ms and no retry. When there is no console, or it does not answer, `init` writes through the kernel log as before. The kernel itself writes to the serial port at boot, on a panic and when it starts user space again, and for a task that holds the log capability and asks (the self-test writes one line that way to test the call).
 
@@ -114,7 +115,7 @@ Each server gets a memory quota of {{supervisor.server_pages}} pages.
 
 ## Supervision
 
-`init` is the root task and the supervisor of {{supervisor.services}} services: the two servers and the shell. Its whole policy is a handful of constants at the top of `user/src/bin/init.rs`:
+`init` is the root task and the supervisor of {{supervisor.services}} services: the console driver, the file server, the disk server and the shell. Its whole policy is a handful of constants at the top of `user/src/bin/init.rs`:
 
 - **Crashes.** When a service ends, for whatever reason, the kernel sends `init` a message and `init` starts a fresh copy with the same capabilities.
 - **Hangs.** Every {{supervisor.ping_every_ms}} ms `init` pings each server. A server that has not answered within {{supervisor.ping_timeout_ms}} ms is ended and replaced. `init` waits for the answer in slices of {{supervisor.ping_slice_ms}} ms and deals with whatever else happened between two slices, so another service that fails during the wait is restarted then and not after the timeout. In the worst case a single hang is noticed after {{supervisor.hang_worst_ms}} ms. Servers are pinged one after the other, so two that hang at the same moment are found one after the other. A new copy gets {{supervisor.grace_ms}} ms before its first ping. The shell is not pinged.
@@ -355,21 +356,21 @@ The exploration was not run under Miri; it would take far longer than the limit.
 - **The Rust compiler and its core library**, and the machine underneath, which here has always been an emulator.
 - **The model**, for everything it shows: its simulated machine and its oracles are {{loc.model}} lines by the same author as the kernel, and a mistake there can hide a mistake in the kernel. The mutation check measures how much they notice, not whether they are right.
 
-Not trusted: the file server, the shell's child programs and anything else started with a narrowed set of capabilities.
+Not trusted with the machine: the file server, the disk server, the shell's child programs and anything else started with a narrowed set of capabilities. The disk server is trusted with the files, and with nothing else: it, and any program that was handed the disk, can change or lose any file on the volume.
 
 ## Limitations
 
 Hardware and scope:
 
 - 32-bit x86 only, one processor, at most {{limits.max_ram_mib}} MiB of memory, and only ever run in QEMU and v86. It has never run on a real machine.
-- No network, no persistent file system, no user accounts, no graphical display, no applications beyond the test and demo programs.
+- No network, no user accounts, no graphical display, no applications beyond the test and demo programs. Files last only on the first drive of the primary ATA channel, in one volume of at most {{disk.max_volume_mib}} MiB with one directory and no rights per file; [Files that last](storage.md) lists the rest of its limits.
 - The clock needs the legacy 8254 timer. If the machine stalls for longer than one wrap of the counter, the clock falls behind. A sleeping task wakes up to one timer interrupt late.
 
 Security:
 
 - No formal verification. The kernel is tested, fuzzed, self-checking and explored on a host to a small depth; that is evidence, not proof. [The model](#the-model) lists what the exploration leaves out.
 - W^X depends on the processor's no-execute bit and has only been shown in two emulators: QEMU, which must be started with `{{test.cpu:raw}}` because its default 32-bit model lacks the bit, and v86. It has never been tried on a real processor. Without the bit the kernel still runs and prints that W^X is not enforced, and a program can then run code from its stack, its data and memory it mapped; the test run boots that way once, and the hostile program's {{nonx.rogue_not_denied}} execute attempts are reported as not denied. W^X stops injected code, not the reuse of code that is already in a program, and there is no address-space randomisation: programs are loaded at fixed addresses.
-- No IOMMU support, and so no protection against a device that can read and write memory by itself. A task that holds the I/O ports of such a device can tell it to write anywhere, into the kernel included, and nothing in the kernel can stop it: such a driver has to be trusted with all of memory, whatever its capabilities say. The shipped system has no driver of that kind; its only driver is the console. After start-up no task holds the full port range, `init` included, but nothing but `init`'s own code makes it give that range up.
+- No IOMMU support, and so no protection against a device that can read and write memory by itself. A task that holds the I/O ports of such a device can tell it to write anywhere, into the kernel included, and nothing in the kernel can stop it: such a driver has to be trusted with all of memory, whatever its capabilities say. The shipped system has no driver of that kind: the console driver has no device that can do it, and the disk server moves every sector through I/O ports and holds neither the ports that would let the disk controller write to memory by itself nor any memory but its own. After start-up no task holds the full port range, `init` included, but nothing but `init`'s own code makes it give that range up.
 - Nothing is done about side channels. A task can read the clock and can measure how long its own calls and its own memory accesses take, so it can learn about another task through the processor's caches, through the state the processor keeps for predicting branches, and through how long the kernel and the servers take to answer. The kernel does not flush that state when it changes from one task to another, does not make its own paths take the same time, and the share of the processor a task gets tells it how busy the others are. The capabilities keep one task from reading another's memory by an instruction; they do not keep it from guessing. None of this was measured.
 - Revocation follows the copies, not the holders. `cap_revoke` takes back everything that was copied from one capability, so a server that wants to cut off one client must have derived a capability for that client beforehand; clients that were handed copies of the same capability go together. Dropping a capability does not revoke its copies. (Earlier versions of this page said a chosen copy could not be taken back. That was wrong: the kernel has not changed, the per-client pattern above always worked, and there is now a self-test for it.)
 - Revocation does not reach back in time. A call that the server has already taken is carried through after the caller's capability is revoked, and its reply can still carry a capability. A task that waits through a revoked capability keeps waiting if another of its capabilities still reaches the same endpoint.
@@ -383,7 +384,7 @@ Robustness:
 
 - A hang is detected only by the ping. The shell itself is not monitored for hangs.
 - While `init` waits for a ping to be answered it handles other failures only between slices of {{supervisor.ping_slice_ms}} ms. Servers are pinged one after the other, so two that hang at the same moment are noticed one after the other. Only one combination of two failures is tested: the console driver hanging while the file server crashes.
-- A client whose request was in flight when the server died sends it again, so a console write can be duplicated. A half-typed line and anything typed ahead are lost when the console driver restarts.
+- A client whose request was in flight when the server died sends it again, so a console write can be duplicated. The same resend exists for the disk server, and no test exercises it there. A half-typed line and anything typed ahead are lost when the console driver restarts.
 - The kernel is not pre-emptible. Shares of the processor are coarse: one-second windows, no enforcement in the first second, an overrun of up to one timer period per window, no donation of a client's share to the server that works for it, and no ceiling, so a program held to a share still takes every cycle that nobody else asks for. They have been measured only in QEMU, under load from the host, on one processor. Revoking a capability and checking the invariants are scans of fixed-size tables that run to their end inside the kernel.
 - The kernel log and the console driver share one serial port. `init` now reports through the console while it answers, which removed the cut lines seen in earlier logs, but two cases remain: if a report takes longer than {{console.report_ms}} ms because the console is slow and not dead, `init` falls back to the kernel log and the line can appear twice or land inside another; and a kernel panic or a restart of user space writes at once, wherever the console's line happens to be.
 

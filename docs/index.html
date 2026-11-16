@@ -16,6 +16,7 @@
     <a href="https://github.com/juw12/inti">Source code</a>
     <a href="https://github.com/juw12/inti/blob/main/docs/design.md">How it works</a>
     <a href="https://github.com/juw12/inti/blob/main/docs/scorecard.md">Where it wins and where it loses</a>
+    <a href="https://github.com/juw12/inti/blob/main/docs/hardware.md">Try it on a real computer</a>
   </p>
 </header>
 
@@ -50,6 +51,12 @@
         <span>The program that draws the screen dies. The supervisor starts a new one.</span></button>
       <button data-command="hang fs" disabled>Hang the file server
         <span>It stops answering. The supervisor notices, ends it and starts a new one.</span></button>
+      <button data-command="write note.txt kept" disabled>Save a file
+        <span>Writes a one-line file to the disk. The disk driver is an ordinary program too.</span></button>
+      <button data-command="crash disk" disabled>Crash the disk driver
+        <span>The driver and its file system die together. The supervisor starts a new one.</span></button>
+      <button data-command="cat note.txt" disabled>Read the file back
+        <span>The new driver reads the disk again, and the file is still there.</span></button>
       <button data-command="rogue" disabled>Run a hostile program
         <span>It tries to read kernel memory, touch hardware and forge permissions.</span></button>
       <button data-command="fuzz 20000" disabled>Fuzz the kernel
@@ -67,13 +74,14 @@
 
   <section class="notes" aria-label="What you are looking at">
     <h2>What you are looking at</h2>
-    <p>The screen driver, the keyboard and serial driver and the file server are ordinary
-    programs. Each one holds only the permissions it was handed, and the kernel
+    <p>The screen driver, the keyboard and serial driver, the disk driver and the file server
+    are ordinary programs. Each one holds only the permissions it was handed, and the kernel
     is the only code that runs with full control of the machine. When a driver crashes or
     stops answering, the supervisor replaces it, and programs that were waiting for it simply
     get their answer from the new one.</p>
     <p>This is a research toy, not a replacement for the system you use every day. It has no
-    network, no disk file system and runs on one processor. The
+    network, keeps only a few small files, and runs on one processor. Files you save here
+    last until you reload the page. The
     <a href="https://github.com/juw12/inti/blob/main/docs/scorecard.md">scorecard</a> says
     plainly where mainstream systems are ahead.</p>
     <p class="credit">The emulator is <a href="https://github.com/copy/v86">v86</a>

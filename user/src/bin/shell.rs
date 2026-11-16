@@ -3,7 +3,11 @@
 //! It is an ordinary task. It can inspect the system through a read-only Info capability,
 //! start programs from the file server, and ask the servers to fail on purpose so that the
 //! recovery can be watched and timed. A program it starts gets one capability by default:
-//! the right to print.
+//! the right to print. `NAME +disk` adds a second one, the disk.
+//!
+//! Files come from two places: the boot archive, which is part of the system image and
+//! cannot be changed, and the disk, which can. A name is looked up in the archive first,
+//! and the shell refuses to write a disk file under the name of an archive file.
 #![no_std]
 #![no_main]
 
@@ -33,6 +37,9 @@ const TEST_LOG: u32 = 9;
 /// A page of video memory that the screen never shows. Only the self-test receives it,
 /// as an example of writable memory that belongs to a device.
 const TEST_DEVICE: u32 = 10;
+/// The disk server, for the shell itself and, with the "program" badge, to hand on.
+const DISK: u32 = 11;
+const APP_DISK: u32 = 12;
 
 /// `double` first gives the servers this long to settle, because `init` does not ping a
 /// server that it has just started.
@@ -50,6 +57,8 @@ const IMAGE_BASE: u32 = USER_BASE + 0x1000_0000;
 const APP_PAGES: u32 = 256;
 const APP_STACK_PAGES: u32 = 16;
 const EMPTY: &[u8] = &[];
+/// The longest text `edit` takes.
+const EDIT_BYTES: usize = 2048;
 
 /// A task number, or a dash for "none", right-aligned.
 struct TaskRef(u32, usize);
@@ -122,6 +131,23 @@ fn words(line: &[u8]) -> [&[u8]; 4] {
     words
 }
 
+fn blank(byte: &u8) -> bool {
+    *byte == b' ' || *byte == b'\t'
+}
+
+/// What follows the first `count` words of a line.
+fn rest(line: &[u8], count: usize) -> &[u8] {
+    let mut rest = line;
+    for _ in 0..count {
+        let start = rest.iter().position(|byte| !blank(byte)).unwrap_or(rest.len());
+        rest = &rest[start..];
+        let end = rest.iter().position(blank).unwrap_or(rest.len());
+        rest = &rest[end..];
+    }
+    let start = rest.iter().position(|byte| !blank(byte)).unwrap_or(rest.len());
+    &rest[start..]
+}
+
 fn number(word: &[u8]) -> Option<u32> {
     if word.is_empty() {
         return None;
@@ -140,19 +166,26 @@ fn help() {
     outln!("Commands:");
     outln!("  help                    this list");
     outln!("  tour                    a guided tour of the fault demonstrations");
-    outln!("  ls                      files in the boot archive");
+    outln!("  ls                      files in the boot archive and on the disk");
     outln!("  cat FILE                print a text file");
+    outln!("  write FILE TEXT         save TEXT as a file on the disk (replaces the file)");
+    outln!("  append FILE TEXT        add a line to a file on the disk");
+    outln!("  edit FILE               type a new text for a file; a line with only . saves");
+    outln!("  cp FROM TO              copy a file to the disk");
+    outln!("  rm FILE                 remove a file from the disk");
+    outln!("  df                      space on the disk");
     outln!("  ps                      tasks with their memory quota and CPU time");
     outln!("  caps TASK               capabilities a task holds (task number or name)");
     outln!("  mem                     memory use");
     outln!("  uptime                  kernel counters and the invariant check");
     outln!("  svc                     supervised services and their restarts");
-    outln!("  crash console|fs|init   make that component fail with a page fault");
-    outln!("  hang console|fs         make that server stop answering");
+    outln!("  crash console|fs|disk|init  make that component fail with a page fault");
+    outln!("  hang console|fs|disk    make that server stop answering");
     outln!("  double                  hang the console and crash fs at the same time");
     outln!("  rogue [all]             run a hostile program and count what it is denied");
     outln!("  shutdown                switch the machine off");
     outln!("  NAME [N ...]            run a program: hello, selftest, bench, fuzz 100000");
+    outln!("  NAME +disk              run it with the disk as a second capability: counter");
     outln!("Ctrl-C stops the running program.");
 }
 
@@ -162,13 +195,136 @@ fn list() {
         outln!("  ", Pad(name(&file), 12), Num(size, 8), " bytes");
         index += 1;
     }
+    let files = match client::disk_info(DISK) {
+        Ok([_, _, files, _]) => files,
+        Err(reason) => return outln!("disk: ", client::disk_error(reason)),
+    };
+    outln!("disk: ", files, plural(files));
+    let mut index = 0;
+    while let Some((file, size)) = client::list(DISK, index) {
+        outln!("  ", Pad(name(&file), 24), Num(size, 8), " bytes");
+        index += 1;
+    }
+}
+
+/// Where a file is read from: the boot archive if it has the name, otherwise the disk.
+fn source(file: &[u8]) -> u32 {
+    if client::stat(FILES, file).is_some() {
+        FILES
+    } else {
+        DISK
+    }
+}
+
+/// May the shell write a disk file called `file`? Not under the name of an archive file,
+/// which would hide the new file from `cat` and from the command line.
+fn writable(verb: &str, file: &[u8]) -> bool {
+    if file.is_empty() {
+        outln!("usage: ", verb, " FILE ...; type help");
+        return false;
+    }
+    if client::stat(FILES, file).is_some() {
+        outln!(verb, ": ", file, " is part of the boot archive, which cannot be changed");
+        return false;
+    }
+    true
+}
+
+fn saved(verb: &str, file: &[u8], result: Result<(), u32>) {
+    if let Err(reason) = result {
+        outln!(verb, ": ", file, ": ", client::disk_error(reason));
+    }
+}
+
+fn write(verb: &str, file: &[u8], text: &[u8]) {
+    if !writable(verb, file) {
+        return;
+    }
+    // The line buffer of the shell is shorter than this, so the text always fits.
+    let mut line = [b'\n'; MSG_DATA];
+    let len = text.len().min(MSG_DATA - 1);
+    line[..len].copy_from_slice(&text[..len]);
+    let line = &line[..len + 1];
+    let result = match verb {
+        "append" => client::append(DISK, file, line),
+        _ => client::save(DISK, file, line),
+    };
+    saved(verb, file, result);
+}
+
+/// Take lines from the keyboard until a line with only a dot, then save them as `file`.
+/// Nothing on the disk changes before that, and then it changes in one step.
+fn edit(file: &[u8]) {
+    if !writable("edit", file) {
+        return;
+    }
+    outln!("Type the new text of ", file, ". A line with only . saves it; .q gives up.");
+    let mut text = [0; EDIT_BYTES];
+    let mut len = 0;
+    let mut line = [0; 120];
+    loop {
+        let count = client::readline(CONSOLE, b"| ", &mut line);
+        match &line[..count] {
+            b"." => break,
+            b".q" => return outln!("edit: nothing was saved"),
+            _ if len + count + 1 > EDIT_BYTES => {
+                outln!("edit: the text is limited to ", EDIT_BYTES, " bytes; . saves, .q gives up")
+            }
+            typed => {
+                text[len..len + count].copy_from_slice(typed);
+                text[len + count] = b'\n';
+                len += count + 1;
+            }
+        }
+    }
+    saved("edit", file, client::save(DISK, file, &text[..len]));
+}
+
+fn copy(from: &[u8], to: &[u8]) {
+    if from.is_empty() {
+        return outln!("usage: cp FROM TO");
+    }
+    if !writable("cp", to) {
+        return;
+    }
+    match client::load(source(from), from, IMAGE_BASE) {
+        Some(file) => saved("cp", to, client::save(DISK, to, file.bytes())),
+        None => outln!("cp: ", from, ": no such file"),
+    }
+}
+
+fn remove(file: &[u8]) {
+    if writable("rm", file) {
+        saved("rm", file, client::remove(DISK, file));
+    }
+}
+
+fn plural(files: u32) -> &'static str {
+    if files == 1 {
+        " file"
+    } else {
+        " files"
+    }
+}
+
+fn disk_space() {
+    match client::disk_info(DISK) {
+        Ok([blocks, free, files, startup_us]) => {
+            outln!(
+                "disk: ", files, plural(files), ", ", free, " of ", blocks, " blocks of 4 KiB free"
+            );
+            outln!("the disk server was ready ", startup_us, " us after it started");
+        }
+        Err(reason) => outln!("disk: ", client::disk_error(reason)),
+    }
 }
 
 fn cat(file: &[u8]) {
+    let from = source(file);
     let mut chunk = [0; MSG_DATA];
     let mut offset = 0;
     loop {
-        match client::read(FILES, file, offset, &mut chunk) {
+        match client::read(from, file, offset, &mut chunk) {
             None => return outln!("cat: ", file, ": no such file"),
             Some(0) => return,
             Some(count) => {
@@ -342,12 +498,13 @@ fn inject(label: u32, target: &[u8]) {
     let endpoint = match target {
         b"console" => CONSOLE,
         b"fs" => FILES,
+        b"disk" => DISK,
         b"init" if label == DBG_CRASH => {
             outln!("Crashing the root task. The kernel will start user space again.");
             let _ = sys::call(CONTROL, &mut Msg::new(DBG_CRASH), FOREVER);
             return;
         }
-        _ => return outln!("usage: crash console|fs|init, or hang console|fs"),
+        _ => return outln!("usage: crash console|fs|disk|init, or hang console|fs|disk"),
     };
     let start = sys::time();
     // The server dies while it holds this request, so the kernel answers E_DEAD.
@@ -428,12 +585,14 @@ struct Shell {
 
 impl Shell {
     /// Start a program and wait until it ends; returns the kernel's end-of-task notice.
-    fn run(&mut self, program: &[u8], args: [u32; 3]) -> Option<Msg> {
-        if client::stat(FILES, program).is_none() {
+    /// With `disk`, the program also gets the right to use the disk.
+    fn run(&mut self, program: &[u8], args: [u32; 3], disk: bool) -> Option<Msg> {
+        let from = source(program);
+        if client::stat(from, program).is_none() {
             outln!(program, ": no such command or program; type help");
             return None;
         }
-        let Some(image) = client::load(FILES, program, IMAGE_BASE) else {
+        let Some(image) = client::load(from, program, IMAGE_BASE) else {
             outln!(program, ": cannot be loaded");
             return None;
         };
@@ -441,9 +600,11 @@ impl Shell {
             outln!(program, " is not a program; try cat ", program);
             return None;
         }
-        // Least privilege: a program gets the console and nothing else. Only the three
-        // test programs get more, because their job is to probe the kernel.
-        let tester = matches!(program, b"selftest" | b"fuzz" | b"bench");
+        // Least privilege: a program gets the console and nothing else, unless the user
+        // asks for the disk as well. Only the three test programs get more, because their
+        // job is to probe the kernel; and only the ones from the boot archive, so that a
+        // disk file with such a name gets nothing extra.
+        let tester = from == FILES && matches!(program, b"selftest" | b"fuzz" | b"bench");
         let quota = if tester { self.quota / 2 } else { APP_PAGES };
         let mut spawn = SpawnArgs::new(program, quota, APP_STACK_PAGES);
         spawn.caps[0] = APP_CONSOLE;
@@ -463,6 +624,9 @@ impl Shell {
             // Room for one task, so that the kernel judges the hostile program's attempts to
             // start one by what they ask for and not by an empty quota.
             spawn.tasks = 1;
+        }
+        if disk && !tester {
+            spawn.caps[rt::app::DISK as usize] = APP_DISK;
         }
         self.launches += 1;
         let badge = self.launches;
@@ -506,7 +670,7 @@ impl Shell {
         let mut denied = 0;
         let mut total = 0;
         let mut skipped = 0u32;
-        match self.run(b"rogue", [0; 3]) {
+        match self.run(b"rogue", [0; 3], false) {
             Some(end) if end.words[0] == CAUSE_EXIT => {
                 denied += end.words[1] >> 16;
                 total += end.words[1] & 0xFFFF;
@@ -519,7 +683,7 @@ impl Shell {
         }
         for mode in 1..=ROGUE_HW_MODES {
             let skip = mode == ROGUE_ONLY_IN_ALL && !all;
-            let end = self.run(b"rogue", [mode, skip as u32, 0]);
+            let end = self.run(b"rogue", [mode, skip as u32, 0], false);
             if skip {
                 skipped += 1;
                 outln!("skipped");
@@ -578,6 +742,12 @@ impl Shell {
             b"tour" => self.tour(),
             b"ls" => list(),
             b"cat" => cat(first),
+            b"write" => write("write", first, rest(line, 2)),
+            b"append" => write("append", first, rest(line, 2)),
+            b"edit" => edit(first),
+            b"cp" => copy(first, second),
+            b"rm" => remove(first),
+            b"df" => disk_space(),
             b"ps" => tasks(),
             b"caps" => capabilities(first),
             b"mem" => memory(self.quota),
@@ -589,8 +759,10 @@ impl Shell {
             b"rogue" => self.rogue(first == b"all"),
             b"shutdown" => shutdown(),
             program => {
-                let args = [first, second, third].map(|word| number(word).unwrap_or(0));
-                if let Some(end) = self.run(program, args) {
+                let words = [first, second, third];
+                let disk = words.contains(&b"+disk".as_slice());
+                let args = words.map(|word| number(word).unwrap_or(0));
+                if let Some(end) = self.run(program, args, disk) {
                     report(program, &end);
                 }
             }

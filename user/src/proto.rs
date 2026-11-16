@@ -20,6 +20,47 @@ pub const FS_STAT: u32 = 11;
 /// Name in `data`, `words[0]` = offset, `words[1]` = byte count; reply: bytes in `data`.
 pub const FS_READ: u32 = 12;
 
+// Disk server. It also answers `FS_LIST`, `FS_STAT` and `FS_READ` for the files on the disk;
+// an `FS_READ` reply can be shorter than asked for, and is empty only at the end of the file.
+/// Start a new version of the file named in `data`; reply: `words[0]` = transaction number.
+/// Nothing changes on the disk for readers until `DISK_COMMIT`.
+pub const DISK_CREATE: u32 = 40;
+/// `words[0]` = transaction number; add `data[..len]` to the end of the new version.
+pub const DISK_WRITE: u32 = 41;
+/// `words[0]` = transaction number; replace the file by the new version in one step.
+pub const DISK_COMMIT: u32 = 42;
+/// Add bytes to the end of a file in one step. `words[0]` = length of the name, `words[1]` =
+/// the size the sender believes the file has (0 if it does not exist yet); `data` holds the
+/// name and then the bytes. If the size is different, nothing is written and the reply is
+/// `ERR` with the real size in `words[0]` and `D_MOVED` in `words[1]`.
+pub const DISK_APPEND: u32 = 43;
+/// Remove the file named in `data`.
+pub const DISK_DELETE: u32 = 44;
+/// Reply: `words` = data blocks, free blocks, files, microseconds the start-up took.
+pub const DISK_INFO: u32 = 45;
+
+/// Size of a disk block in bytes.
+pub const DISK_BLOCK: u32 = 4096;
+
+// Why the disk server answered `ERR`, in `words[1]` of the reply.
+pub const D_NO_DRIVE: u32 = 1;
+pub const D_NO_VOLUME: u32 = 2;
+pub const D_DAMAGED: u32 = 3;
+pub const D_NO_FILE: u32 = 4;
+pub const D_FULL: u32 = 5;
+pub const D_DIR_FULL: u32 = 6;
+pub const D_BAD_NAME: u32 = 7;
+/// The transaction number is not the open one: another writer started, or the server was
+/// restarted. The whole file has to be sent again.
+pub const D_STALE: u32 = 8;
+pub const D_MOVED: u32 = 9;
+pub const D_IO: u32 = 10;
+// Two more that the client library reports and the server never sends.
+/// The capability does not allow the request.
+pub const D_DENIED: u32 = 11;
+/// The server did not answer.
+pub const D_GONE: u32 = 12;
+
 // Understood by every supervised server.
 pub const PING: u32 = 20;
 /// Fault injection: end with a real CPU exception. Honoured only for the shell's badge.

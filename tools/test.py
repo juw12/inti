@@ -34,7 +34,7 @@ import build  # noqa: E402
 
 EVIDENCE = ROOT / "evidence"
 IMAGES = ROOT / "docs" / "img"
-SERVICES = ("console", "fs")
+SERVICES = ("console", "fs", "disk")
 # The supervisor counts a server that ends less than 2 s after it started towards its
 # restart back-off. Faults that are timed are therefore injected into settled servers.
 SETTLE_S = 2.6
@@ -372,6 +372,19 @@ def bench(run: Run) -> None:
     run.measured["bench_ns"] = results
 
 
+def programs_from_disk(run: Run) -> None:
+    """A program file copied to the disk runs by its name, and with nothing but an ordinary program's share."""
+    run.vm.command("cp hello hi", timeout=30)
+    text = run.vm.command("hi", timeout=30)
+    run.check("a program copied to the disk runs from there", "Hello from user space." in text, text[-200:])
+    run.vm.command("cp selftest st2", timeout=30)
+    text = run.vm.command("st2", timeout=60)
+    run.check("a copy of the self-test on the disk gets none of its extra capabilities",
+              "SELFTEST: FAIL" in text and "SELFTEST: PASS" not in text, text[-200:])
+    run.vm.command("rm hi", timeout=30)
+    run.vm.command("rm st2", timeout=30)
+
+
 def keyboard(run: Run) -> None:
     run.vm.press("u", "p", "t", "i", "m", "e", "ret")
     text = run.vm.wait_for_prompt(timeout=15)
@@ -551,6 +564,7 @@ def main() -> int:
         supervisor_crash(run)
         fuzz(run, options.fuzz)
         bench(run)
+        programs_from_disk(run)
         selftest(run, "after all faults")
         keyboard(run)
         clock(run)

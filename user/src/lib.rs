@@ -13,6 +13,15 @@ pub mod io;
 pub mod proto;
 pub mod sys;
 
+/// The capability slots of a program that the shell starts.
+pub mod app {
+    /// Send right on the console endpoint. Every program gets it.
+    pub const CONSOLE: u32 = 0;
+    /// Send right on the disk server's endpoint. Empty unless the program was started with
+    /// `+disk` after its name.
+    pub const DISK: u32 = 1;
+}
+
 use core::arch::{asm, naked_asm};
 use core::cell::Cell;
 

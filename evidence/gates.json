@@ -1,33 +1,39 @@
 {
   "rubric": "inti-os-v1",
   "mode": "full",
-  "date": "2026-11-13T15:33:18+07:00",
-  "image_sha256": "57f7d9992635ccb84e471fb2f44be143ef146107081cb66e182ed13069618ed8",
+  "date": "2026-11-16T14:42:09+07:00",
+  "image_sha256": "5d8f814448ea0d3adc7ef851aaa5d05f17ac03202b0c60254e830c52c44813e4",
   "sizes": {
     "boot_sector_bytes": 512,
     "kernel_bytes": 70400,
-    "archive_bytes": 210272,
-    "payload_bytes": 280672,
+    "archive_bytes": 243104,
+    "payload_bytes": 313504,
     "image_bytes": 2097152,
+    "volume_bytes": 1048576,
     "files": {
       "bench": 12288,
       "console": 12288,
+      "counter": 8192,
+      "disk": 16384,
       "fs": 8192,
       "fuzz": 16384,
       "hello": 8192,
       "init": 16384,
       "rogue": 12288,
       "selftest": 81920,
-      "shell": 28672,
+      "shell": 36864,
       "tchild": 12288,
       "readme.txt": 1007
+    },
+    "disk_files": {
+      "welcome.txt": 160
     }
   },
   "toolchain": {
     "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
     "python": "3.13.2"
   },
-  "build_seconds": 27,
+  "build_seconds": 94,
   "tries": {
     "qemu_test": [
       0
@@ -41,13 +47,13 @@
       "id": "G1",
       "title": "One command builds the disk image from a clean tree",
       "ok": true,
-      "detail": "clean build in 27 s wrote build/inti.img (2,097,152 bytes)"
+      "detail": "clean build in 94 s wrote build/inti.img (2,097,152 bytes)"
     },
     {
       "id": "G2",
       "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
       "ok": true,
-      "detail": "shell prompt 269 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
+      "detail": "shell prompt 193 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
     },
     {
       "id": "G3",
@@ -59,7 +65,7 @@
       "id": "G4",
       "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
       "ok": true,
-      "detail": "console crash 8.6 ms, fs crash 4.9 ms, console hang 712.3 ms, fs hang 715.3 ms, fs crash during a console hang: fs 39.9 ms and console 625.6 ms (median of 5 runs each, guest clock); the shell answered after every run"
+      "detail": "console crash 7.0 ms, fs crash 2.9 ms, disk crash 114.5 ms, console hang 695.4 ms, fs hang 714.2 ms, disk hang 772.6 ms, fs crash during a console hang: fs 39.5 ms and console 690.9 ms (median of 5 runs each, guest clock); the shell answered after every run"
     },
     {
       "id": "G5",
@@ -71,19 +77,19 @@
       "id": "G6",
       "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
       "ok": true,
-      "detail": "1,000,789 random system calls from 2,063 tasks, 4,307 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
+      "detail": "1,000,754 random system calls from 2,153 tasks, 4,577 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
     },
     {
       "id": "G7",
       "title": "No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code",
       "ok": true,
-      "detail": "no alloc crate in the kernel; 87 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000)"
+      "detail": "no alloc crate in the kernel; 88 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000)"
     },
     {
       "id": "G8",
       "title": "The same disk image boots to the shell prompt in a web browser",
       "ok": true,
-      "detail": "shell prompt after 2.45 s in v86 0.5.473 (WebAssembly) under chromium 157.0.4341.46 (headless); 7 commands answered; byte-for-byte the image of the QEMU test"
+      "detail": "shell prompt after 1.69 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 11 commands answered; byte-for-byte the image of the QEMU test"
     },
     {
       "id": "G9",
