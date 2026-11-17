@@ -1,11 +1,13 @@
 
-Inti 0.1.0 kernel
-kernel: 564 KiB kernel and archive, 126 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 126 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
-init: started shell with 11 capabilities, 31968 pages
-Inti 0.1.0 shell ready at t=20636 us
+init: started disk with 3 capabilities, 64 pages
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 31495 pages
+Inti 0.3.0 shell ready at t=18122 us
 Type help for the list of commands, or tour for a guided tour.
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -67,4 +69,4 @@ selftest: this line was written through the Log capability
   ok   shared memory keeps the rights and the bounds of its capability
   ok   a copy of a memory capability covers the same pages or fewer
   ok   a page that was unmapped faults when it is touched again
-KERNEL PANIC:
+KERNEL PANIC: p

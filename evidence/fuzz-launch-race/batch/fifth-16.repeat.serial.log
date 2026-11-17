@@ -1,0 +1,34 @@
+
+Inti 0.1.0 kernel
+kernel: 564 KiB kernel and archive, 62 MiB for user space
+kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
+init: started console with 6 capabilities, 64 pages
+init: started fs with 2 capabilities, 64 pages
+init: started shell with 11 capabilities, 15552 pages
+Inti 0.1.0 shell ready at t=15177 us
+Type help for the list of commands, or tour for a guided tour.
+inti> selftest
+Each line is one promise of the kernel, checked from user space.
+  ok   the kernel's invariants hold at the start
+  ok   the kernel has met nothing unexpected so far
+  ok   system call numbers that do not exist give E_NOSYS
+  ok   a message buffer outside the caller's memory gives E_FAULT
+  ok   a message buffer the caller cannot write gives E_FAULT
+  ok   a message buffer is checked up to its last byte
+  ok   log checks the length and the address of the text
+  ok   sysinfo checks where it writes and what it is asked
+  ok   spawn checks the addresses of the image and of its arguments
+  ok   an empty or impossible capability slot gives E_NOCAP
+  ok   a capability of the wrong kind gives E_NOCAP
+  ok   a copy of a capability has the same rights or fewer
+  ok   a badge is set once, and only by a holder of the grant right
+  ok   a dropped capability is gone
+  ok   an I/O port capability reaches its ports and no others
+  ok   an interrupt capability reaches its lines and no others
+  ok   an interrupt line is released when its endpoint goes away
+selftest: this line was written through the Log capability
+  ok   the Log capability writes to the kernel log
+  ok   the Info capability describes tasks and their capabilities
+  ok   no task, init included, holds a capability for the reset port 0x64
+  ok   the drivers refuse to crash or hang for an ordinary program
+  ok   every port, interrupt line and page of device memory that any task holds was handed out by name

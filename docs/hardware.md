@@ -13,26 +13,27 @@ Read from the source (`boot/src/main.rs`, `kernel/src/arch.rs`, `kernel/src/mem.
 | Processor | A 32-bit x86 processor with PAE paging; a 64-bit one runs Inti in 32-bit mode. The no-execute bit is used when the processor has it. | Without PAE the kernel stops with a message. Without the no-execute bit Inti runs and its first lines say that writable memory can be executed. |
 | Number of processors | One. Others are never started. | - |
 | Interrupts and clock | The two legacy interrupt controllers (8259) and the legacy timer (8254). | No clock tick: the system hangs early. Some recent machines have neither. |
-| Screen | The VGA text screen. | Nothing to see; the serial port still carries every line. |
+| Screen | A VGA-compatible card that takes the standard register values for 640 by 480 pixels in 16 colours. | Nothing to see, or a garbled picture; the serial port still carries every line. A kernel panic is reported on the serial port only. |
+| Mouse | A PS/2 mouse on the keyboard controller. A USB mouse works only if the firmware imitates one. | No pointer; everything else works. |
 | Keyboard | The keyboard controller at port `0x60` and its interrupt. A USB keyboard works only if the firmware imitates that controller (often called "USB legacy support"). | The system starts and nothing can be typed, except over the serial port. |
 | Serial port | COM1 at `0x3F8`, optional. Everything on the screen is also written there, and input is read from it. | - |
 | Disk for files | The first drive on the primary ATA channel (eight ports from `0x1F0`, and `0x3F6`), by polling, without DMA. | The system starts, the disk server says `no ATA disk found`, and no file lasts. This is the case on SATA drives in AHCI mode, on NVMe drives and on USB sticks. |
 
 ## What was measured, in an emulator
 
-On 2026-11-16 the built image was started on 10 emulated machines (QEMU 11.1.0 on Windows 10, about a minute; `python build.py machines` repeats it). 9 of them started, 8 reached the shell, 8 passed `selftest`, and 6 wrote a file to the disk and read it back. 2 reached the shell and kept no file.
+On 2026-11-17 the built image was started on 10 emulated machines (QEMU 11.1.0 on Windows 10, about a minute; `python build.py machines` repeats it). 9 of them started, 8 reached the shell, 8 passed `selftest`, and 6 wrote a file to the disk and read it back. 2 reached the shell and kept no file.
 
 | Machine | What differs | QEMU arguments | Memory | Reaches the shell | `selftest` | What the disk server says | Keeps a file | Note |
 |---|---|---|---|---|---|---|---|---|
-| `tested` | the machine every test uses: i440FX board, 32-bit processor with the no-execute bit, IDE disk | `-` | 64 MiB | yes, after 0.1 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
+| `tested` | the machine every test uses: i440FX board, 32-bit processor with the no-execute bit, IDE disk | `-` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
 | `no-nx` | a processor without the no-execute bit (Pentium III) | `-cpu pentium3` | 64 MiB | yes, after 0.2 s | PASS 93/93 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
 | `newest-cpu` | every processor feature QEMU can emulate, 64-bit ones included | `-cpu max` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
 | `no-pae` | a processor without PAE paging (486) | `-cpu 486` | 64 MiB | no | - | - | no | no prompt; the serial port says: KERNEL PANIC: panicked at kernel/src/mem.rs:151:9: this processor has no PAE paging, which Inti needs |
 | `small-memory` | the least memory tried | `-` | 16 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
-| `large-memory` | the most memory tried | `-` | 2048 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
-| `two-processors` | two processors | `-smp 2` | 64 MiB | yes, after 0.1 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
+| `large-memory` | the most memory tried | `-` | 2048 MiB | yes, after 0.1 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
+| `two-processors` | two processors | `-smp 2` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |
 | `q35` | Q35 board: the disk hangs on an AHCI (SATA) controller | `-machine q35` | 64 MiB | yes, after 0.1 s | PASS 96/96 | no ATA disk found | no |  |
-| `usb-stick` | the image on a USB stick, no other disk | `-usb -device usb-storage,drive=stick,bootindex=0` | 64 MiB | yes, after 0.9 s | PASS 96/96 | no ATA disk found | no |  |
+| `usb-stick` | the image on a USB stick, no other disk | `-usb -device usb-storage,drive=stick,bootindex=0` | 64 MiB | yes, after 1.1 s | PASS 96/96 | no ATA disk found | no |  |
 | `whpx` | hardware virtualisation (Windows Hypervisor Platform) instead of emulation | `-accel whpx` | 64 MiB | no | - | - | no | QEMU did not start; it wrote: qemu-system-i386: -accel whpx: invalid accelerator whpx |
 
 Each machine starts from the same image file, in a mode in which the emulator throws its writes away afterwards. "Keeps a file" means that `write machine.txt kept` was followed by a `cat machine.txt` that printed the line. A machine that did not start, or did not reach the shell, is listed with what the emulator or the serial port said.
@@ -74,7 +75,8 @@ Type these at the prompt, in this order, and note what each one prints.
 |---|---|
 | `help` | the list of commands |
 | `selftest` | 96 lines that start with `ok`, then `SELFTEST: PASS` |
-| `tour` | a hostile program is denied, a driver crashes and is replaced, a server hangs and is replaced; under a minute in the emulator |
+| `tour` | a hostile program is denied, a driver and the display crash and are replaced, a server hangs and is replaced; under a minute in the emulator |
+| `desktop` | a clock and a game of Life appear, each in a window; if a mouse is found, the pointer moves and drags windows |
 | `df` | the files and free blocks of the volume, or the reason there is none |
 | `uptime` | the time since the start and the kernel's counters; compare the time with a watch |
 | `shutdown` | see below |

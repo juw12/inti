@@ -17,7 +17,7 @@ How to read it: figures and failure behaviour of other systems carry a link in t
 
 Reading this table fairly:
 
-- Against Linux and Windows, Inti shows the property it was built for: a failing driver is contained and replaced while everything else keeps running. It shows it with a console driver, a disk driver and a file server, in an emulator, under no real workload.
+- Against Linux and Windows, Inti shows the property it was built for: a failing driver is contained and replaced while everything else keeps running. It shows it with a console driver, a disk driver, a display server and a file server, in an emulator, under no real workload.
 - Against seL4, MINIX 3 and Redox, Inti shows nothing they do not already do better. MINIX 3 has restartable user-mode drivers at real scale, seL4 has capabilities with proofs, and Redox is a Rust microkernel system with real applications.
 - Inti's kernel is small because it does little, not because it does the same with less. The line counts in the table are not a like-for-like comparison.
 
@@ -30,7 +30,8 @@ Reading this table fairly:
 | Network | none | yes |
 | Storage | a read-only archive loaded at boot, and one small volume on an ATA disk: at most {{disk.max_volume_mib}} MiB, {{disk.max_files}} files, one directory. Checked against power cuts only in an emulator ([Files that last](storage.md)) | real file systems |
 | Programs | {{size.programs}} small ones, and a shell without pipes or scripts | everything people use computers for |
-| Drivers | two: one for the screen, the keyboard and the serial port, one for an ATA disk | thousands |
+| Drivers | three: one for the keyboard, the mouse and the serial port, one for an ATA disk, one for a standard VGA card | thousands |
+| Graphics | {{display.width}} by {{display.height}} pixels in {{display.colours}} colours, drawn in software; a terminal window and at most {{display.windows}} small windows of programs, moved with the mouse; no keyboard input to a window, no toolkit | accelerated desktops with real applications |
 | Assurance | tests, a fuzzer, a run-time checker and a bounded exploration on a host, by one author | decades of use; for seL4, proofs |
 | Age | built in one session on {{gates.date}} | years to decades |
 

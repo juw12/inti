@@ -1,6 +1,6 @@
 {
  "test.date": {
-  "value": "2026-11-17",
+  "value": "2026-11-18",
   "source": "evidence/test.json"
  },
  "test.emulator": {
@@ -12,15 +12,15 @@
   "source": "evidence/test.json"
  },
  "test.duration_s": {
-  "value": 330,
+  "value": 303,
   "source": "evidence/test.json"
  },
  "test.checks_total": {
-  "value": 40,
+  "value": 51,
   "source": "evidence/test.json"
  },
  "test.checks_passed": {
-  "value": 40,
+  "value": 51,
   "source": "evidence/test.json"
  },
  "test.fault_runs": {
@@ -28,15 +28,15 @@
   "source": "evidence/test.json"
  },
  "version": {
-  "value": "0.2.1",
+  "value": "0.3.0",
   "source": "evidence/test.json"
  },
  "boot.host_ms": {
-  "value": 144,
+  "value": 181,
   "source": "evidence/test.json"
  },
  "boot.guest_ms": {
-  "value": 17.9,
+  "value": 18.4,
   "source": "evidence/test.json"
  },
  "selftest.checks": {
@@ -84,15 +84,15 @@
   "source": "evidence/test.json"
  },
  "recovery.console_crash.median_ms": {
-  "value": 50.7,
+  "value": 7.8,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.min_ms": {
-  "value": 7.4,
+  "value": 6.5,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.max_ms": {
-  "value": 54.8,
+  "value": 68.5,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.runs": {
@@ -100,23 +100,23 @@
   "source": "evidence/test.json"
  },
  "recovery.console_crash.host_median_ms": {
-  "value": 95,
+  "value": 12,
   "source": "evidence/test.json"
  },
  "recovery.console_crash.respawn_median_ms": {
-  "value": 26.3,
+  "value": 2.7,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.median_ms": {
-  "value": 4.7,
+  "value": 4.5,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.min_ms": {
-  "value": 4.3,
+  "value": 4.1,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.max_ms": {
-  "value": 86.6,
+  "value": 8.9,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.runs": {
@@ -124,23 +124,23 @@
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.host_median_ms": {
-  "value": 11,
+  "value": 8,
   "source": "evidence/test.json"
  },
  "recovery.fs_crash.respawn_median_ms": {
-  "value": 2.5,
+  "value": 2.2,
   "source": "evidence/test.json"
  },
  "recovery.disk_crash.median_ms": {
-  "value": 24.5,
+  "value": 27.0,
   "source": "evidence/test.json"
  },
  "recovery.disk_crash.min_ms": {
-  "value": 21.1,
+  "value": 19.0,
   "source": "evidence/test.json"
  },
  "recovery.disk_crash.max_ms": {
-  "value": 26.0,
+  "value": 30.1,
   "source": "evidence/test.json"
  },
  "recovery.disk_crash.runs": {
@@ -148,23 +148,47 @@
   "source": "evidence/test.json"
  },
  "recovery.disk_crash.host_median_ms": {
-  "value": 28,
+  "value": 31,
   "source": "evidence/test.json"
  },
  "recovery.disk_crash.respawn_median_ms": {
-  "value": 3.9,
+  "value": 4.4,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_crash.median_ms": {
+  "value": 114,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_crash.min_ms": {
+  "value": 113,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_crash.max_ms": {
+  "value": 115,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_crash.runs": {
+  "value": 5,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_crash.host_median_ms": {
+  "value": 118,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_crash.respawn_median_ms": {
+  "value": 96.8,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.median_ms": {
-  "value": 708,
+  "value": 731,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.min_ms": {
-  "value": 691,
+  "value": 661,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.max_ms": {
-  "value": 769,
+  "value": 801,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.runs": {
@@ -172,23 +196,23 @@
   "source": "evidence/test.json"
  },
  "recovery.console_hang.host_median_ms": {
-  "value": 738,
+  "value": 737,
   "source": "evidence/test.json"
  },
  "recovery.console_hang.respawn_median_ms": {
-  "value": 1.9,
+  "value": 2.1,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.median_ms": {
-  "value": 777,
+  "value": 762,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.min_ms": {
-  "value": 727,
+  "value": 733,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.max_ms": {
-  "value": 782,
+  "value": 772,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.runs": {
@@ -196,23 +220,23 @@
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.host_median_ms": {
-  "value": 808,
+  "value": 765,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang.respawn_median_ms": {
-  "value": 5.0,
+  "value": 1.3,
   "source": "evidence/test.json"
  },
  "recovery.disk_hang.median_ms": {
-  "value": 779,
+  "value": 718,
   "source": "evidence/test.json"
  },
  "recovery.disk_hang.min_ms": {
-  "value": 725,
+  "value": 677,
   "source": "evidence/test.json"
  },
  "recovery.disk_hang.max_ms": {
-  "value": 818,
+  "value": 748,
   "source": "evidence/test.json"
  },
  "recovery.disk_hang.runs": {
@@ -220,23 +244,47 @@
   "source": "evidence/test.json"
  },
  "recovery.disk_hang.host_median_ms": {
-  "value": 784,
+  "value": 722,
   "source": "evidence/test.json"
  },
  "recovery.disk_hang.respawn_median_ms": {
-  "value": 2.1,
+  "value": 3.8,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_hang.median_ms": {
+  "value": 708,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_hang.min_ms": {
+  "value": 687,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_hang.max_ms": {
+  "value": 735,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_hang.runs": {
+  "value": 5,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_hang.host_median_ms": {
+  "value": 714,
+  "source": "evidence/test.json"
+ },
+ "recovery.display_hang.respawn_median_ms": {
+  "value": 0.9,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.median_ms": {
-  "value": 1155,
+  "value": 1103,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.min_ms": {
-  "value": 1118,
+  "value": 1102,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.max_ms": {
-  "value": 1198,
+  "value": 1164,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.runs": {
@@ -244,11 +292,11 @@
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.host_median_ms": {
-  "value": 1158,
+  "value": 1104,
   "source": "evidence/test.json"
  },
  "recovery.fs_hang_just_restarted.respawn_median_ms": {
-  "value": 0.7,
+  "value": 1.3,
   "source": "evidence/test.json"
  },
  "backoff.third_ms": {
@@ -260,31 +308,31 @@
   "source": "evidence/test.json"
  },
  "init_crash.host_ms": {
-  "value": 14,
+  "value": 130,
   "source": "evidence/test.json"
  },
  "double.fs_ms": {
-  "value": 50.9,
+  "value": 49.8,
   "source": "evidence/test.json"
  },
  "double.fs_min_ms": {
-  "value": 43.2,
+  "value": 30.7,
   "source": "evidence/test.json"
  },
  "double.fs_max_ms": {
-  "value": 74.6,
+  "value": 61.7,
   "source": "evidence/test.json"
  },
  "double.console_ms": {
-  "value": 798,
+  "value": 624,
   "source": "evidence/test.json"
  },
  "double.console_min_ms": {
-  "value": 781,
+  "value": 585,
   "source": "evidence/test.json"
  },
  "double.console_max_ms": {
-  "value": 848,
+  "value": 653,
   "source": "evidence/test.json"
  },
  "double.runs": {
@@ -292,11 +340,15 @@
   "source": "evidence/test.json"
  },
  "tour.steps": {
-  "value": 5,
+  "value": 6,
+  "source": "evidence/test.json"
+ },
+ "wintest.total": {
+  "value": 12,
   "source": "evidence/test.json"
  },
  "tour.seconds": {
-  "value": 10.7,
+  "value": 9.5,
   "source": "evidence/test.json"
  },
  "nonx.selftest_passed": {
@@ -336,7 +388,7 @@
   "source": "evidence/test.json"
  },
  "fullmem.frames_taken": {
-  "value": 40448,
+  "value": 40192,
   "source": "evidence/test.json"
  },
  "fullmem.batch": {
@@ -344,11 +396,11 @@
   "source": "evidence/test.json"
  },
  "fullmem.free_frames": {
-  "value": 32209,
+  "value": 32072,
   "source": "evidence/test.json"
  },
  "fullmem.total_frames": {
-  "value": 32363,
+  "value": 32346,
   "source": "evidence/test.json"
  },
  "fullmem.checks": {
@@ -356,7 +408,7 @@
   "source": "evidence/test.json"
  },
  "fuzz.calls": {
-  "value": 1000769,
+  "value": 1001072,
   "source": "evidence/test.json"
  },
  "fuzz.requested": {
@@ -364,15 +416,15 @@
   "source": "evidence/test.json"
  },
  "fuzz.tasks": {
-  "value": 2283,
+  "value": 2079,
   "source": "evidence/test.json"
  },
  "fuzz.calls_per_second": {
-  "value": 8936,
+  "value": 13914,
   "source": "evidence/test.json"
  },
  "fuzz.checks": {
-  "value": 4653,
+  "value": 4010,
   "source": "evidence/test.json"
  },
  "fuzz.violations": {
@@ -388,111 +440,111 @@
   "source": "evidence/test.json"
  },
  "fuzz.exited": {
-  "value": 597,
+  "value": 552,
   "source": "evidence/test.json"
  },
  "fuzz.stopped": {
-  "value": 1264,
+  "value": 1075,
   "source": "evidence/test.json"
  },
  "fuzz.exceptions": {
-  "value": 422,
+  "value": 452,
   "source": "evidence/test.json"
  },
  "fuzz.seed": {
-  "value": 163415397,
+  "value": 197406855,
   "source": "evidence/test.json"
  },
  "fuzz.seconds": {
-  "value": 112.0,
+  "value": 71.9,
   "source": "evidence/test.json"
  },
  "bench.syscall_ns": {
-  "value": 806,
+  "value": 1015,
   "source": "evidence/test.json"
  },
  "bench.syscall_us": {
-  "value": 0.8,
+  "value": 1.0,
   "source": "evidence/test.json"
  },
  "bench.clock_ns": {
-  "value": 1325,
+  "value": 1547,
   "source": "evidence/test.json"
  },
  "bench.clock_us": {
-  "value": 1.3,
+  "value": 1.5,
   "source": "evidence/test.json"
  },
  "bench.ipc_ns": {
-  "value": 27779,
+  "value": 34862,
   "source": "evidence/test.json"
  },
  "bench.ipc_us": {
-  "value": 27.8,
+  "value": 34.9,
   "source": "evidence/test.json"
  },
  "bench.spawn_ns": {
-  "value": 681030,
+  "value": 907010,
   "source": "evidence/test.json"
  },
  "bench.spawn_us": {
-  "value": 681,
+  "value": 907,
   "source": "evidence/test.json"
  },
  "bench.map_ns": {
-  "value": 35456,
+  "value": 33772,
   "source": "evidence/test.json"
  },
  "bench.map_us": {
-  "value": 35.5,
+  "value": 33.8,
   "source": "evidence/test.json"
  },
  "bench.check_ns": {
-  "value": 4063550,
+  "value": 3153600,
   "source": "evidence/test.json"
  },
  "bench.check_us": {
-  "value": 4064,
+  "value": 3154,
   "source": "evidence/test.json"
  },
  "clock.idle_ratio": {
-  "value": 0.9994,
+  "value": 0.9993,
   "source": "evidence/test.json"
  },
  "clock.fuzz_ratio": {
-  "value": 0.9976,
+  "value": 0.9983,
   "source": "evidence/test.json"
  },
  "counters.timer_interrupts": {
-  "value": 27125,
+  "value": 28699,
   "source": "evidence/test.json"
  },
  "counters.tasks": {
-  "value": 5,
+  "value": 6,
   "source": "evidence/test.json"
  },
  "counters.endpoints": {
-  "value": 5,
+  "value": 6,
   "source": "evidence/test.json"
  },
  "counters.system_calls": {
-  "value": 2827618,
+  "value": 2990386,
   "source": "evidence/test.json"
  },
  "counters.task_switches": {
-  "value": 271176,
+  "value": 291885,
   "source": "evidence/test.json"
  },
  "counters.device_interrupts": {
-  "value": 27440,
+  "value": 29190,
   "source": "evidence/test.json"
  },
  "counters.faults_contained": {
-  "value": 897,
+  "value": 906,
   "source": "evidence/test.json"
  },
  "counters.tasks_started": {
-  "value": 6028,
+  "value": 5794,
   "source": "evidence/test.json"
  },
  "counters.kernel_anomalies": {
@@ -512,19 +564,19 @@
   "source": "evidence/web.json"
  },
  "web.commands": {
-  "value": 11,
+  "value": 14,
   "source": "evidence/web.json"
  },
  "web.commands_ok": {
-  "value": 11,
+  "value": 14,
   "source": "evidence/web.json"
  },
  "web.command_list": {
-  "value": "`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `df`, `write note.txt kept`, `crash disk`, `cat note.txt`, `tour`, `uptime`",
+  "value": "`hello`, `selftest`, `rogue`, `crash console`, `hang fs`, `df`, `write note.txt kept`, `crash disk`, `cat note.txt`, `tour`, `uptime`, `desktop`, `crash display`, `windows`",
   "source": "evidence/web.json"
  },
  "web.tour_seconds": {
-  "value": 30.87,
+  "value": 10.2,
   "source": "evidence/web.json"
  },
  "gates.passed": {
@@ -536,7 +588,7 @@
   "source": "evidence/gates.json"
  },
  "gates.date": {
-  "value": "2026-11-17",
+  "value": "2026-11-18",
   "source": "evidence/gates.json"
  },
  "gates.mode": {
@@ -544,7 +596,7 @@
   "source": "evidence/gates.json"
  },
  "gates.build_seconds": {
-  "value": 36,
+  "value": 7,
   "source": "evidence/gates.json"
  },
  "gates.rustc": {
@@ -568,19 +620,19 @@
   "source": "evidence/gates.json"
  },
  "size.kernel_bytes": {
-  "value": 70400,
+  "value": 84736,
   "source": "evidence/gates.json"
  },
  "size.kernel_kib": {
-  "value": 68.8,
+  "value": 82.8,
   "source": "evidence/gates.json"
  },
  "size.archive_kib": {
-  "value": 237.4,
+  "value": 293.5,
   "source": "evidence/gates.json"
  },
  "size.payload_kib": {
-  "value": 306.2,
+  "value": 376.3,
   "source": "evidence/gates.json"
  },
  "size.image_mib": {
@@ -588,11 +640,11 @@
   "source": "evidence/gates.json"
  },
  "size.programs": {
-  "value": 12,
+  "value": 16,
   "source": "evidence/gates.json"
  },
  "size.files": {
-  "value": 13,
+  "value": 17,
   "source": "evidence/gates.json"
  },
  "limits.tasks": {
@@ -604,7 +656,7 @@
   "source": "abi/src/lib.rs"
  },
  "limits.cap_slots": {
-  "value": 32,
+  "value": 64,
   "source": "abi/src/lib.rs"
  },
  "limits.spawn_caps": {
@@ -720,12 +772,64 @@
   "source": "user/src/bin/fuzz.rs"
  },
  "supervisor.services": {
-  "value": 4,
+  "value": 5,
   "source": "user/src/bin/init.rs"
  },
  "supervisor.server_pages": {
   "value": 64,
   "source": "user/src/bin/init.rs"
+ },
+ "display.pages": {
+  "value": 384,
+  "source": "user/src/bin/init.rs"
+ },
+ "display.windows": {
+  "value": 6,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.sweep_s": {
+  "value": 2,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.width": {
+  "value": 640,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.height": {
+  "value": 480,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.colours": {
+  "value": 16,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.columns": {
+  "value": 80,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.lines": {
+  "value": 25,
+  "source": "user/src/bin/display.rs"
+ },
+ "display.memory_kib": {
+  "value": 64,
+  "source": "user/src/bin/display.rs"
+ },
+ "font.width": {
+  "value": 6,
+  "source": "user/src/font.rs"
+ },
+ "font.height": {
+  "value": 12,
+  "source": "user/src/font.rs"
+ },
+ "console.kept_bytes": {
+  "value": 4096,
+  "source": "user/src/bin/console.rs"
+ },
+ "shell.jobs": {
+  "value": 4,
+  "source": "user/src/bin/shell.rs"
  },
  "clock.hz": {
   "value": 1193182,
@@ -764,7 +868,7 @@
   "source": "kernel/src"
  },
  "count.unsafe_total": {
-  "value": 88,
+  "value": 90,
   "source": "kernel/src, abi/src, boot/src, user/src"
  },
  "count.unsafe_kernel": {
@@ -804,31 +908,31 @@
   "source": "boot/src"
  },
  "loc.user": {
-  "value": 6155,
+  "value": 7705,
   "source": "user/src"
  },
  "loc.tools": {
-  "value": 6500,
+  "value": 6822,
   "source": "build.py, tools/*.py"
  },
  "table.gates": {
-  "value": "| Gate | Requirement | Result | Measured |\n|---|---|---|---|\n| G1 | One command builds the disk image from a clean tree | pass | clean build in 36 s wrote build/inti.img (2,097,152 bytes) |\n| G2 | Boots from its own boot sector to a shell prompt in QEMU within 20 s | pass | shell prompt 144 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel |\n| G3 | The self-test inside the system passes with at least 30 checks | pass | SELFTEST: PASS 96/96 after boot and 96/96 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx) |\n| G4 | Each supervised service is crashed and hung, restarted automatically, and timed | pass | console crash 50.7 ms, fs crash 4.7 ms, disk crash 24.5 ms, console hang 708.1 ms, fs hang 777.2 ms, disk hang 778.6 ms, fs crash during a console hang: fs 50.9 ms and console 798.1 ms (median of 5 runs each, guest clock); the shell answered after every run |\n| G5 | Every attempt of the hostile program without capabilities is denied | pass | 51/51 attempts denied (including port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers |\n| G6 | At least 1,000,000 random system calls: no kernel panic, no invariant violated | pass | 1,000,769 random system calls from 2,283 tasks, 4,653 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log |\n| G7 | No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code | pass | no alloc crate in the kernel; 88 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000) |\n| G8 | The same disk image boots to the shell prompt in a web browser | pass | shell prompt after 0.64 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 11 commands answered; byte-for-byte the image of the QEMU test |\n| G9 | Every number in the documents comes from a script or carries a source | pass | tools/check_claims.py passes: claims recomputed, documents re-rendered and compared |",
+  "value": "| Gate | Requirement | Result | Measured |\n|---|---|---|---|\n| G1 | One command builds the disk image from a clean tree | pass | clean build in 7 s wrote build/inti.img (2,097,152 bytes) |\n| G2 | Boots from its own boot sector to a shell prompt in QEMU within 20 s | pass | shell prompt 181 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel |\n| G3 | The self-test inside the system passes with at least 30 checks | pass | SELFTEST: PASS 96/96 after boot and 96/96 again after every injected fault and the fuzz run, none skipped, with W^X enforced (QEMU -cpu qemu32,+nx) |\n| G4 | Each supervised service is crashed and hung, restarted automatically, and timed | pass | console crash 7.8 ms, fs crash 4.5 ms, disk crash 27.0 ms, display crash 113.5 ms, console hang 731.4 ms, fs hang 762.4 ms, disk hang 718.0 ms, display hang 707.7 ms, fs crash during a console hang: fs 49.8 ms and console 624.5 ms (median of 5 runs each, guest clock); the shell answered after every run |\n| G5 | Every attempt of the hostile program without capabilities is denied | pass | 51/51 attempts denied (including port I/O 3, interrupts 5, physical memory 1, kernel memory 4, other tasks 2, forged capabilities 4, forged tokens 1); the kernel invariants hold and the shell still answers |\n| G6 | At least 1,000,000 random system calls: no kernel panic, no invariant violated | pass | 1,001,072 random system calls from 2,079 tasks, 4,010 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log |\n| G7 | No heap in the kernel, every unsafe justified, at most 4,000 lines of kernel code | pass | no alloc crate in the kernel; 90 uses of unsafe in kernel, boot sector and programs, each with a SAFETY comment; 2,933 lines of kernel code (limit 4,000) |\n| G8 | The same disk image boots to the shell prompt in a web browser | pass | shell prompt after 0.64 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 14 commands answered; byte-for-byte the image of the QEMU test |\n| G9 | Every number in the documents comes from a script or carries a source | pass | tools/check_claims.py passes: claims recomputed, documents re-rendered and compared |",
   "source": "evidence/gates.json"
  },
  "table.checks": {
-  "value": "| Check | Result | Measured |\n|---|---|---|\n| boots from its own boot sector to the shell prompt within 20 s | pass | 144 ms after QEMU started |\n| the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |\n| selftest after boot | pass | SELFTEST: PASS 96/96 |\n| the selftest's line written through the Log capability is in the kernel log | pass |  |\n| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 51/51 attempts denied |\n| rogue all: the kernel invariants hold afterwards | pass |  |\n| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 50/50 attempts denied, 1 skipped |\n| the system is still up after the hostile program (ls answers) | pass |  |\n| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 50672 us, worst 54764 us |\n| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 4710 us, worst 86644 us |\n| disk crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 24511 us, worst 26029 us |\n| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 708064 us, worst 769078 us |\n| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 777244 us, worst 782153 us |\n| disk hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 778563 us, worst 817727 us |\n| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1155318 us, worst 1197507 us |\n| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 50871 us, console 798088 us |\n| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, hung driver, two failures at once, counters) and ends in the shell that started it | pass | 5 steps in 10658 ms |\n| a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |\n| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 14 ms later (host time) |\n| fuzz: the report is complete | pass |  |\n| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1000769 random system calls from 2283 tasks in 111995 ms; FUZZ: 4653 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |\n| bench runs to the end | pass | 6 results |\n| a program copied to the disk runs from there | pass | hi\nHello from user space.\nThis program holds one capability (console output) and can do nothing else.\ninti>  |\n| a copy of the self-test on the disk gets none of its extra capabilities | pass | om user space.\n  FAIL the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  FAIL loading the child program and mapping scratch pages\nSELFTEST: FAIL 1/3\ninti>  |\n| selftest after all faults | pass | SELFTEST: PASS 96/96 |\n| keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |\n| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 0.9994 |\n| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2827618 system calls, 897 faults contained, 6028 tasks started |\n| shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |\n| no kernel panic anywhere in the serial log | pass |  |\n| without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |\n| without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed | pass | SELFTEST: PASS 93/93, 3 skipped |\n| without the no-execute bit: the hostile program reports each execute attempt as not denied and every other attempt as denied | pass | ROGUE: 48/51 attempts denied |\n| without the no-execute bit: the kernel invariants hold after the hostile program | pass |  |\n| without the no-execute bit: the system is still up (ls answers) | pass |  |\n| without the no-execute bit: no kernel panic anywhere in the serial log | pass |  |\n| with 256 MiB: the kernel boots and the selftest passes | pass | SELFTEST: PASS 96/96 |\n| with 256 MiB: more page frames are free than a 64 MiB machine has, and the selftest took every one of them | pass | took 40448 page frames in batches of 256; 32209 of 32363 were free |\n| with 256 MiB: the kernel invariants hold afterwards | pass |  |\n| with 256 MiB: no kernel panic anywhere in the serial log | pass |  |",
+  "value": "| Check | Result | Measured |\n|---|---|---|\n| boots from its own boot sector to the shell prompt within 20 s | pass | 181 ms after QEMU started |\n| the kernel enforces W^X: its boot log says the no-execute bit is in use | pass | QEMU -cpu qemu32,+nx |\n| selftest after boot | pass | SELFTEST: PASS 96/96 |\n| the selftest's line written through the Log capability is in the kernel log | pass |  |\n| rogue all: every attempt of the hostile program is denied | pass | ROGUE: 51/51 attempts denied |\n| rogue all: the kernel invariants hold afterwards | pass |  |\n| rogue: the default run denies every attempt it makes and reports the one it skips | pass | ROGUE: 50/50 attempts denied, 1 skipped |\n| the system is still up after the hostile program (ls answers) | pass |  |\n| console crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 7765 us, worst 68485 us |\n| fs crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 4464 us, worst 8851 us |\n| disk crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 27035 us, worst 30086 us |\n| display crash: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 113503 us, worst 115484 us |\n| console hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 731357 us, worst 800591 us |\n| fs hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 762411 us, worst 771693 us |\n| disk hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 717958 us, worst 747749 us |\n| display hang: restarted by the supervisor, shell and file listing answer, in 5 of 5 runs | pass | median 707709 us, worst 735189 us |\n| fs hang right after a restart: restarted by the supervisor, shell and file listing answer, in 3 of 3 runs | pass | median 1102610 us, worst 1164391 us |\n| double failure: fs crashes while the supervisor waits for a hung console; the supervisor reports the crash during that wait, restarts both, and the shell and file listing answer, in 5 of 5 runs | pass | median fs 49816 us, console 624492 us |\n| tour: the guided tour announces and runs its steps in order (hostile program, crashed driver, crashed display, hung server, two failures at once, counters) and ends in the shell that started it | pass | 6 steps in 9454 ms |\n| screen: 640 by 480 pixels in graphics mode, with the desktop and the terminal window whose title is drawn in the system font, pixel for pixel | pass | image (640, 480) |\n| windows: a program can draw in its own window and nowhere else (the wintest program's checks) | pass | WINTEST: PASS 12/12 |\n| windows: a fill of 65535 by 65535 pixels coloured the inside of the program's own window and not one pixel outside it | pass | 3840 of 3840 pixels inside, 3840 on the whole screen |\n| mouse: moving the emulated PS/2 mouse by 37, -23 moves the pointer on the screen by as much | pass | (320, 240) -> (357, 217) |\n| mouse: a window dragged by its title bar moves with the pointer | pass | (528, 24) -> (512, 204) |\n| background: clock and life run with a window each while the shell answers, and the clock's window changes within 2.2 s | pass | 3 windows of programs |\n| display crash: the lines that stood in the terminal window before are on the screen again, pixel for pixel | pass | 19 of 24 lines with text |\n| display crash: a window capability from before the restart is refused, and every program opens a new window | pass | 3 windows of programs, display restarted 12 times |\n| windows: when a program is stopped its windows are closed, with nothing of them left on the screen | pass | gone after 2.1 s; 0 pixels left |\n| a server that dies again and again is restarted with a growing delay and still comes back | pass | ended 3 times in a row -> 100 ms; ended 4 times in a row -> 200 ms |\n| crash init: the kernel starts user space again and the new shell answers | pass | new prompt 130 ms later (host time) |\n| fuzz: the report is complete | pass |  |\n| fuzz: at least 1000000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks | pass | FUZZ: 1001072 random system calls from 2079 tasks in 71945 ms; FUZZ: 4010 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks |\n| bench runs to the end | pass | 6 results |\n| a program copied to the disk runs from there | pass | hi\nHello from user space.\nThis program holds one capability (console output) and can do nothing else.\ninti>  |\n| a copy of the self-test on the disk gets none of its extra capabilities | pass | om user space.\n  FAIL the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  FAIL loading the child program and mapping scratch pages\nSELFTEST: FAIL 1/3\ninti>  |\n| selftest after all faults | pass | SELFTEST: PASS 96/96 |\n| keys pressed on the emulated PS/2 keyboard reach the shell | pass |  |\n| the guest clock keeps time against the host clock over 5 idle seconds | pass | guest/host = 0.9993 |\n| at the end: 0 kernel anomalies and every kernel invariant holds | pass | 2990386 system calls, 906 faults contained, 5794 tasks started |\n| shutdown switches the machine off (QEMU exits with code 0) | pass | exit code 0 |\n| no kernel panic anywhere in the serial log | pass |  |\n| without the no-execute bit: the kernel boots and says that W^X is not enforced | pass | QEMU -cpu qemu32 |\n| without the no-execute bit: the selftest passes and reports each execute test as skipped, not as passed | pass | SELFTEST: PASS 93/93, 3 skipped |\n| without the no-execute bit: the hostile program reports each execute attempt as not denied and every other attempt as denied | pass | ROGUE: 48/51 attempts denied |\n| without the no-execute bit: the kernel invariants hold after the hostile program | pass |  |\n| without the no-execute bit: the system is still up (ls answers) | pass |  |\n| without the no-execute bit: no kernel panic anywhere in the serial log | pass |  |\n| with 256 MiB: the kernel boots and the selftest passes | pass | SELFTEST: PASS 96/96 |\n| with 256 MiB: more page frames are free than a 64 MiB machine has, and the selftest took every one of them | pass | took 40192 page frames in batches of 256; 32072 of 32346 were free |\n| with 256 MiB: the kernel invariants hold afterwards | pass |  |\n| with 256 MiB: no kernel panic anywhere in the serial log | pass |  |",
   "source": "evidence/test.json"
  },
  "table.recovery": {
-  "value": "| Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |\n|---|---|---|---|---|---|\n| console driver crashes (page fault) | 5 | 50.7 ms | 7.4 to 54.8 ms | 95 ms | 26.3 ms |\n| file server crashes (page fault) | 5 | 4.7 ms | 4.3 to 86.6 ms | 11 ms | 2.5 ms |\n| disk server crashes (page fault) | 5 | 24.5 ms | 21.1 to 26.0 ms | 28 ms | 3.9 ms |\n| console driver hangs (stops answering) | 5 | 708 ms | 691 to 769 ms | 738 ms | 1.9 ms |\n| file server hangs (stops answering) | 5 | 777 ms | 727 to 782 ms | 808 ms | 5.0 ms |\n| disk server hangs (stops answering) | 5 | 779 ms | 725 to 818 ms | 784 ms | 2.1 ms |\n| file server hangs right after a restart | 3 | 1155 ms | 1118 to 1198 ms | 1158 ms | 0.7 ms |",
+  "value": "| Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |\n|---|---|---|---|---|---|\n| console driver crashes (page fault) | 5 | 7.8 ms | 6.5 to 68.5 ms | 12 ms | 2.7 ms |\n| file server crashes (page fault) | 5 | 4.5 ms | 4.1 to 8.9 ms | 8 ms | 2.2 ms |\n| disk server crashes (page fault) | 5 | 27.0 ms | 19.0 to 30.1 ms | 31 ms | 4.4 ms |\n| console driver hangs (stops answering) | 5 | 731 ms | 661 to 801 ms | 737 ms | 2.1 ms |\n| file server hangs (stops answering) | 5 | 762 ms | 733 to 772 ms | 765 ms | 1.3 ms |\n| disk server hangs (stops answering) | 5 | 718 ms | 677 to 748 ms | 722 ms | 3.8 ms |\n| file server hangs right after a restart | 3 | 1103 ms | 1102 to 1164 ms | 1104 ms | 1.3 ms |",
   "source": "evidence/test.json"
  },
  "table.bench": {
-  "value": "| Operation | Time |\n|---|---|\n| system call entry and return | 806 ns |\n| read the clock | 1,325 ns |\n| IPC call and reply | 27,779 ns |\n| start, run and reap a task | 681,030 ns |\n| map and unmap one page | 35,456 ns |\n| check every kernel invariant | 4,063,550 ns |",
+  "value": "| Operation | Time |\n|---|---|\n| system call entry and return | 1,015 ns |\n| read the clock | 1,547 ns |\n| IPC call and reply | 34,862 ns |\n| start, run and reap a task | 907,010 ns |\n| map and unmap one page | 33,772 ns |\n| check every kernel invariant | 3,153,600 ns |",
   "source": "evidence/test.json"
  },
  "table.sizes": {
-  "value": "| Part of the disk image | Bytes |\n|---|---|\n| boot sector | 512 |\n| kernel | 70,400 |\n| `bench` | 12,288 |\n| `console` | 12,288 |\n| `counter` | 8,192 |\n| `disk` | 16,384 |\n| `fs` | 8,192 |\n| `fuzz` | 16,384 |\n| `hello` | 8,192 |\n| `init` | 16,384 |\n| `rogue` | 12,288 |\n| `selftest` | 81,920 |\n| `shell` | 36,864 |\n| `tchild` | 12,288 |\n| `readme.txt` | 1,007 |\n| volume for files that last, with 1 files in it | 1,048,576 |\n| disk image, the volume included | 2,097,152 |",
+  "value": "| Part of the disk image | Bytes |\n|---|---|\n| boot sector | 512 |\n| kernel | 84,736 |\n| `bench` | 12,288 |\n| `clock` | 8,192 |\n| `console` | 12,288 |\n| `counter` | 8,192 |\n| `disk` | 16,384 |\n| `display` | 24,576 |\n| `fs` | 8,192 |\n| `fuzz` | 16,384 |\n| `hello` | 8,192 |\n| `init` | 16,384 |\n| `life` | 8,192 |\n| `rogue` | 12,288 |\n| `selftest` | 81,920 |\n| `shell` | 40,960 |\n| `tchild` | 12,288 |\n| `wintest` | 12,288 |\n| `readme.txt` | 1,007 |\n| volume for files that last, with 1 files in it | 1,048,576 |\n| disk image, the volume included | 2,097,152 |",
   "source": "evidence/gates.json"
  },
  "table.loc": {
@@ -868,11 +972,11 @@
   "source": "evidence/sources.json"
  },
  "log.boot": {
-  "value": "Inti 0.2.1 kernel\nkernel: 596 KiB kernel and archive, 62 MiB for user space\nkernel: PAE paging, W^X enforced (the processor has the no-execute bit)\ninit: started console with 6 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started disk with 3 capabilities, 64 pages\ninit: started shell with 13 capabilities, 15480 pages\nInti 0.2.1 shell ready at t=17895 us\nType help for the list of commands, or tour for a guided tour.",
+  "value": "Inti 0.3.0 kernel\nkernel: 664 KiB kernel and archive, 62 MiB for user space\nkernel: PAE paging, W^X enforced (the processor has the no-execute bit)\ninit: started console with 5 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started disk with 3 capabilities, 64 pages\ninit: started display with 5 capabilities, 384 pages\ninit: started shell with 15 capabilities, 15079 pages\nInti 0.3.0 shell ready at t=18386 us\nType help for the list of commands, or tour for a guided tour.",
   "source": "evidence/test_serial.log"
  },
  "log.selftest": {
-  "value": "inti> selftest\nEach line is one promise of the kernel, checked from user space.\n  ok   the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  ok   system call numbers that do not exist give E_NOSYS\n  ok   a message buffer outside the caller's memory gives E_FAULT\n  ok   a message buffer the caller cannot write gives E_FAULT\n  ok   a message buffer is checked up to its last byte\n  ok   log checks the length and the address of the text\n  ok   sysinfo checks where it writes and what it is asked\n  ok   spawn checks the addresses of the image and of its arguments\n  ok   an empty or impossible capability slot gives E_NOCAP\n  ok   a capability of the wrong kind gives E_NOCAP\n  ok   a copy of a capability has the same rights or fewer\n  ok   a badge is set once, and only by a holder of the grant right\n  ok   a dropped capability is gone\n  ok   an I/O port capability reaches its ports and no others\n  ok   an interrupt capability reaches its lines and no others\n  ok   an interrupt line is released when its endpoint goes away\nselftest: this line was written through the Log capability\n  ok   the Log capability writes to the kernel log\n  ok   the Info capability describes tasks and their capabilities\n  ok   no task, init included, holds a capability for the reset port 0x64\n  ok   the drivers refuse to crash or hang for an ordinary program\n  ok   every port, interrupt line and page of device memory that any task holds was handed out by name\n  ok   recv can poll, and can give up after a time limit\n  ok   a call that nobody receives times out and leaves nothing queued\n  ok   a call to an endpoint that nobody can receive from gives E_DEAD\n  ok   an endpoint has one receiver at a time\n  ok   a call carries its label, words and badge; a reply carries no badge\n  ok   a program cannot send the kernel's labels or an oversized message\n  ok   a 256-byte message crosses a page boundary in both directions\n  ok   a server can end in an orderly way, and its clients are told\n  ok   a reply needs the token of the call, and the token works once\n  ok   callers are served in the order in which they called\n  ok   a caller is told when the server dies with its request\n  ok   a caller that is killed while it waits leaves nothing queued\n  ok   a reply to a caller that was killed gives E_INVAL\n  ok   revoking a capability takes back its copies and theirs, and nothing else\n  ok   revoking reaches another task: its copy and what it mapped through it\n  ok   revoking wakes the tasks that waited through the copies\n  ok   revoking an interrupt capability frees the line its holder had bound\n  ok   a server takes back one client's access and leaves the other's\n  ok   a capability goes along with a call when both ends hold the grant right\n  ok   without the grant right at both ends nothing is handed over\n  ok   the sender takes back what it sent\n  ok   a reply carries a capability back, still linked to where it came from\n  ok   a waiting task that loses the grant right takes no more capabilities\n  ok   a capability is not handed to a task whose table is full\n  ok   memory of a device is refused as a message buffer, also in part\n  ok   a device page taken from a waiting task was never its message buffer\n  ok   a reply reaches a caller whose capability was revoked in between\n  ok   map gives zeroed pages that can be written\n  ok   a map that fails part-way changes nothing\n  ok   map and unmap accept only whole pages inside user space\n  ok   unmap gives every page frame back\n  ok   a task cannot take more memory than its quota\n  ok   shared memory keeps the rights and the bounds of its capability\n  ok   a copy of a memory capability covers the same pages or fewer\n  ok   a page that was unmapped faults when it is touched again\n       took 19968 page frames in batches of 256; 15793 of 15947 were free\n  ok   every free page frame, up to the top of memory, can be taken and given back\n  ok   a program cannot run code from its stack\n  ok   a program cannot run code from its data\n  ok   a program cannot run code from memory it mapped\n  ok   the exit code of a child reaches its parent\n  ok   a panic ends the program that panicked\n  ok   reading address 4 is a page fault at address 4\n  ok   a program cannot write to its own code\n  ok   a program cannot read kernel memory\n  ok   a program cannot write kernel memory\n  ok   a program cannot jump into the kernel\n  ok   a stack overflow ends the program with a page fault\n  ok   a division by zero ends the program\n  ok   an invalid instruction ends the program\n  ok   a program cannot switch interrupts off\n  ok   a program cannot halt the processor\n  ok   a program cannot use I/O ports without a capability\n  ok   floating-point instructions are refused\n  ok   fourteen children ended, twelve by a fault, and left nothing behind\n  ok   a task that never yields is pre-empted and can be killed, once\n  ok   the children of a task end with it\n  ok   the memory of a child comes out of its parent's quota and goes back\n  ok   damaged program images are refused and leave nothing behind\n  ok   an image with writable code, or with two segments on one page, is refused\n  ok   starting a child fails cleanly at every point where memory can run out\n  ok   the same image, repaired, starts and runs\n  ok   a full capability table gives E_NOSLOT and recovers\n  ok   a child gets the share of the quotas that its parent lends, and no more\n  ok   an endpoint outlives the task that made it, and its parent pays for it\n  ok   endpoints are created only within a quota, and the quota comes back\n  ok   tasks are started only within a quota, and the quota comes back\n  ok   a child gets its parent's share of the processor or a smaller one, never a larger\n       beside three spinning tasks this program kept 60% of its speed when they\n       shared 20% of the processor, and 24% when they had no share of their own;\n       the kernel charged the group 36% and 74% of a second\n       alone, half a second: 60135 rounds, 50 ticks of which 50 found this program running, 58 task switches\n       beside the group held to 20%, two seconds: 157961 rounds, 201 ticks of which 129 found this program running, 296 task switches\n       alone, half a second: 68611 rounds, 50 ticks of which 50 found this program running, 60 task switches\n       beside the group without a share, two seconds: 64544 rounds, 200 ticks of which 50 found this program running, 356 task switches\n       alone, half a second: 65703 rounds, 50 ticks of which 50 found this program running, 57 task switches\n  ok   three spinning tasks with a 20% share leave the rest of the processor to others\n  ok   sleep lasts as long as asked, and not much longer\n  ok   the clock never goes backwards\n  ok   files are read through the file server\n  ok   the kernel's invariants hold at the end\n  ok   the kernel met nothing unexpected\n  ok   no task, endpoint, page frame or quota was lost\nSELFTEST: PASS 96/96",
+  "value": "inti> selftest\nEach line is one promise of the kernel, checked from user space.\n  ok   the kernel's invariants hold at the start\n  ok   the kernel has met nothing unexpected so far\n  ok   system call numbers that do not exist give E_NOSYS\n  ok   a message buffer outside the caller's memory gives E_FAULT\n  ok   a message buffer the caller cannot write gives E_FAULT\n  ok   a message buffer is checked up to its last byte\n  ok   log checks the length and the address of the text\n  ok   sysinfo checks where it writes and what it is asked\n  ok   spawn checks the addresses of the image and of its arguments\n  ok   an empty or impossible capability slot gives E_NOCAP\n  ok   a capability of the wrong kind gives E_NOCAP\n  ok   a copy of a capability has the same rights or fewer\n  ok   a badge is set once, and only by a holder of the grant right\n  ok   a dropped capability is gone\n  ok   an I/O port capability reaches its ports and no others\n  ok   an interrupt capability reaches its lines and no others\n  ok   an interrupt line is released when its endpoint goes away\nselftest: this line was written through the Log capability\n  ok   the Log capability writes to the kernel log\n  ok   the Info capability describes tasks and their capabilities\n  ok   no task, init included, holds a capability for the reset port 0x64\n  ok   the drivers refuse to crash or hang for an ordinary program\n  ok   every port, interrupt line and page of device memory that any task holds was handed out by name\n  ok   recv can poll, and can give up after a time limit\n  ok   a call that nobody receives times out and leaves nothing queued\n  ok   a call to an endpoint that nobody can receive from gives E_DEAD\n  ok   an endpoint has one receiver at a time\n  ok   a call carries its label, words and badge; a reply carries no badge\n  ok   a program cannot send the kernel's labels or an oversized message\n  ok   a 256-byte message crosses a page boundary in both directions\n  ok   a server can end in an orderly way, and its clients are told\n  ok   a reply needs the token of the call, and the token works once\n  ok   callers are served in the order in which they called\n  ok   a caller is told when the server dies with its request\n  ok   a caller that is killed while it waits leaves nothing queued\n  ok   a reply to a caller that was killed gives E_INVAL\n  ok   revoking a capability takes back its copies and theirs, and nothing else\n  ok   revoking reaches another task: its copy and what it mapped through it\n  ok   revoking wakes the tasks that waited through the copies\n  ok   revoking an interrupt capability frees the line its holder had bound\n  ok   a server takes back one client's access and leaves the other's\n  ok   a capability goes along with a call when both ends hold the grant right\n  ok   without the grant right at both ends nothing is handed over\n  ok   the sender takes back what it sent\n  ok   a reply carries a capability back, still linked to where it came from\n  ok   a waiting task that loses the grant right takes no more capabilities\n  ok   a capability is not handed to a task whose table is full\n  ok   memory of a device is refused as a message buffer, also in part\n  ok   a device page taken from a waiting task was never its message buffer\n  ok   a reply reaches a caller whose capability was revoked in between\n  ok   map gives zeroed pages that can be written\n  ok   a map that fails part-way changes nothing\n  ok   map and unmap accept only whole pages inside user space\n  ok   unmap gives every page frame back\n  ok   a task cannot take more memory than its quota\n  ok   shared memory keeps the rights and the bounds of its capability\n  ok   a copy of a memory capability covers the same pages or fewer\n  ok   a page that was unmapped faults when it is touched again\n       took 19712 page frames in batches of 256; 15656 of 15930 were free\n  ok   every free page frame, up to the top of memory, can be taken and given back\n  ok   a program cannot run code from its stack\n  ok   a program cannot run code from its data\n  ok   a program cannot run code from memory it mapped\n  ok   the exit code of a child reaches its parent\n  ok   a panic ends the program that panicked\n  ok   reading address 4 is a page fault at address 4\n  ok   a program cannot write to its own code\n  ok   a program cannot read kernel memory\n  ok   a program cannot write kernel memory\n  ok   a program cannot jump into the kernel\n  ok   a stack overflow ends the program with a page fault\n  ok   a division by zero ends the program\n  ok   an invalid instruction ends the program\n  ok   a program cannot switch interrupts off\n  ok   a program cannot halt the processor\n  ok   a program cannot use I/O ports without a capability\n  ok   floating-point instructions are refused\n  ok   fourteen children ended, twelve by a fault, and left nothing behind\n  ok   a task that never yields is pre-empted and can be killed, once\n  ok   the children of a task end with it\n  ok   the memory of a child comes out of its parent's quota and goes back\n  ok   damaged program images are refused and leave nothing behind\n  ok   an image with writable code, or with two segments on one page, is refused\n  ok   starting a child fails cleanly at every point where memory can run out\n  ok   the same image, repaired, starts and runs\n  ok   a full capability table gives E_NOSLOT and recovers\n  ok   a child gets the share of the quotas that its parent lends, and no more\n  ok   an endpoint outlives the task that made it, and its parent pays for it\n  ok   endpoints are created only within a quota, and the quota comes back\n  ok   tasks are started only within a quota, and the quota comes back\n  ok   a child gets its parent's share of the processor or a smaller one, never a larger\n       beside three spinning tasks this program kept 61% of its speed when they\n       shared 20% of the processor, and 24% when they had no share of their own;\n       the kernel charged the group 36% and 74% of a second\n       alone, half a second: 54815 rounds, 50 ticks of which 48 found this program running, 79 task switches\n       beside the group held to 20%, two seconds: 147269 rounds, 203 ticks of which 129 found this program running, 332 task switches\n       alone, half a second: 60320 rounds, 50 ticks of which 50 found this program running, 68 task switches\n       beside the group without a share, two seconds: 58343 rounds, 200 ticks of which 50 found this program running, 376 task switches\n       alone, half a second: 59493 rounds, 50 ticks of which 50 found this program running, 65 task switches\n  ok   three spinning tasks with a 20% share leave the rest of the processor to others\n  ok   sleep lasts as long as asked, and not much longer\n  ok   the clock never goes backwards\n  ok   files are read through the file server\n  ok   the kernel's invariants hold at the end\n  ok   the kernel met nothing unexpected\n  ok   no task, endpoint, page frame or quota was lost\nSELFTEST: PASS 96/96",
   "source": "evidence/test_serial.log"
  },
  "log.selftest_short": {
@@ -884,7 +988,7 @@
   "source": "evidence/test_serial.log"
  },
  "shares.boot.kept_held": {
-  "value": 60,
+  "value": 61,
   "source": "evidence/test_serial.log"
  },
  "shares.boot.kept_free": {
@@ -904,15 +1008,15 @@
   "source": "evidence/test_serial.log"
  },
  "shares.faults.kept_held": {
-  "value": 55,
+  "value": 63,
   "source": "evidence/test_serial.log"
  },
  "shares.faults.kept_free": {
-  "value": 24,
+  "value": 25,
   "source": "evidence/test_serial.log"
  },
  "shares.faults.charged_held": {
-  "value": 36,
+  "value": 35,
   "source": "evidence/test_serial.log"
  },
  "shares.faults.charged_free": {
@@ -920,75 +1024,75 @@
   "source": "evidence/test_serial.log"
  },
  "log.shares": {
-  "value": "  ok   a child gets its parent's share of the processor or a smaller one, never a larger\n       beside three spinning tasks this program kept 60% of its speed when they\n       shared 20% of the processor, and 24% when they had no share of their own;\n       the kernel charged the group 36% and 74% of a second\n       alone, half a second: 60135 rounds, 50 ticks of which 50 found this program running, 58 task switches\n       beside the group held to 20%, two seconds: 157961 rounds, 201 ticks of which 129 found this program running, 296 task switches\n       alone, half a second: 68611 rounds, 50 ticks of which 50 found this program running, 60 task switches\n       beside the group without a share, two seconds: 64544 rounds, 200 ticks of which 50 found this program running, 356 task switches\n       alone, half a second: 65703 rounds, 50 ticks of which 50 found this program running, 57 task switches\n  ok   three spinning tasks with a 20% share leave the rest of the processor to others",
+  "value": "  ok   a child gets its parent's share of the processor or a smaller one, never a larger\n       beside three spinning tasks this program kept 61% of its speed when they\n       shared 20% of the processor, and 24% when they had no share of their own;\n       the kernel charged the group 36% and 74% of a second\n       alone, half a second: 54815 rounds, 50 ticks of which 48 found this program running, 79 task switches\n       beside the group held to 20%, two seconds: 147269 rounds, 203 ticks of which 129 found this program running, 332 task switches\n       alone, half a second: 60320 rounds, 50 ticks of which 50 found this program running, 68 task switches\n       beside the group without a share, two seconds: 58343 rounds, 200 ticks of which 50 found this program running, 376 task switches\n       alone, half a second: 59493 rounds, 50 ticks of which 50 found this program running, 65 task switches\n  ok   three spinning tasks with a 20% share leave the rest of the processor to others",
   "source": "evidence/test_serial.log"
  },
  "log.rogue": {
-  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n 6. read kernel and task information           denied: E_NOCAP\n 7. write to the kernel log                    denied: E_NOCAP\n 8. use capability number 1000000              denied: E_NOCAP\n 9. add the receive right to its console cap   denied: E_PERM\n10. receive other programs' console requests   denied: E_PERM\n11. answer others' calls with forged tokens    denied: E_INVAL\n12. re-badge its console cap as the shell's    denied: E_PERM\n13. ask the console driver to crash            denied: refused by the driver\n14. ask the console driver to hang             denied: refused by the driver\n15. have the kernel write into kernel memory   denied: E_FAULT\n16. pass a message pointer that wraps around   denied: E_FAULT\n17. start a task from kernel memory            denied: E_FAULT\n18. map pages over kernel and video memory     denied: E_INVAL\n19. unmap kernel pages                         denied: E_INVAL\n20. take more memory than its quota            denied: E_NOMEM\n21. start a task from a garbage image          denied: E_INVAL\n22. give a child more memory than it has       denied: E_NOMEM\n23. give a child a capability it does not hold denied: E_NOCAP\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. give a child a larger processor share      denied: E_PERM\n27. hand a capability to the console driver    denied: E_PERM\n28. revoke capabilities it does not hold       denied: E_NOCAP\n29. call system calls that do not exist        denied: E_NOSYS\n30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU\n31. disable interrupts (cli)                   denied: general protection fault\n32. halt the processor (hlt)                   denied: general protection fault\n33. read the keyboard port directly (in)       denied: general protection fault\n34. reset the machine directly (out 0x64)      denied: general protection fault\n35. read kernel memory                         denied: page fault\n36. write kernel memory                        denied: page fault\n37. jump into kernel code                      denied: page fault\n38. load the kernel's data segment             denied: general protection fault\n39. raise the timer interrupt (int 0x20)       denied: general protection fault\n40. replace the page tables (mov cr3)          denied: general protection fault\n41. turn off paging and protection (mov cr0)   denied: general protection fault\n42. replace the interrupt table (lidt)         denied: general protection fault\n43. far jump to the kernel's code segment      denied: general protection fault\n44. overwrite its own code                     denied: page fault\n45. overflow its stack                         denied: page fault\n46. return to ring 0 with a forged iret frame  denied: general protection fault\n47. write a model-specific register (wrmsr)    denied: general protection fault\n48. enter the kernel through sysenter          denied: general protection fault\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 51/51 attempts denied\nkernel invariants: all hold",
+  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 64 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n 6. read kernel and task information           denied: E_NOCAP\n 7. write to the kernel log                    denied: E_NOCAP\n 8. use capability number 1000000              denied: E_NOCAP\n 9. add the receive right to its console cap   denied: E_PERM\n10. receive other programs' console requests   denied: E_PERM\n11. answer others' calls with forged tokens    denied: E_INVAL\n12. re-badge its console cap as the shell's    denied: E_PERM\n13. ask the console driver to crash            denied: refused by the driver\n14. ask the console driver to hang             denied: refused by the driver\n15. have the kernel write into kernel memory   denied: E_FAULT\n16. pass a message pointer that wraps around   denied: E_FAULT\n17. start a task from kernel memory            denied: E_FAULT\n18. map pages over kernel and video memory     denied: E_INVAL\n19. unmap kernel pages                         denied: E_INVAL\n20. take more memory than its quota            denied: E_NOMEM\n21. start a task from a garbage image          denied: E_INVAL\n22. give a child more memory than it has       denied: E_NOMEM\n23. give a child a capability it does not hold denied: E_NOCAP\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. give a child a larger processor share      denied: E_PERM\n27. hand a capability to the console driver    denied: E_PERM\n28. revoke capabilities it does not hold       denied: E_NOCAP\n29. call system calls that do not exist        denied: E_NOSYS\n30. set IOPL 3 and clear the interrupt flag    denied: ignored by the CPU\n31. disable interrupts (cli)                   denied: general protection fault\n32. halt the processor (hlt)                   denied: general protection fault\n33. read the keyboard port directly (in)       denied: general protection fault\n34. reset the machine directly (out 0x64)      denied: general protection fault\n35. read kernel memory                         denied: page fault\n36. write kernel memory                        denied: page fault\n37. jump into kernel code                      denied: page fault\n38. load the kernel's data segment             denied: general protection fault\n39. raise the timer interrupt (int 0x20)       denied: general protection fault\n40. replace the page tables (mov cr3)          denied: general protection fault\n41. turn off paging and protection (mov cr0)   denied: general protection fault\n42. replace the interrupt table (lidt)         denied: general protection fault\n43. far jump to the kernel's code segment      denied: general protection fault\n44. overwrite its own code                     denied: page fault\n45. overflow its stack                         denied: page fault\n46. return to ring 0 with a forged iret frame  denied: general protection fault\n47. write a model-specific register (wrmsr)    denied: general protection fault\n48. enter the kernel through sysenter          denied: general protection fault\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 51/51 attempts denied\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "log.rogue_short": {
-  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n...\n 9. add the receive right to its console cap   denied: E_PERM\n...\n11. answer others' calls with forged tokens    denied: E_INVAL\n...\n15. have the kernel write into kernel memory   denied: E_FAULT\n...\n20. take more memory than its quota            denied: E_NOMEM\n...\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. give a child a larger processor share      denied: E_PERM\n27. hand a capability to the console driver    denied: E_PERM\n28. revoke capabilities it does not hold       denied: E_NOCAP\n...\n31. disable interrupts (cli)                   denied: general protection fault\n...\n35. read kernel memory                         denied: page fault\n36. write kernel memory                        denied: page fault\n...\n40. replace the page tables (mov cr3)          denied: general protection fault\n...\n46. return to ring 0 with a forged iret frame  denied: general protection fault\n...\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 51/51 attempts denied\nkernel invariants: all hold",
+  "value": "inti> rogue all\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 64 slots.\n 1. read the keyboard port 0x60                denied: E_NOCAP\n 2. reset the machine through port 0x64        denied: E_NOCAP\n 3. take over the keyboard interrupt           denied: E_NOCAP\n 4. map physical memory                        denied: E_NOCAP\n 5. kill another task                          denied: E_NOCAP\n...\n 9. add the receive right to its console cap   denied: E_PERM\n...\n11. answer others' calls with forged tokens    denied: E_INVAL\n...\n15. have the kernel write into kernel memory   denied: E_FAULT\n...\n20. take more memory than its quota            denied: E_NOMEM\n...\n24. create an endpoint with no endpoint quota  denied: E_NOSLOT\n25. give a child more task quota than it has   denied: E_NOSLOT\n26. give a child a larger processor share      denied: E_PERM\n27. hand a capability to the console driver    denied: E_PERM\n28. revoke capabilities it does not hold       denied: E_NOCAP\n...\n31. disable interrupts (cli)                   denied: general protection fault\n...\n35. read kernel memory                         denied: page fault\n36. write kernel memory                        denied: page fault\n...\n40. replace the page tables (mov cr3)          denied: general protection fault\n...\n46. return to ring 0 with a forged iret frame  denied: general protection fault\n...\n49. run code from its stack                    denied: page fault\n50. run code from its data                     denied: page fault\n51. run code from memory it just mapped        denied: page fault\nROGUE: 51/51 attempts denied\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "log.rogue_default": {
-  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\n46. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
+  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 64 slots.\n...\n46. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "log.crash_console": {
-  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x400022e0\n[console restarted]\ninit: console restarted after 2371 us (restart 1)\nRECOVERY: console crash -> answering again after 7440 us",
+  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x40002356\n[console restarted]\ninit: console restarted after 2487 us (restart 1)\nRECOVERY: console crash -> answering again after 7583 us",
   "source": "evidence/test_serial.log"
  },
  "log.crash_fs": {
-  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x40001ba6\ninit: fs restarted after 11990 us (restart 1)\nRECOVERY: fs crash -> answering again after 23341 us",
+  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs restarted after 2233 us (restart 1)\nRECOVERY: fs crash -> answering again after 4464 us",
   "source": "evidence/test_serial.log"
  },
  "log.hang_console": {
-  "value": "inti> hang console\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 426 us (restart 6)\nRECOVERY: console hang -> answering again after 733728 us",
+  "value": "inti> hang console\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 851 us (restart 6)\nRECOVERY: console hang -> answering again after 782928 us",
   "source": "evidence/test_serial.log"
  },
  "log.hang_fs": {
-  "value": "inti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 5039 us (restart 6)\nRECOVERY: fs hang -> answering again after 770090 us",
+  "value": "inti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 818 us (restart 6)\nRECOVERY: fs hang -> answering again after 732950 us",
   "source": "evidence/test_serial.log"
  },
  "log.double": {
-  "value": "inti> double\ninit: fs crashed: page fault at address 0x10, eip 0x40001ba6\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 1346 us (restart 17)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 1036 us (restart 11)\nDOUBLE FAILURE: fs answering again after 50871 us, console after 798088 us",
+  "value": "inti> double\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 2260 us (restart 17)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 698 us (restart 11)\nDOUBLE FAILURE: fs answering again after 49816 us, console after 584761 us",
   "source": "evidence/test_serial.log"
  },
  "log.tour": {
-  "value": "inti> tour\n\nTOUR 1/5: A hostile program tries to break out; watch what it is denied.\n  (the command for this step: rogue)\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold\n\nTOUR 2/5: The screen driver crashes and is restarted like any program.\n  (the command for this step: crash console)\ninit: console crashed: page fault at address 0x10, eip 0x400022e0\n[console restarted]\ninit: console restarted after 18174 us (restart 16)\nRECOVERY: console crash -> answering again after 51405 us\n\nTOUR 3/5: The file server stops answering; the supervisor replaces it.\n  (the command for this step: hang fs)\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 907 us (restart 22)\nRECOVERY: fs hang -> answering again after 745707 us\n\nTOUR 4/5: Two at once: the screen driver hangs, the file server crashes.\n  (the command for this step: double)\ninit: fs crashed: page fault at address 0x10, eip 0x40001ba6\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 1754 us (restart 23)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 650 us (restart 17)\nDOUBLE FAILURE: fs answering again after 60660 us, console after 645547 us\n\nTOUR 5/5: The kernel reports its counters and checks its own tables.\n  (the command for this step: uptime)\nup 155.057 s, 15472 timer interrupts\n5 tasks, 5 endpoints, 612496 system calls, 22866 task switches\n15702 device interrupts, 102 faults contained\n208 tasks started, 0 kernel anomalies\nkernel invariants: all hold\n\nTOUR: done. Nothing was rebooted; this is the shell that started the tour.",
+  "value": "inti> tour\n\nTOUR 1/6: A hostile program tries to break out; watch what it is denied.\n  (the command for this step: rogue)\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 64 slots.\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold\n\nTOUR 2/6: The keyboard driver crashes and is restarted like any program.\n  (the command for this step: crash console)\ninit: console crashed: page fault at address 0x10, eip 0x40002356\n[console restarted]\ninit: console restarted after 2369 us (restart 16)\nRECOVERY: console crash -> answering again after 6582 us\n\nTOUR 3/6: The display server crashes; the text you read is drawn again.\n  (the command for this step: crash display)\ninit: display crashed: page fault at address 0x10, eip 0x40005956\ninit: display restarted after 1930 us (restart 11)\nRECOVERY: display crash -> answering again after 19381 us\n\nTOUR 4/6: The file server stops answering; the supervisor replaces it.\n  (the command for this step: hang fs)\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 943 us (restart 22)\nRECOVERY: fs hang -> answering again after 595325 us\n\nTOUR 5/6: Two at once: the keyboard driver hangs, the file server crashes.\n  (the command for this step: double)\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: noticed while waiting for console to answer a ping\ninit: fs restarted after 2434 us (restart 23)\ninit: console did not answer for 500 ms; ending it\ninit: console ended: killed\n[console restarted]\ninit: console restarted after 869 us (restart 17)\nDOUBLE FAILURE: fs answering again after 50863 us, console after 626734 us\n\nTOUR 6/6: The kernel reports its counters and checks its own tables.\n  (the command for this step: uptime)\nup 172.006 s, 17198 timer interrupts\n6 tasks, 6 endpoints, 624352 system calls, 32283 task switches\n17528 device interrupts, 108 faults contained\n220 tasks started, 0 kernel anomalies\nkernel invariants: all hold\n\nTOUR: done. Nothing was rebooted; this is the shell that started the tour.",
   "source": "evidence/test_serial.log"
  },
  "log.backoff": {
-  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x40001ba6\ninit: fs ended 3 times in a row; next restart in 100 ms\ninit: fs restarted after 106606 us (restart 27)\nRECOVERY: fs crash -> answering again after 107952 us\ninti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x40001ba6\ninit: fs ended 4 times in a row; next restart in 200 ms\ninit: fs restarted after 235826 us (restart 28)\nRECOVERY: fs crash -> answering again after 237335 us",
+  "value": "inti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs ended 3 times in a row; next restart in 100 ms\ninit: fs restarted after 118175 us (restart 27)\nRECOVERY: fs crash -> answering again after 120609 us\ninti> crash fs\ninit: fs crashed: page fault at address 0x10, eip 0x400019aa\ninit: fs ended 4 times in a row; next restart in 200 ms\ninit: fs restarted after 223692 us (restart 28)\nRECOVERY: fs crash -> answering again after 226073 us",
   "source": "evidence/test_serial.log"
  },
  "log.svc": {
-  "value": "inti> svc\nservice   state  restarts  last end                  last restart took\nconsole   up           17  killed                    650 us\nfs        up           28  page fault                235826 us\ndisk      up           10  killed                    2344 us\nshell     up            0  -",
+  "value": "inti> svc\nservice   state  restarts  last end                  last restart took\nconsole   up           17  killed                    869 us\nfs        up           28  page fault                223692 us\ndisk      up           10  killed                    3762 us\ndisplay   up           12  page fault                96531 us\nshell     up            0  -",
   "source": "evidence/test_serial.log"
  },
  "log.crash_init": {
-  "value": "inti> crash init\nCrashing the root task. The kernel will start user space again.\nkernel: the root task ended (cause 0xe); restarting user space at t=160734598 us\n[user space restarted]\ninit: started console with 6 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started disk with 3 capabilities, 64 pages\ninit: started shell with 13 capabilities, 15480 pages\nInti 0.2.1 shell ready at t=160743266 us\nType help for the list of commands, or tour for a guided tour.",
+  "value": "inti> crash init\nCrashing the root task. The kernel will start user space again.\nkernel: the root task ended (cause 0xe); restarting user space at t=194601971 us\n[user space restarted]\ninit: started console with 5 capabilities, 64 pages\ninit: started fs with 2 capabilities, 64 pages\ninit: started disk with 3 capabilities, 64 pages\ninit: started display with 5 capabilities, 384 pages\ninit: started shell with 15 capabilities, 15079 pages\nInti 0.3.0 shell ready at t=194724828 us\nType help for the list of commands, or tour for a guided tour.",
   "source": "evidence/test_serial.log"
  },
  "log.fuzz": {
-  "value": "inti> fuzz 1000000\nFuzzing the kernel with 1000000 random system calls, seed 163415397.\n   10%  100294 calls, 208 tasks ended, 454 checks\n...\n  100%  1000126 calls, 2280 tasks ended, 4649 checks\nFUZZ: 1000769 random system calls from 2283 tasks in 111995 ms\nFUZZ: 4653 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks\nFUZZ: tasks ended: 597 exited, 1264 were stopped, 422 hit a CPU exception\nCalls the tasks reported before they ended (tried / accepted by the kernel):\n  yield           14257 /   14257    io_in           14439 /    2124\n  exit              468 /     468    io_out          14090 /    2086\n  call            14444 /    2131    irq_bind        14421 /     850\n  recv            14466 /     311    irq_ack         14198 /     540\n  reply           14540 /      39    spawn           14488 /     971\n  ep_create       14463 /    5988    task_kill       14347 /      45\n  cap_derive      14592 /    2552    sleep           14201 /   14201\n  cap_drop        13856 /    3540    time            14401 /   14401\n  map             14300 /    2434    log             14431 /       0\n  unmap           14149 /    3892    sysinfo         14468 /    2053\n  map_mem         14317 /    1526    cap_revoke      14571 /    6128\nFUZZ: PASS",
+  "value": "inti> fuzz 1000000\nFuzzing the kernel with 1000000 random system calls, seed 197406855.\n   10%  101072 calls, 211 tasks ended, 372 checks\n...\n  100%  1000421 calls, 2076 tasks ended, 4006 checks\nFUZZ: 1001072 random system calls from 2079 tasks in 71945 ms\nFUZZ: 4010 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks\nFUZZ: tasks ended: 552 exited, 1075 were stopped, 452 hit a CPU exception\nCalls the tasks reported before they ended (tried / accepted by the kernel):\n  yield           13547 /   13547    io_in           13612 /    1859\n  exit              427 /     427    io_out          13705 /    1863\n  call            13746 /    2178    irq_bind        13670 /     832\n  recv            13669 /     302    irq_ack         13498 /     529\n  reply           13342 /      42    spawn           13698 /     930\n  ep_create       13448 /    5652    task_kill       13626 /      43\n  cap_derive      13476 /    2404    sleep           13483 /   13483\n  cap_drop        12888 /    3347    time            13518 /   13518\n  map             13635 /    2399    log             13697 /       0\n  unmap           13440 /    3675    sysinfo         13532 /    1935\n  map_mem         13751 /    1513    cap_revoke      13572 /    5557\nFUZZ: PASS",
   "source": "evidence/test_serial.log"
  },
  "log.bench": {
-  "value": "inti> bench\nTimes are read from the guest's clock. Under an emulator they mostly\ndescribe the emulator; compare them with each other, not with real hardware.\nBENCH: system call entry and return: 806 ns\nBENCH: read the clock: 1325 ns\nBENCH: IPC call and reply: 27779 ns\nBENCH: start, run and reap a task: 681030 ns\nBENCH: map and unmap one page: 35456 ns\nBENCH: check every kernel invariant: 4063550 ns\nBENCH: done",
+  "value": "inti> bench\nTimes are read from the guest's clock. Under an emulator they mostly\ndescribe the emulator; compare them with each other, not with real hardware.\nBENCH: system call entry and return: 1015 ns\nBENCH: read the clock: 1547 ns\nBENCH: IPC call and reply: 34862 ns\nBENCH: start, run and reap a task: 907010 ns\nBENCH: map and unmap one page: 33772 ns\nBENCH: check every kernel invariant: 3153600 ns\nBENCH: done",
   "source": "evidence/test_serial.log"
  },
  "log.uptime": {
-  "value": "inti> uptime\nup 292.086 s, 27125 timer interrupts\n5 tasks, 5 endpoints, 2827618 system calls, 271176 task switches\n27440 device interrupts, 897 faults contained\n6028 tasks started, 0 kernel anomalies\nkernel invariants: all hold",
+  "value": "inti> uptime\nup 287.086 s, 28699 timer interrupts\n6 tasks, 6 endpoints, 2990386 system calls, 291885 task switches\n29190 device interrupts, 906 faults contained\n5794 tasks started, 0 kernel anomalies\nkernel invariants: all hold",
   "source": "evidence/test_serial.log"
  },
  "weblog.rogue": {
-  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 32 slots.\n...\n46. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
+  "value": "inti> rogue\nStarting a hostile program that holds one capability: console output.\nAttempts that need a capability are made with each of the 64 slots.\n...\n46. return to ring 0 with a forged iret frame  skipped\n...\nROGUE: 50/50 attempts denied, 1 skipped\nThe skipped attempt stops the v86 browser emulator; \"rogue all\" runs it.\nkernel invariants: all hold",
   "source": "evidence/web.json"
  },
  "weblog.faults": {
-  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x400022e0\n[console restarted]\ninit: console restarted after 1699 us (restart 1)\nRECOVERY: console crash -> answering again after 4899 us\ninti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 1501 us (restart 1)\nRECOVERY: fs hang -> answering again after 567208 us",
+  "value": "inti> crash console\ninit: console crashed: page fault at address 0x10, eip 0x40002356\n[console restarted]\ninit: console restarted after 3901 us (restart 1)\nRECOVERY: console crash -> answering again after 13900 us\ninti> hang fs\ninit: fs did not answer for 500 ms; ending it\ninit: fs ended: killed\ninit: fs restarted after 7300 us (restart 1)\nRECOVERY: fs hang -> answering again after 764811 us",
   "source": "evidence/web.json"
  },
  "weblog.wx": {
@@ -1000,7 +1104,7 @@
   "source": "evidence/test_nonx_serial.log"
  },
  "model.date": {
-  "value": "2026-11-13T01:26:34+00:00",
+  "value": "2026-11-17T03:51:38+00:00",
   "source": "evidence/model.json"
  },
  "model.host": {
@@ -1012,7 +1116,7 @@
   "source": "evidence/model.json"
  },
  "model.duration_s": {
-  "value": 61,
+  "value": 40,
   "source": "evidence/model.json"
  },
  "model.tests": {
@@ -1156,7 +1260,7 @@
   "source": "model/src/main.rs"
  },
  "loc.model": {
-  "value": 3856,
+  "value": 3857,
   "source": "model/src"
  },
  "mutants.sites": {
@@ -1400,7 +1504,7 @@
   "source": "evidence/mutants-unseen.json"
  },
  "table.mutants_unseen_not_caught": {
-  "value": "| Where | Change | Before | After | Why no check caught it |\n|---|---|---|---|---|\n| `kernel/src/task.rs`, line 33 | && becomes \\|\\| | `const _: () = assert!(CAP_SLOTS == 32 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | `const _: () = assert!(CAP_SLOTS == 32 \\|\\| MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and it holds for the constants as they are, so the changed kernel is the same program. |",
+  "value": "| Where | Change | Before | After | Why no check caught it |\n|---|---|---|---|---|\n| `kernel/src/task.rs`, line 33 | && becomes \\|\\| | `const _: () = assert!(CAP_SLOTS == 64 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | `const _: () = assert!(CAP_SLOTS == 64 \\|\\| MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | Makes no difference. The line is an assertion that the compiler evaluates while it builds the kernel, and it holds for the constants as they are, so the changed kernel is the same program. |",
   "source": "evidence/mutants-unseen.json"
  },
  "mutants.unseen.judged_no_difference": {
@@ -1640,7 +1744,7 @@
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.caught": {
-  "value": 6,
+  "value": 7,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.not_repeated": {
@@ -1648,7 +1752,7 @@
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.not_counted": {
-  "value": 5,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.same_image": {
@@ -1656,7 +1760,7 @@
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.not_caught": {
-  "value": 7,
+  "value": 11,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.does_not_build": {
@@ -1676,15 +1780,15 @@
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_before_checks": {
-  "value": 36,
+  "value": 51,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_after_checks": {
-  "value": 36,
+  "value": 51,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.differing": {
-  "value": 2,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.caught_by_time_limit": {
@@ -1692,55 +1796,55 @@
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.caught_by_failed_check": {
-  "value": 4,
+  "value": 7,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.noticed": {
-  "value": 4,
+  "value": 7,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.noticed_by_several_checks": {
-  "value": 4,
+  "value": 7,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_beside_runs": {
-  "value": 11,
+  "value": 7,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_beside_failed": {
-  "value": 5,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_failed_time_limit": {
-  "value": 1,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_failed_clock": {
-  "value": 2,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.unchanged_failed_fuzz": {
-  "value": 2,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.not_counted_same_check_twice": {
-  "value": 3,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.suite_runs": {
-  "value": 42,
+  "value": 34,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.set_aside": {
-  "value": 16,
+  "value": 0,
   "source": "evidence/mutants-qemu.json"
  },
  "mutants.qemu.not_noticed": {
-  "value": 17,
+  "value": 14,
   "source": "evidence/mutants-qemu.json"
  },
  "table.mutants_qemu": {
-  "value": "| Where | Sample | Change | After | In QEMU | Which checks |\n|---|---|---|---|---|---|\n| `kernel/src/mem.rs`, line 57 | first | + becomes - | `const ROOT: usize = KERNEL_TABLES - 1;` | caught twice | 2 failed in both runs, the first: with 256 MiB: the run reached its end |\n| `kernel/src/mem.rs`, line 196 | first | condition inverted | `if !(address == 0) {` | the unchanged kernel failed beside it; not counted | the unchanged kernel failed: the guest clock keeps time against the host clock over 5 idle seconds |\n| `kernel/src/mem.rs`, line 253 | first | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/mem.rs`, line 296 | first | && becomes \\|\\| | `assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) \\|\\| inside);` | not caught |  |\n| `kernel/src/mem.rs`, line 515 | first | call removed | `(line removed)` | caught twice | 4 failed in both runs, the first: selftest after boot |\n| `kernel/src/task.rs`, line 372 | first | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/task.rs`, line 708 | first | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/mem.rs`, line 76 | held-out | < becomes <= | `assert!(index <= ENTRIES);` | not caught |  |\n| `kernel/src/task.rs`, line 31 | held-out | < becomes <= | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS <= NONE as usize && NO_TASK == NONE as u32);` | builds the same image |  |\n| `kernel/src/mem.rs`, line 70 | fresh | < becomes <= | `assert!(table <= KERNEL_TABLES + 2);` | not caught |  |\n| `kernel/src/mem.rs`, line 165 | fresh | assignment removed | `(line removed)` | caught twice | 3 failed in both runs, the first: the run reached its end |\n| `kernel/src/mem.rs`, line 308 | fresh | && becomes \\|\\| | `assert!(self.managed(frame) \\|\\| offset as usize + data.len() <= PAGE as usize);` | not caught |  |\n| `kernel/src/sys.rs`, line 374 | fresh | assignment removed | `(line removed)` | the unchanged kernel failed beside it; not counted | the unchanged kernel failed: fuzz: at least 200000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks |\n| `kernel/src/task.rs`, line 345 | fresh | condition inverted | `if !(self.mem.nx != 0) {` | caught twice | 2 failed in both runs, the first: the kernel enforces W^X: its boot log says the no-execute bit is in use |\n| `kernel/src/task.rs`, line 33 | unseen | && becomes \\|\\| | `const _: () = assert!(CAP_SLOTS == 32 \\|\\| MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | builds the same image |  |\n| `kernel/src/ipc.rs`, line 83 | fifth | assignment removed | `(line removed)` | the unchanged kernel failed beside it; not counted | the unchanged kernel failed: the guest clock keeps time against the host clock over 5 idle seconds |\n| `kernel/src/mem.rs`, line 49 | fifth | && becomes \\|\\| | `const _: () = assert!(MAX_RAM <= 1 << 30 \\|\\| USER_BASE >= 1 << 30);` | builds the same image |  |\n| `kernel/src/mem.rs`, line 282 | fifth | < becomes <= | `assert!(self.managed(table) && index <= ENTRIES);` | failed twice, on different checks; not counted | first run: selftest after all faults; second run: without the no-execute bit: the run reached its end |\n| `kernel/src/mem.rs`, line 322 | fifth | >= becomes > | `if n > USER_TABLES {` | the unchanged kernel failed beside it; not counted | the unchanged kernel passed its time limit |\n| `kernel/src/task.rs`, line 728 | fifth | assignment removed | `(line removed)` | the unchanged kernel failed beside it; not counted | the unchanged kernel failed: fuzz: at least 200000 random system calls, 0 invariant violations, 0 kernel anomalies, 0 leaks |\n| `kernel/src/task.rs`, line 771 | fifth | assignment removed | `(line removed)` | failed twice, on different checks; not counted | first run: without the no-execute bit: the run reached its end; second run: selftest after boot |",
+  "value": "| Where | Sample | Change | After | In QEMU | Which checks |\n|---|---|---|---|---|---|\n| `kernel/src/mem.rs`, line 57 | first | + becomes - | `const ROOT: usize = KERNEL_TABLES - 1;` | caught twice | 2 failed in both runs, the first: with 256 MiB: the run reached its end |\n| `kernel/src/mem.rs`, line 196 | first | condition inverted | `if !(address == 0) {` | caught twice | 3 failed in both runs, the first: the run reached its end |\n| `kernel/src/mem.rs`, line 253 | first | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/mem.rs`, line 296 | first | && becomes \\|\\| | `assert!(frame % PAGE == 0 && (PAGE..MAX_RAM).contains(&frame) \\|\\| inside);` | not caught |  |\n| `kernel/src/mem.rs`, line 515 | first | call removed | `(line removed)` | caught twice | 4 failed in both runs, the first: selftest after boot |\n| `kernel/src/task.rs`, line 372 | first | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/task.rs`, line 708 | first | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/mem.rs`, line 76 | held-out | < becomes <= | `assert!(index <= ENTRIES);` | not caught |  |\n| `kernel/src/task.rs`, line 31 | held-out | < becomes <= | `const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS <= NONE as usize && NO_TASK == NONE as u32);` | builds the same image |  |\n| `kernel/src/mem.rs`, line 70 | fresh | < becomes <= | `assert!(table <= KERNEL_TABLES + 2);` | not caught |  |\n| `kernel/src/mem.rs`, line 165 | fresh | assignment removed | `(line removed)` | caught twice | 3 failed in both runs, the first: the run reached its end |\n| `kernel/src/mem.rs`, line 308 | fresh | && becomes \\|\\| | `assert!(self.managed(frame) \\|\\| offset as usize + data.len() <= PAGE as usize);` | not caught |  |\n| `kernel/src/sys.rs`, line 374 | fresh | assignment removed | `(line removed)` | caught twice | 6 failed in both runs, the first: the run reached its end |\n| `kernel/src/task.rs`, line 345 | fresh | condition inverted | `if !(self.mem.nx != 0) {` | caught twice | 2 failed in both runs, the first: the kernel enforces W^X: its boot log says the no-execute bit is in use |\n| `kernel/src/task.rs`, line 33 | unseen | && becomes \\|\\| | `const _: () = assert!(CAP_SLOTS == 64 \\|\\| MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);` | builds the same image |  |\n| `kernel/src/ipc.rs`, line 83 | fifth | assignment removed | `(line removed)` | caught twice | 3 failed in both runs, the first: the run reached its end |\n| `kernel/src/mem.rs`, line 49 | fifth | && becomes \\|\\| | `const _: () = assert!(MAX_RAM <= 1 << 30 \\|\\| USER_BASE >= 1 << 30);` | builds the same image |  |\n| `kernel/src/mem.rs`, line 282 | fifth | < becomes <= | `assert!(self.managed(table) && index <= ENTRIES);` | not caught |  |\n| `kernel/src/mem.rs`, line 322 | fifth | >= becomes > | `if n > USER_TABLES {` | not caught |  |\n| `kernel/src/task.rs`, line 728 | fifth | assignment removed | `(line removed)` | not caught |  |\n| `kernel/src/task.rs`, line 771 | fifth | assignment removed | `(line removed)` | not caught |  |",
   "source": "evidence/mutants-qemu.json"
  },
  "miri.miri": {
@@ -1756,15 +1860,15 @@
   "source": "evidence/miri.json"
  },
  "miri.limit_s": {
-  "value": 2700,
+  "value": 10800,
   "source": "evidence/miri.json"
  },
  "miri.seconds": {
-  "value": 2743,
+  "value": 11096,
   "source": "evidence/miri.json"
  },
  "miri.checks_passed": {
-  "value": 21,
+  "value": 190,
   "source": "evidence/miri.json"
  },
  "miri.checks_failed": {
@@ -1776,19 +1880,19 @@
   "source": "evidence/miri.json"
  },
  "miri.sections_started": {
-  "value": 3,
+  "value": 22,
   "source": "evidence/miri.json"
  },
  "miri.last_section": {
-  "value": "The task table",
+  "value": "A reply with a capability, to a call that was received with or without the grant right",
   "source": "evidence/miri.json"
  },
  "miri.minutes": {
-  "value": 46,
+  "value": 185,
   "source": "evidence/miri.json"
  },
  "miri.limit_minutes": {
-  "value": 45,
+  "value": 180,
   "source": "evidence/miri.json"
  },
  "miri.ended": {
@@ -2035,21 +2139,25 @@
   "value": 28,
   "source": "evidence/timing/share-loop.jsonl"
  },
+ "race.batch_not_counted": {
+  "value": 5,
+  "source": "evidence/fuzz-launch-race/batch/mutants-qemu.json"
+ },
  "race.batch_runs": {
   "value": 2,
-  "source": "evidence/mutants-qemu-logs"
+  "source": "evidence/fuzz-launch-race/batch"
  },
  "race.frames_before": {
   "value": 15875,
-  "source": "evidence/mutants-qemu-logs"
+  "source": "evidence/fuzz-launch-race/batch"
  },
  "race.frames_after": {
   "value": 15880,
-  "source": "evidence/mutants-qemu-logs"
+  "source": "evidence/fuzz-launch-race/batch"
  },
  "race.frames_gained": {
   "value": 5,
-  "source": "evidence/mutants-qemu-logs"
+  "source": "evidence/fuzz-launch-race/batch"
  },
  "race.image_pages": {
   "value": 4,
@@ -2065,7 +2173,7 @@
  },
  "race.selftest_batch_runs": {
   "value": 1,
-  "source": "evidence/mutants-qemu-logs"
+  "source": "evidence/fuzz-launch-race/batch"
  },
  "disk.block_bytes": {
   "value": 4096,
@@ -2156,11 +2264,11 @@
   "source": "evidence/storage.json"
  },
  "storage.date": {
-  "value": "2026-11-16",
+  "value": "2026-11-17",
   "source": "evidence/storage.json"
  },
  "storage.minutes": {
-  "value": 7,
+  "value": 3,
   "source": "evidence/storage.json"
  },
  "storage.emulator": {
@@ -2172,7 +2280,7 @@
   "source": "evidence/storage.json"
  },
  "table.storage_checks": {
-  "value": "| Check | Result | Detail |\n|---|---|---|\n| a program that was not given the disk is refused it, and says so | pass |  |\n| a program that was given the disk counts its runs in a file | pass |  |\n| after shutdown the image holds exactly the files that were written, byte for byte (read on the build machine) | pass | note.txt 23, copy.txt 1007, big.bin 81920, counter.txt 2 |\n| after switching off and on again the files are listed with the same sizes | pass | 4 files |\n| after switching off and on again the text is the text that was written | pass |  |\n| after switching off and on again the program continues its count | pass |  |\n| power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version | pass | 22 cuts before the first write, 27 between the first write and the switch to the new version, 11 after it |\n| the cuts landed in all three phases of a change (before, during, after) | pass | {\"before\": 22, \"during\": 27, \"after\": 11, \"broken\": 0} |\n| after every cut the machine lists the same files as the image holds | pass |  |\n| after the cuts the machine shows a text file with the content the image holds, every time one was there to show | pass | 42 comparisons (2 of them after the last cut); wrong: [] |\n| a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |\n| a partition of another type (0x83) where the volume was: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a disk with an empty partition table: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |\n| a disk with an empty partition table: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| an Inti partition that is all zeros: the reader on the build machine refuses it too | pass | the Inti partition holds no volume |\n| an Inti partition that is all zeros: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| an Inti partition full of other data: the reader on the build machine refuses it too | pass | the Inti partition holds no volume |\n| an Inti partition full of other data: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| an Inti partition that reaches past the end of the disk: the reader on the build machine refuses it too | pass | the Inti partition does not fit in the disk |\n| an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| both meta blocks with a wrong checksum: the reader on the build machine refuses it too | pass | damaged: neither meta block is whole |\n| both meta blocks with a wrong checksum: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a chain of blocks that loops: the reader on the build machine refuses it too | pass | damaged: big.bin: block 6 is used twice; block 7 is marked used by no file |\n| a meta block with a chain of blocks that loops: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file with a block outside the volume: the reader on the build machine refuses it too | pass | damaged: two.bin: block 300 is outside the volume; block 5 is marked used by no file |\n| a meta block with a file with a block outside the volume: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with the same file name twice: the reader on the build machine refuses it too | pass | damaged: note.txt: listed twice |\n| a meta block with the same file name twice: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with one block in two files: the reader on the build machine refuses it too | pass | damaged: note.txt: block 2 is used twice; block 11 is marked used by no file |\n| a meta block with one block in two files: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with one block in two files and no block left over: the reader on the build machine refuses it too | pass | damaged: note.txt: block 2 is used twice |\n| a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a block marked as used that no file uses: the reader on the build machine refuses it too | pass | damaged: block 40 is marked used by no file |\n| a meta block with a block marked as used that no file uses: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file longer than its chain of blocks: the reader on the build machine refuses it too | pass | damaged: two.bin: block 65535 is outside the volume |\n| a meta block with a file longer than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file shorter than its chain of blocks: the reader on the build machine refuses it too | pass | damaged: big.bin: the chain does not end where the size says; block 7 is marked used by no file |\n| a meta block with a file shorter than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file name with a character that is not allowed: the reader on the build machine refuses it too | pass | damaged: bad name b'no/te.txt\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'; block 11 is marked used by no file |\n| a meta block with a file name with a character that is not allowed: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with more blocks than the partition has: the reader on the build machine refuses it too | pass | damaged: neither meta block is whole |\n| a meta block with more blocks than the partition has: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with meta blocks that are not marked in the chain table: the reader on the build machine refuses it too | pass | damaged: the meta blocks are not marked in the chain table |\n| a meta block with meta blocks that are not marked in the chain table: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a newer meta block whose last sector was never written is ignored: the older one is used, no file is lost | pass | 6 files |\n| the next change then overwrites the torn meta block and the volume is sound | pass | meta block 1, sequence 8, 7 files |\n| of two whole meta blocks the one with the higher sequence number is used | pass | 5 files |\n| the sequence number may wrap around: 0 is newer than 4294967295 | pass | 5 files |\n| 40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not | pass | 22 sound, 18 damaged |\n| a directory with 48 files refuses one more, still replaces a file, and takes a new one after one was removed | pass | write: extra.txt: the directory is full |\n| a file that does not fit is refused with \"the disk is full\", and the blocks it had taken are free again | pass | disk: 2 files, 2 of 254 blocks of 4 KiB free |\n| on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays | pass | 0 blocks free at the end |\n| files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes | pass | 2 restarts by the supervisor |\n| a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one | pass | the write took 15.42 s |\n| a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later) | pass | reported after 30.06 s |\n| after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 0.12 s; files on the disk: a.txt, b.txt, e.txt |\n| a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards) | pass | reported after 30.01 s |\n| after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 3.44 s; files on the disk: a.txt, b.txt, e.txt |\n| the recorded writes, replayed on the starting image, give the image the machine left, byte for byte | pass | 592 sector writes, 20 flushes |\n| the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both | pass | 9 flush periods of data, 11 of a meta block |\n| every data write went to a block that no file of the version on the disk used | pass |  |\n| every new meta block went, whole, to the slot that did not hold the version in use | pass |  |\n| each of the 11 changes switched the volume to its next version exactly once | pass | version 11 after 11 meta blocks |\n| a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again | pass |  |\n| writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change | pass |  |\n| started on 18 of these states, the machine lists the same files as the reader on the build machine | pass |  |\n| the built image was not changed by any case | pass |  |",
+  "value": "| Check | Result | Detail |\n|---|---|---|\n| a program that was not given the disk is refused it, and says so | pass |  |\n| a program that was given the disk counts its runs in a file | pass |  |\n| after shutdown the image holds exactly the files that were written, byte for byte (read on the build machine) | pass | note.txt 23, copy.txt 1007, big.bin 81920, counter.txt 2 |\n| after switching off and on again the files are listed with the same sizes | pass | 4 files |\n| after switching off and on again the text is the text that was written | pass |  |\n| after switching off and on again the program continues its count | pass |  |\n| power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version | pass | 35 cuts before the first write, 20 between the first write and the switch to the new version, 5 after it |\n| the cuts landed in all three phases of a change (before, during, after) | pass | {\"before\": 35, \"during\": 20, \"after\": 5, \"broken\": 0} |\n| after every cut the machine lists the same files as the image holds | pass |  |\n| after the cuts the machine shows a text file with the content the image holds, every time one was there to show | pass | 17 comparisons (3 of them after the last cut); wrong: [] |\n| a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |\n| a partition of another type (0x83) where the volume was: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a disk with an empty partition table: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |\n| a disk with an empty partition table: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| an Inti partition that is all zeros: the reader on the build machine refuses it too | pass | the Inti partition holds no volume |\n| an Inti partition that is all zeros: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| an Inti partition full of other data: the reader on the build machine refuses it too | pass | the Inti partition holds no volume |\n| an Inti partition full of other data: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| an Inti partition that reaches past the end of the disk: the reader on the build machine refuses it too | pass | the Inti partition does not fit in the disk |\n| an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| both meta blocks with a wrong checksum: the reader on the build machine refuses it too | pass | damaged: neither meta block is whole |\n| both meta blocks with a wrong checksum: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a chain of blocks that loops: the reader on the build machine refuses it too | pass | damaged: big.bin: block 6 is used twice; block 7 is marked used by no file |\n| a meta block with a chain of blocks that loops: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file with a block outside the volume: the reader on the build machine refuses it too | pass | damaged: two.bin: block 300 is outside the volume; block 5 is marked used by no file |\n| a meta block with a file with a block outside the volume: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with the same file name twice: the reader on the build machine refuses it too | pass | damaged: note.txt: listed twice |\n| a meta block with the same file name twice: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with one block in two files: the reader on the build machine refuses it too | pass | damaged: note.txt: block 2 is used twice; block 11 is marked used by no file |\n| a meta block with one block in two files: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with one block in two files and no block left over: the reader on the build machine refuses it too | pass | damaged: note.txt: block 2 is used twice |\n| a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a block marked as used that no file uses: the reader on the build machine refuses it too | pass | damaged: block 40 is marked used by no file |\n| a meta block with a block marked as used that no file uses: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file longer than its chain of blocks: the reader on the build machine refuses it too | pass | damaged: two.bin: block 65535 is outside the volume |\n| a meta block with a file longer than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file shorter than its chain of blocks: the reader on the build machine refuses it too | pass | damaged: big.bin: the chain does not end where the size says; block 7 is marked used by no file |\n| a meta block with a file shorter than its chain of blocks: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with a file name with a character that is not allowed: the reader on the build machine refuses it too | pass | damaged: bad name b'no/te.txt\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'; block 11 is marked used by no file |\n| a meta block with a file name with a character that is not allowed: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with more blocks than the partition has: the reader on the build machine refuses it too | pass | damaged: neither meta block is whole |\n| a meta block with more blocks than the partition has: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a meta block with meta blocks that are not marked in the chain table: the reader on the build machine refuses it too | pass | damaged: the meta blocks are not marked in the chain table |\n| a meta block with meta blocks that are not marked in the chain table: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |\n| a newer meta block whose last sector was never written is ignored: the older one is used, no file is lost | pass | 6 files |\n| the next change then overwrites the torn meta block and the volume is sound | pass | meta block 1, sequence 8, 7 files |\n| of two whole meta blocks the one with the higher sequence number is used | pass | 5 files |\n| the sequence number may wrap around: 0 is newer than 4294967295 | pass | 5 files |\n| 40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not | pass | 22 sound, 18 damaged |\n| a directory with 48 files refuses one more, still replaces a file, and takes a new one after one was removed | pass | write: extra.txt: the directory is full |\n| a file that does not fit is refused with \"the disk is full\", and the blocks it had taken are free again | pass | disk: 2 files, 2 of 254 blocks of 4 KiB free |\n| on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays | pass | 0 blocks free at the end |\n| files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes | pass | 2 restarts by the supervisor |\n| a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one | pass | the write took 14.93 s |\n| a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later) | pass | reported after 30.02 s |\n| after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 0.03 s; files on the disk: a.txt, b.txt, e.txt |\n| a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards) | pass | reported after 30.02 s |\n| after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 1.9 s; files on the disk: a.txt, b.txt, e.txt |\n| the recorded writes, replayed on the starting image, give the image the machine left, byte for byte | pass | 608 sector writes, 20 flushes |\n| the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both | pass | 9 flush periods of data, 11 of a meta block |\n| every data write went to a block that no file of the version on the disk used | pass |  |\n| every new meta block went, whole, to the slot that did not hold the version in use | pass |  |\n| each of the 11 changes switched the volume to its next version exactly once | pass | version 11 after 11 meta blocks |\n| a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again | pass |  |\n| writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change | pass |  |\n| started on 18 of these states, the machine lists the same files as the reader on the build machine | pass |  |\n| the built image was not changed by any case | pass |  |",
   "source": "evidence/storage.json"
  },
  "storage.seeded_files": {
@@ -2188,7 +2296,7 @@
   "source": "evidence/storage.json"
  },
  "storage.ready_ms": {
-  "value": 17.4,
+  "value": 19.7,
   "source": "evidence/storage.json"
  },
  "storage.free_blocks_at_start": {
@@ -2200,15 +2308,15 @@
   "source": "evidence/storage.json"
  },
  "storage.cuts_before": {
-  "value": 22,
+  "value": 35,
   "source": "evidence/storage.json"
  },
  "storage.cuts_during": {
-  "value": 27,
+  "value": 20,
   "source": "evidence/storage.json"
  },
  "storage.cuts_after": {
-  "value": 11,
+  "value": 5,
   "source": "evidence/storage.json"
  },
  "storage.cuts_broken": {
@@ -2216,15 +2324,15 @@
   "source": "evidence/storage.json"
  },
  "storage.cuts_texts": {
-  "value": 42,
+  "value": 17,
   "source": "evidence/storage.json"
  },
  "storage.cuts_files_at_end": {
-  "value": 4,
+  "value": 3,
   "source": "evidence/storage.json"
  },
  "table.storage_cuts": {
-  "value": "| Change under way | Cuts | Before the first write | Between the first write and the switch | After the switch | Broken |\n|---|---|---|---|---|---|\n| copy 80 KiB from the archive | 24 | 10 | 12 | 2 | 0 |\n| remove a file | 12 | 5 | 4 | 3 | 0 |\n| append a line | 12 | 4 | 6 | 2 | 0 |\n| write a small file | 11 | 3 | 5 | 3 | 0 |\n| copy 80 KiB from the disk | 1 | 0 | 0 | 1 | 0 |",
+  "value": "| Change under way | Cuts | Before the first write | Between the first write and the switch | After the switch | Broken |\n|---|---|---|---|---|---|\n| copy 80 KiB from the archive | 20 | 10 | 10 | 0 | 0 |\n| remove a file | 2 | 0 | 1 | 1 | 0 |\n| append a line | 18 | 14 | 2 | 2 | 0 |\n| write a small file | 20 | 11 | 7 | 2 | 0 |",
   "source": "evidence/storage.json"
  },
  "storage.refusals": {
@@ -2268,7 +2376,7 @@
   "source": "evidence/storage.json"
  },
  "storage.sector_writes": {
-  "value": 592,
+  "value": 608,
   "source": "evidence/storage.json"
  },
  "storage.flushes": {
@@ -2284,7 +2392,7 @@
   "source": "evidence/storage.json"
  },
  "storage.cut_states": {
-  "value": 593,
+  "value": 609,
   "source": "evidence/storage.json"
  },
  "storage.lost_meta_states": {
@@ -2300,7 +2408,7 @@
   "source": "evidence/storage.json"
  },
  "storage.states": {
-  "value": 3603,
+  "value": 3619,
   "source": "evidence/storage.json"
  },
  "storage.timing_runs": {
@@ -2316,27 +2424,27 @@
   "source": "evidence/storage.json"
  },
  "table.storage_timing": {
-  "value": "| Change | Median | Slowest |\n|---|---|---|\n| copy 80 KiB from the archive | 88 ms | 104 ms |\n| copy 80 KiB from the disk | 147 ms | 151 ms |\n| write a small file | 11 ms | 12 ms |\n| append a line | 14 ms | 14 ms |\n| remove a file | 6 ms | 6 ms |",
+  "value": "| Change | Median | Slowest |\n|---|---|---|\n| copy 80 KiB from the archive | 71 ms | 90 ms |\n| copy 80 KiB from the disk | 110 ms | 129 ms |\n| write a small file | 20 ms | 20 ms |\n| append a line | 20 ms | 21 ms |\n| remove a file | 10 ms | 10 ms |",
   "source": "evidence/storage.json"
  },
  "storage.slow_write_s": {
-  "value": 15.42,
+  "value": 14.93,
   "source": "evidence/storage.json"
  },
  "storage.stopped_error_s": {
-  "value": 30.06,
+  "value": 30.02,
   "source": "evidence/storage.json"
  },
  "storage.stopped_read_s": {
-  "value": 0.12,
+  "value": 0.03,
   "source": "evidence/storage.json"
  },
  "storage.busy_error_s": {
-  "value": 30.01,
+  "value": 30.02,
   "source": "evidence/storage.json"
  },
  "storage.busy_read_s": {
-  "value": 3.44,
+  "value": 1.9,
   "source": "evidence/storage.json"
  },
  "storage.mutants.planted": {
@@ -2372,7 +2480,7 @@
   "source": "evidence/storage_mutants.json"
  },
  "storage.mutants.limit_minutes": {
-  "value": 39,
+  "value": 30,
   "source": "evidence/storage_mutants.json"
  },
  "storage.mutants.cuts": {
@@ -2392,7 +2500,7 @@
   "source": "evidence/storage_mutants.json"
  },
  "storage.mutants.minutes": {
-  "value": 311,
+  "value": 154,
   "source": "evidence/storage_mutants.json"
  },
  "storage.mutants.survivors": {
@@ -2400,7 +2508,7 @@
   "source": "evidence/storage_mutants.json"
  },
  "table.storage_mutants": {
-  "value": "| Fault | What is planted in the disk server | Verdict | Checks that failed both times |\n|---|---|---|---|\n| `slot-in-use` | publish writes the new meta block over the one in use instead of the other slot | caught | 5 |\n| `no-data-flush` | publish does not flush the data blocks before it writes the meta block | caught | 4 |\n| `no-meta-flush` | publish does not flush after the meta block | caught | 3 |\n| `reuse-live-block` | a block counts as free when only the state being prepared does not use it | caught | 4 |\n| `mount-unchecked` | mount accepts a sealed meta block without checking that it describes a sound volume | caught | 11 |\n| `older-slot` | mount takes the older of two sealed meta blocks | caught | 7 |\n| `no-checksum` | a meta block counts as sealed without its checksum being compared | caught | 4 |\n| `publish-unchecked` | publish writes the meta block without checking it first | not caught | - |\n| `no-rollback` | a refused change leaves its half-made chains in the state being prepared | caught | 1 |\n| `shared-block` | the soundness check lets two files share a block | caught | 1 |\n| `partition-past-end` | mount accepts a partition that reaches past the end of the drive | caught | 1 |\n| `no-ping-while-waiting` | the disk server does not look at its requests while it waits for the drive | caught | 3 |\n| `no-reset-after-failure` | the next command is sent without a reset after a step of the drive failed | caught | 2 |",
+  "value": "| Fault | What is planted in the disk server | Verdict | Checks that failed both times |\n|---|---|---|---|\n| `slot-in-use` | publish writes the new meta block over the one in use instead of the other slot | caught | 5 |\n| `no-data-flush` | publish does not flush the data blocks before it writes the meta block | caught | 4 |\n| `no-meta-flush` | publish does not flush after the meta block | caught | 3 |\n| `reuse-live-block` | a block counts as free when only the state being prepared does not use it | caught | 4 |\n| `mount-unchecked` | mount accepts a sealed meta block without checking that it describes a sound volume | caught | 11 |\n| `older-slot` | mount takes the older of two sealed meta blocks | caught | 6 |\n| `no-checksum` | a meta block counts as sealed without its checksum being compared | caught | 4 |\n| `publish-unchecked` | publish writes the meta block without checking it first | not caught | - |\n| `no-rollback` | a refused change leaves its half-made chains in the state being prepared | caught | 1 |\n| `shared-block` | the soundness check lets two files share a block | caught | 1 |\n| `partition-past-end` | mount accepts a partition that reaches past the end of the drive | caught | 1 |\n| `no-ping-while-waiting` | the disk server does not look at its requests while it waits for the drive | caught | 3 |\n| `no-reset-after-failure` | the next command is sent without a reset after a step of the drive failed | caught | 2 |",
   "source": "evidence/storage_mutants.json"
  },
  "table.storage_mutants_by": {
@@ -2448,7 +2556,7 @@
   "source": "evidence/machines.json"
  },
  "machines.date": {
-  "value": "2026-11-16",
+  "value": "2026-11-17",
   "source": "evidence/machines.json"
  },
  "machines.minutes": {
@@ -2472,7 +2580,7 @@
   "source": "evidence/machines.json"
  },
  "table.machines": {
-  "value": "| Machine | What differs | QEMU arguments | Memory | Reaches the shell | `selftest` | What the disk server says | Keeps a file | Note |\n|---|---|---|---|---|---|---|---|---|\n| `tested` | the machine every test uses: i440FX board, 32-bit processor with the no-execute bit, IDE disk | `-` | 64 MiB | yes, after 0.1 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `no-nx` | a processor without the no-execute bit (Pentium III) | `-cpu pentium3` | 64 MiB | yes, after 0.2 s | PASS 93/93 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `newest-cpu` | every processor feature QEMU can emulate, 64-bit ones included | `-cpu max` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `no-pae` | a processor without PAE paging (486) | `-cpu 486` | 64 MiB | no | - | - | no | no prompt; the serial port says: KERNEL PANIC: panicked at kernel/src/mem.rs:151:9: this processor has no PAE paging, which Inti needs |\n| `small-memory` | the least memory tried | `-` | 16 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `large-memory` | the most memory tried | `-` | 2048 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `two-processors` | two processors | `-smp 2` | 64 MiB | yes, after 0.1 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `q35` | Q35 board: the disk hangs on an AHCI (SATA) controller | `-machine q35` | 64 MiB | yes, after 0.1 s | PASS 96/96 | no ATA disk found | no |  |\n| `usb-stick` | the image on a USB stick, no other disk | `-usb -device usb-storage,drive=stick,bootindex=0` | 64 MiB | yes, after 0.9 s | PASS 96/96 | no ATA disk found | no |  |\n| `whpx` | hardware virtualisation (Windows Hypervisor Platform) instead of emulation | `-accel whpx` | 64 MiB | no | - | - | no | QEMU did not start; it wrote: qemu-system-i386: -accel whpx: invalid accelerator whpx |",
+  "value": "| Machine | What differs | QEMU arguments | Memory | Reaches the shell | `selftest` | What the disk server says | Keeps a file | Note |\n|---|---|---|---|---|---|---|---|---|\n| `tested` | the machine every test uses: i440FX board, 32-bit processor with the no-execute bit, IDE disk | `-` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `no-nx` | a processor without the no-execute bit (Pentium III) | `-cpu pentium3` | 64 MiB | yes, after 0.2 s | PASS 93/93 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `newest-cpu` | every processor feature QEMU can emulate, 64-bit ones included | `-cpu max` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `no-pae` | a processor without PAE paging (486) | `-cpu 486` | 64 MiB | no | - | - | no | no prompt; the serial port says: KERNEL PANIC: panicked at kernel/src/mem.rs:151:9: this processor has no PAE paging, which Inti needs |\n| `small-memory` | the least memory tried | `-` | 16 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `large-memory` | the most memory tried | `-` | 2048 MiB | yes, after 0.1 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `two-processors` | two processors | `-smp 2` | 64 MiB | yes, after 0.2 s | PASS 96/96 | 1 file, 253 of 254 blocks of 4 KiB free | yes |  |\n| `q35` | Q35 board: the disk hangs on an AHCI (SATA) controller | `-machine q35` | 64 MiB | yes, after 0.1 s | PASS 96/96 | no ATA disk found | no |  |\n| `usb-stick` | the image on a USB stick, no other disk | `-usb -device usb-storage,drive=stick,bootindex=0` | 64 MiB | yes, after 1.1 s | PASS 96/96 | no ATA disk found | no |  |\n| `whpx` | hardware virtualisation (Windows Hypervisor Platform) instead of emulation | `-accel whpx` | 64 MiB | no | - | - | no | QEMU did not start; it wrote: qemu-system-i386: -accel whpx: invalid accelerator whpx |",
   "source": "evidence/machines.json"
  },
  "app.pages": {
@@ -2500,7 +2608,7 @@
   "source": "user/src/bin/counter.rs"
  },
  "app.programs": {
-  "value": 12,
+  "value": 16,
   "source": "user/src/bin"
  },
  "disk.step_s": {

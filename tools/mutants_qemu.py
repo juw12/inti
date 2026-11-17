@@ -70,7 +70,7 @@ COPY = ROOT / "build" / "mutants" / "qemu"
 LOGS = EVIDENCE / "mutants-qemu-logs"
 SCRATCH_LOGS = ROOT / "build" / "mutants" / "qemu-logs"  # where --only keeps them: nothing is written to evidence/
 SERIAL_LOGS = (("test_serial.log", "serial.log"), ("test_fullmem_serial.log", "fullmem.serial.log"))
-COPIED = (*mutants.COPIED, "build.py", "tools", "files", "disk")
+COPIED = (*mutants.COPIED, "build.py", "tools", "files", "disk", "assets")
 SAMPLES = (("first", "mutants.json"), ("held-out", "mutants-held-out.json"),
            ("fresh", "mutants-fresh.json"), ("unseen", "mutants-unseen.json"),
            ("fifth", "mutants-fifth.json"))

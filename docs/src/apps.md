@@ -43,6 +43,7 @@ A program can only use what it holds. The shell starts an ordinary program with:
 |---|---|---|---|
 | first | `CONSOLE` | a capability to send text to the console driver | always |
 | second | `DISK` | a capability to send requests to the disk server | only when started as `NAME +disk` |
+| third | `DISPLAY` | a capability to ask the display server for windows | only when started as `NAME +window` |
 
 It also gets a memory quota of {{app.pages}} pages ({{app.memory_kib}} KiB) and a stack of {{app.stack_pages}} pages ({{app.stack_kib}} KiB). It gets no I/O ports, no interrupt lines, no capability for another program, and no way to ask for more. `counter` started without `+disk` shows what that means: its request for the disk is refused by the kernel, because the slot is empty, and the program is told so.
 
@@ -73,6 +74,17 @@ Files, from `rt::client`. Each takes the capability slot first; with `DISK` it t
 
 `stat`, `read` and `list` return an `Option`: nothing when the file is not there or the server did not answer. The calls that change something, and `disk_info`, return a `Result` with the reason. The reasons a disk call can fail, as `disk_error` words them: "no ATA disk found", "no Inti volume on the disk", "the Inti volume is damaged", "no such file", "the disk is full", "the directory is full", "bad file name", "another writer started first", "the file changed in the meantime", "the disk reported an error", "no capability for the disk", "the disk server does not answer".
 
+Windows, from `rt::client`. A program started as `NAME +window &` runs in the background and can open windows; `user/src/bin/clock.rs` is the smallest example.
+
+| Call | What it does |
+|---|---|
+| `win_open(DISPLAY, width, height, title)` | open a window whose inside has that many pixels; returns the slot of the capability for it |
+| `win_fill(window, x, y, width, height, colour)` | fill a rectangle inside the window with one of the {{display.colours}} colours of `rt::proto::colour` |
+| `win_text(window, x, y, text_colour, background, bytes)` | draw text in the system font, {{font.width}} by {{font.height}} pixels a letter |
+| `win_close(window)` | close the window and give its capability up |
+
+`win_fill` and `win_text` return false when the window no longer exists, which is what happens after the display server was restarted; the program then opens a new window and draws again. A window gets no keyboard input.
+
 The kernel's own system calls are in `rt::sys`; [How Inti works](design.md) lists them. An ordinary program holds nothing most of them could act on.
 
 ## Arguments and input
@@ -102,6 +114,7 @@ The test run does the first two steps on every run. What is missing is a way to 
 - **No per-program files.** A program started with `+disk` can read, replace and remove every file on the disk. The only protection is that a program started without it cannot touch the disk at all.
 - **Numbers only as arguments, and keyboard input is untried.** See "Arguments and input" above. A file is the tested way to give a program its input.
 - **No heap, no threads, no network.**
+- **Windows are for output.** A program can draw in its windows; keys go to the terminal only, and a program is not told about the mouse.
 - **No way to install a program on a running system.** A program runs from the boot archive or from the disk, but it gets to either only when the image or the volume is built.
 - **Small files.** The disk holds at most {{disk.max_files}} files and {{disk.max_volume_mib}} MiB; see [Files that last](storage.md).
 - **The resend after a server death has no test of its own.** [Files that last](storage.md) says where that matters.

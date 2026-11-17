@@ -30,9 +30,9 @@ pub const KERNEL_MAP: u32 = 0x11_0000;
 pub const ARCHIVE: u32 = KERNEL_MAP + crate::mem::KERNEL_MAP_BYTES as u32;
 /// The first frame that the kernel hands out.
 pub const KERNEL_END: u32 = ARCHIVE + PAGE_BYTES as u32;
-/// The memory of the one device whose memory tasks can map: the text screen. Whoever holds
+/// The memory of the one device whose memory tasks can map: the VGA card. Whoever holds
 /// its capability may write there, so it is the one part of low memory that may change.
-pub const SCREEN: std::ops::Range<u32> = 0xB_8000..0xC_0000;
+pub const SCREEN: std::ops::Range<u32> = 0xA_0000..0xC_0000;
 /// Interrupt lines that the real `arch::init` leaves open: the timer and the cascade.
 const OPEN_AT_BOOT: u16 = 0xFFFA;
 

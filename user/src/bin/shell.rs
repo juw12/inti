@@ -3,7 +3,8 @@
 //! It is an ordinary task. It can inspect the system through a read-only Info capability,
 //! start programs from the file server, and ask the servers to fail on purpose so that the
 //! recovery can be watched and timed. A program it starts gets one capability by default:
-//! the right to print. `NAME +disk` adds a second one, the disk.
+//! the right to print. `NAME +disk` adds a second one, the disk, and `NAME +window` the
+//! right to open windows on the screen. `NAME &` starts a program and does not wait for it.
 //!
 //! Files come from two places: the boot archive, which is part of the system image and
 //! cannot be changed, and the disk, which can. A name is looked up in the archive first,
@@ -17,7 +18,8 @@ use rt::abi::{FOREVER, L_FAULT};
 use rt::abi::{MAX_TASKS, MSG_DATA, NO_CAP, NO_TASK, ST_FREE, ST_READY, ST_RECV, ST_REPLY};
 use rt::abi::{ST_SEND, ST_SLEEP, ST_ZOMBIE, USER_BASE};
 use rt::io::{cause_name, errname, name, set_output, Emit, Hex, Line, Num, Pad, Sink};
-use rt::proto::{CON_INTR, DBG_CRASH, DBG_HANG, INIT_SHUTDOWN, INIT_STATUS, OK, PING};
+use rt::proto::{CON_INTR, DBG_CRASH, DBG_HANG, DISP_INFO, INIT_SHUTDOWN, INIT_STATUS, OK, PING};
+use rt::proto::WINDOW_RECORD;
 use rt::proto::{ROGUE_FIRST_NX, ROGUE_HW_MODES, ROGUE_ONLY_IN_ALL, SERVICE_RECORD};
 use rt::{client, outln, sys};
 
@@ -40,6 +42,11 @@ const TEST_DEVICE: u32 = 10;
 /// The disk server, for the shell itself and, with the "program" badge, to hand on.
 const DISK: u32 = 11;
 const APP_DISK: u32 = 12;
+/// The display server, likewise.
+const DISPLAY: u32 = 13;
+const APP_DISPLAY: u32 = 14;
+/// How many programs can run in the background at a time.
+const JOBS: usize = 4;
 
 /// `double` first gives the servers this long to settle, because `init` does not ping a
 /// server that it has just started.
@@ -49,7 +56,7 @@ const SETTLE_MS: u32 = 600;
 const HEAD_START_MS: u32 = 300;
 /// The guided tour waits this long before each step, so that its heading can be read.
 const TOUR_PAUSE_MS: u32 = 1200;
-const TOUR_STEPS: u32 = 5;
+const TOUR_STEPS: u32 = 6;
 
 /// Where a program file is loaded before it is started.
 const IMAGE_BASE: u32 = USER_BASE + 0x1000_0000;
@@ -119,6 +126,31 @@ impl Emit for Seconds {
     }
 }
 
+/// A number that can be negative, right-aligned.
+struct Signed(i32, usize);
+
+impl Emit for Signed {
+    fn emit(&self, line: &mut Line) {
+        if self.0 < 0 {
+            Pad(b"", self.1.saturating_sub(digits(self.0.unsigned_abs()) + 1)).emit(line);
+            line.push(b"-");
+            self.0.unsigned_abs().emit(line);
+        } else {
+            Num(self.0 as u32, self.1).emit(line);
+        }
+    }
+}
+
+fn digits(value: u32) -> usize {
+    let mut count = 1;
+    let mut rest = value / 10;
+    while rest > 0 {
+        count += 1;
+        rest /= 10;
+    }
+    count
+}
+
 fn words(line: &[u8]) -> [&[u8]; 4] {
     let mut words = [EMPTY; 4];
     let mut parts = line.split(|&byte| byte == b' ' || byte == b'\t').filter(|word| !word.is_empty());
@@ -179,13 +211,17 @@ fn help() {
     outln!("  mem                     memory use");
     outln!("  uptime                  kernel counters and the invariant check");
     outln!("  svc                     supervised services and their restarts");
-    outln!("  crash console|fs|disk|init  make that component fail with a page fault");
-    outln!("  hang console|fs|disk    make that server stop answering");
+    outln!("  windows                 the windows on the screen");
+    outln!("  crash console|fs|disk|display|init  make it fail with a page fault");
+    outln!("  hang console|fs|disk|display        make that server stop answering");
     outln!("  double                  hang the console and crash fs at the same time");
     outln!("  rogue [all]             run a hostile program and count what it is denied");
     outln!("  shutdown                switch the machine off");
     outln!("  NAME [N ...]            run a program: hello, selftest, bench, fuzz 100000");
     outln!("  NAME +disk              run it with the disk as a second capability: counter");
+    outln!("  NAME +window &          run it in the background with a window: clock, life");
+    outln!("  desktop                 start clock and life, each in a window");
+    outln!("  jobs, stop NAME         the programs in the background; end one of them");
     outln!("Ctrl-C stops the running program.");
 }
 
@@ -499,12 +535,17 @@ fn inject(label: u32, target: &[u8]) {
         b"console" => CONSOLE,
         b"fs" => FILES,
         b"disk" => DISK,
+        b"display" => DISPLAY,
         b"init" if label == DBG_CRASH => {
             outln!("Crashing the root task. The kernel will start user space again.");
             let _ = sys::call(CONTROL, &mut Msg::new(DBG_CRASH), FOREVER);
             return;
         }
-        _ => return outln!("usage: crash console|fs|disk|init, or hang console|fs|disk"),
+        _ => {
+            return outln!(
+                "usage: crash console|fs|disk|display|init, or hang console|fs|disk|display"
+            )
+        }
     };
     let start = sys::time();
     // The server dies while it holds this request, so the kernel answers E_DEAD.
@@ -548,6 +589,29 @@ fn double_failure() {
     }
 }
 
+/// The windows on the screen, from the lowest to the topmost, as the display reports them.
+fn windows() {
+    let mut msg = Msg::new(DISP_INFO);
+    if client::request(DISPLAY, &mut msg).is_err() || msg.label != OK {
+        return outln!("windows: the display did not answer");
+    }
+    let [programs, frames, restarts, pointer] = msg.words;
+    outln!("window  title         x     y  width  height");
+    let count = (msg.len as usize).min(MSG_DATA) / WINDOW_RECORD;
+    for index in 0..count {
+        let record = &msg.data[index * WINDOW_RECORD..][..WINDOW_RECORD];
+        let field = |at: usize| i16::from_le_bytes([record[at], record[at + 1]]) as i32;
+        outln!(
+            Num(record[20] as u32, 6), "  ", Pad(name(&record[..12]), 12), Signed(field(12), 3),
+            Signed(field(14), 6), Num(field(16) as u32, 7), Num(field(18) as u32, 8)
+        );
+    }
+    outln!(
+        "WINDOWS: ", programs, " of programs, ", frames, " frames drawn, display restarted ",
+        restarts, " times, pointer at ", pointer & 0xFFFF, ",", pointer >> 16
+    );
+}
+
 /// The error of a system call, or 0.
 fn code_of(result: Result<(), i32>) -> i32 {
     result.err().unwrap_or(0)
@@ -574,6 +638,29 @@ fn report(program: &[u8], end: &Msg) {
     }
 }
 
+/// A program that runs in the background.
+#[derive(Clone, Copy)]
+struct Job {
+    /// The capability for its task, with which it can be stopped.
+    task: u32,
+    /// The badge of its end-of-task notice.
+    badge: u32,
+    name: [u8; 12],
+    len: usize,
+}
+
+/// The capabilities a program is started with besides the console.
+#[derive(Clone, Copy, Default)]
+struct Extra {
+    disk: bool,
+    window: bool,
+}
+
+/// Is `program` one of the three test programs of the boot archive?
+fn from_archive_tester(program: &[u8]) -> bool {
+    source(program) == FILES && matches!(program, b"selftest" | b"fuzz" | b"bench")
+}
+
 struct Shell {
     /// Endpoint on which the kernel reports the end of a started program.
     notices: u32,
@@ -581,12 +668,101 @@ struct Shell {
     quota: u32,
     /// The shell's own number in the task table, where its unused quotas can be read.
     me: u32,
+    jobs: [Option<Job>; JOBS],
 }
 
 impl Shell {
+    /// An end-of-task notice that is not from the program the shell waits for: if it is
+    /// from a background program, say so and forget the program.
+    fn ended(&mut self, notice: &Msg) {
+        if notice.label != L_FAULT {
+            return;
+        }
+        for entry in &mut self.jobs {
+            if let Some(job) = *entry {
+                if job.badge == notice.badge {
+                    *entry = None;
+                    let _ = sys::cap_drop(job.task);
+                    match notice.words[0] {
+                        CAUSE_EXIT if notice.words[1] == 0 => outln!("[", &job.name[..job.len], " ended]"),
+                        _ => report(&job.name[..job.len], notice),
+                    }
+                }
+            }
+        }
+    }
+
+    /// Take the notices that are waiting, without waiting for one.
+    fn reap(&mut self) {
+        let mut msg = Msg::new(0);
+        while sys::recv(self.notices, &mut msg, 1).is_ok() {
+            self.ended(&msg);
+        }
+    }
+
+    fn list_jobs(&self) {
+        let mut any = false;
+        for job in self.jobs.iter().flatten() {
+            outln!("  ", &job.name[..job.len]);
+            any = true;
+        }
+        if !any {
+            outln!("no program runs in the background; start one with: NAME &");
+        }
+    }
+
+    fn stop(&mut self, program: &[u8]) {
+        let found = self.jobs.iter().flatten().find(|job| &job.name[..job.len] == program);
+        match found {
+            Some(job) => {
+                let _ = sys::task_kill(job.task);
+                // Its notice follows at once.
+                sys::sleep(10);
+                self.reap();
+            }
+            None => outln!("stop: no program called \"", program, "\" runs in the background; see jobs"),
+        }
+    }
+
+    /// Start a program in the background: the shell goes on, and says so when it ends.
+    fn background(&mut self, program: &[u8], args: [u32; 3], extra: Extra) {
+        let Some(free) = self.jobs.iter().position(|job| job.is_none()) else {
+            return outln!(program, ": ", JOBS, " programs run in the background already; see jobs");
+        };
+        if from_archive_tester(program) {
+            return outln!(program, ": a test program cannot run in the background");
+        }
+        if let Some((task, badge)) = self.start(program, args, extra) {
+            let mut name = [0; 12];
+            let len = program.len().min(name.len());
+            name[..len].copy_from_slice(&program[..len]);
+            self.jobs[free] = Some(Job { task, badge, name, len });
+        }
+    }
+
     /// Start a program and wait until it ends; returns the kernel's end-of-task notice.
-    /// With `disk`, the program also gets the right to use the disk.
-    fn run(&mut self, program: &[u8], args: [u32; 3], disk: bool) -> Option<Msg> {
+    fn run(&mut self, program: &[u8], args: [u32; 3], extra: Extra) -> Option<Msg> {
+        let (task, badge) = self.start(program, args, extra)?;
+        let end = loop {
+            let mut msg = Msg::new(0);
+            match sys::recv(self.notices, &mut msg, 100) {
+                Ok(()) if msg.label == L_FAULT && msg.badge == badge => break msg,
+                Ok(()) => self.ended(&msg),
+                Err(_) => {
+                    if interrupted() {
+                        let _ = sys::task_kill(task);
+                    }
+                }
+            }
+        };
+        let _ = sys::cap_drop(task);
+        Some(end)
+    }
+
+    /// Start a program; returns the capability for its task and the badge of the notice
+    /// that will report its end. With `extra.disk`, the program also gets the right to use
+    /// the disk; with `extra.window`, the right to open windows.
+    fn start(&mut self, program: &[u8], args: [u32; 3], extra: Extra) -> Option<(u32, u32)> {
         let from = source(program);
         if client::stat(from, program).is_none() {
             outln!(program, ": no such command or program; type help");
@@ -625,8 +801,11 @@ impl Shell {
             // start one by what they ask for and not by an empty quota.
             spawn.tasks = 1;
         }
-        if disk && !tester {
+        if extra.disk && !tester {
             spawn.caps[rt::app::DISK as usize] = APP_DISK;
+        }
+        if extra.window && !tester {
+            spawn.caps[rt::app::DISPLAY as usize] = APP_DISPLAY;
         }
         self.launches += 1;
         let badge = self.launches;
@@ -636,27 +815,13 @@ impl Shell {
         let _ = interrupted(); // forget a Ctrl-C from before this program
         let started = sys::spawn(image.bytes(), &spawn);
         drop(image);
-        let task = match started {
-            Ok(task) => task,
+        match started {
+            Ok(task) => Some((task, badge)),
             Err(code) => {
                 outln!(program, ": cannot be started: ", errname(code));
-                return None;
+                None
             }
-        };
-        let end = loop {
-            let mut msg = Msg::new(0);
-            match sys::recv(self.notices, &mut msg, 100) {
-                Ok(()) if msg.label == L_FAULT && msg.badge == badge => break msg,
-                Ok(()) => {}
-                Err(_) => {
-                    if interrupted() {
-                        let _ = sys::task_kill(task);
-                    }
-                }
-            }
-        };
-        let _ = sys::cap_drop(task);
-        Some(end)
+        }
     }
 
     /// Run the hostile program: once for its system-call attacks, then once per
@@ -670,7 +835,7 @@ impl Shell {
         let mut denied = 0;
         let mut total = 0;
         let mut skipped = 0u32;
-        match self.run(b"rogue", [0; 3], false) {
+        match self.run(b"rogue", [0; 3], Extra::default()) {
             Some(end) if end.words[0] == CAUSE_EXIT => {
                 denied += end.words[1] >> 16;
                 total += end.words[1] & 0xFFFF;
@@ -683,7 +848,7 @@ impl Shell {
         }
         for mode in 1..=ROGUE_HW_MODES {
             let skip = mode == ROGUE_ONLY_IN_ALL && !all;
-            let end = self.run(b"rogue", [mode, skip as u32, 0], false);
+            let end = self.run(b"rogue", [mode, skip as u32, 0], Extra::default());
             if skip {
                 skipped += 1;
                 outln!("skipped");
@@ -718,10 +883,11 @@ impl Shell {
     /// that says what is about to happen. A step runs the command it names, nothing else.
     fn tour(&mut self) {
         self.step(1, "A hostile program tries to break out; watch what it is denied.", b"rogue");
-        self.step(2, "The screen driver crashes and is restarted like any program.", b"crash console");
-        self.step(3, "The file server stops answering; the supervisor replaces it.", b"hang fs");
-        self.step(4, "Two at once: the screen driver hangs, the file server crashes.", b"double");
-        self.step(5, "The kernel reports its counters and checks its own tables.", b"uptime");
+        self.step(2, "The keyboard driver crashes and is restarted like any program.", b"crash console");
+        self.step(3, "The display server crashes; the text you read is drawn again.", b"crash display");
+        self.step(4, "The file server stops answering; the supervisor replaces it.", b"hang fs");
+        self.step(5, "Two at once: the keyboard driver hangs, the file server crashes.", b"double");
+        self.step(6, "The kernel reports its counters and checks its own tables.", b"uptime");
         outln!("");
         outln!("TOUR: done. Nothing was rebooted; this is the shell that started the tour.");
     }
@@ -753,6 +919,13 @@ impl Shell {
             b"mem" => memory(self.quota),
             b"uptime" => uptime(),
             b"svc" => services(),
+            b"windows" => windows(),
+            b"jobs" => self.list_jobs(),
+            b"stop" => self.stop(first),
+            b"desktop" => {
+                self.command(b"clock +window &");
+                self.command(b"life +window &");
+            }
             b"crash" => inject(DBG_CRASH, first),
             b"hang" => inject(DBG_HANG, first),
             b"double" => double_failure(),
@@ -760,9 +933,14 @@ impl Shell {
             b"shutdown" => shutdown(),
             program => {
                 let words = [first, second, third];
-                let disk = words.contains(&b"+disk".as_slice());
+                let extra = Extra {
+                    disk: words.contains(&b"+disk".as_slice()),
+                    window: words.contains(&b"+window".as_slice()),
+                };
                 let args = words.map(|word| number(word).unwrap_or(0));
-                if let Some(end) = self.run(program, args, disk) {
+                if words.contains(&b"&".as_slice()) {
+                    self.background(program, args, extra);
+                } else if let Some(end) = self.run(program, args, extra) {
                     report(program, &end);
                 }
             }
@@ -787,9 +965,10 @@ pub fn main() {
     }
     outln!("Inti ", env!("CARGO_PKG_VERSION"), " shell ready at t=", sys::time(), " us");
     outln!("Type help for the list of commands, or tour for a guided tour.");
-    let mut shell = Shell { notices, launches: 0, quota, me };
+    let mut shell = Shell { notices, launches: 0, quota, me, jobs: [None; JOBS] };
     let mut line = [0; 120];
     loop {
+        shell.reap();
         let len = client::readline(CONSOLE, b"inti> ", &mut line);
         shell.command(&line[..len]);
     }

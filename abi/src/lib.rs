@@ -66,7 +66,7 @@ pub const MAP_WRITE: u32 = 0x8000_0000;
 
 // ---------------------------------------------------------------- capabilities
 
-pub const CAP_SLOTS: usize = 32;
+pub const CAP_SLOTS: usize = 64;
 /// "No capability" marker in `SpawnArgs` and `Msg`.
 pub const NO_CAP: u32 = 0xFFFF_FFFF;
 

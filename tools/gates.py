@@ -36,7 +36,8 @@ BOOT_LIMIT_MS = 20_000
 SAFETY_REACH = 8  # a SAFETY comment counts if it is on the line or at most this many lines above
 KERNEL_SOURCES = ("kernel/src", "abi/src")
 ALL_SOURCES = ("kernel/src", "abi/src", "boot/src", "user/src")
-SUPERVISED_FAULTS = ("console_crash", "fs_crash", "disk_crash", "console_hang", "fs_hang", "disk_hang")
+SUPERVISED_FAULTS = ("console_crash", "fs_crash", "disk_crash", "display_crash",
+                     "console_hang", "fs_hang", "disk_hang", "display_hang")
 MULTIBOOT_MAGICS = (bytes.fromhex("02b0ad1b"), bytes.fromhex("d65052e8"))
 
 TITLES = {

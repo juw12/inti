@@ -9,7 +9,7 @@ It writes
     evidence/test_nonx_serial.log   the same for a second, short boot on a processor model
                                     without the no-execute bit
     evidence/test.json              every check with its result, and every measured number
-    docs/img/qemu-*.png             the emulated screen at three moments
+    docs/img/qemu-*.png             the emulated screen at four moments
 
 and exits with 0 only if every check passed. Nothing here is timed with QEMU tracing on.
 """
@@ -34,7 +34,7 @@ import build  # noqa: E402
 
 EVIDENCE = ROOT / "evidence"
 IMAGES = ROOT / "docs" / "img"
-SERVICES = ("console", "fs", "disk")
+SERVICES = ("console", "fs", "disk", "display")
 # The supervisor counts a server that ends less than 2 s after it started towards its
 # restart back-off. Faults that are timed are therefore injected into settled servers.
 SETTLE_S = 2.6
@@ -60,15 +60,17 @@ DOUBLE_ORDER = (
 )
 # What the guided tour must print, in this order (the shell's own lines only).
 TOUR_ORDER = (
-    r"^TOUR 1/5: ",
+    r"^TOUR 1/6: ",
     r"ROGUE: (\d+)/\1 attempts denied, 1 skipped",
-    r"^TOUR 2/5: ",
+    r"^TOUR 2/6: ",
     r"RECOVERY: console crash -> answering again after \d+ us",
-    r"^TOUR 3/5: ",
+    r"^TOUR 3/6: ",
+    r"RECOVERY: display crash -> answering again after \d+ us",
+    r"^TOUR 4/6: ",
     r"RECOVERY: fs hang -> answering again after \d+ us",
-    r"^TOUR 4/5: ",
+    r"^TOUR 5/6: ",
     DOUBLE_DONE,
-    r"^TOUR 5/5: ",
+    r"^TOUR 6/6: ",
     r"\b0 kernel anomalies",
     r"kernel invariants: all hold",
     r"^TOUR: done",
@@ -271,7 +273,7 @@ def double_failure(run: Run, runs: int) -> None:
 
 
 def tour(run: Run) -> None:
-    """The guided tour: five announced steps, ending in the shell that started it."""
+    """The guided tour: six announced steps, ending in the shell that started it."""
     vm = run.vm
     time.sleep(SETTLE_S)
     mark = len(vm.raw)
@@ -285,9 +287,244 @@ def tour(run: Run) -> None:
     steps = len(re.findall(r"^TOUR \d+/\d+: ", text, re.M))
     good = missing is None and "times in a row" not in run.log_since(mark) and "readme.txt" in listing
     run.check("tour: the guided tour announces and runs its steps in order (hostile program, crashed "
-              "driver, hung driver, two failures at once, counters) and ends in the shell that started it",
+              "driver, crashed display, hung server, two failures at once, counters) and ends in the "
+              "shell that started it",
               good, f"{steps} steps in {host_ms} ms" + (f"; not found in order: {missing}" if missing else ""))
     run.measured["tour"] = {"steps": steps, "host_ms": host_ms}
+
+# ---------------------------------------------------------------------------- the screen
+
+DISPLAY_SOURCE = ROOT / "user" / "src" / "bin" / "display.rs"
+PROTO_SOURCE = ROOT / "user" / "src" / "proto.rs"
+WINDOW_LINE = r"^\s*(\d+)\s+(.+?)\s+(-?\d+)\s+(-?\d+)\s+(\d+)\s+(\d+)\s*$"
+WINDOWS_DONE = r"WINDOWS: (\d+) of programs, (\d+) frames drawn, display restarted (\d+) times, pointer at (-?\d+),(-?\d+)"
+
+
+def screen_constants() -> dict:
+    """The palette, the colour names and the frame sizes, read from the sources."""
+    display = DISPLAY_SOURCE.read_text(encoding="utf-8")
+    proto = PROTO_SOURCE.read_text(encoding="utf-8")
+    table = display[display.index("const PALETTE"):]
+    table = table[:table.index("\n];")]
+    palette = [tuple(int(part, 16) for part in entry)
+               for entry in re.findall(r"\[0x(\w\w), 0x(\w\w), 0x(\w\w)\]", table)]
+    module = proto[proto.index("pub mod colour"):]
+    module = module[:module.index("\n}")]
+    names = {name: int(value) for name, value in re.findall(r"pub const (\w+): u8 = (\d+);", module)}
+    sizes = {name: int(value) for name, value in re.findall(r"const (BORDER|TOP|COLUMNS|LINES): usize = (\d+);", display)}
+    return {"colour": {name: palette[index] for name, index in names.items()}, **sizes}
+
+
+def is_colour(pixel: tuple, colour: tuple) -> bool:
+    """The card keeps six bits of each colour, so a pixel may be a little off."""
+    return all(abs(got - wanted) <= 4 for got, wanted in zip(pixel[:3], colour))
+
+
+def windows(vm: VM) -> dict:
+    """What the `windows` command says: every window by title, and the pointer."""
+    text = vm.command("windows")
+    found = {}
+    for number, title, x, y, width, height in re.findall(WINDOW_LINE, text, re.M):
+        found[title] = {"number": int(number), "x": int(x), "y": int(y), "width": int(width), "height": int(height)}
+    done = re.search(WINDOWS_DONE, text)
+    return {
+        "windows": found,
+        "programs": int(done[1]) if done else None,
+        "restarts": int(done[3]) if done else None,
+        "pointer": (int(done[4]), int(done[5])) if done else None,
+    }
+
+
+def picture(vm: VM, name: str):
+    from PIL import Image
+    path = vm.screenshot(EVIDENCE / name)
+    with Image.open(path) as image:
+        return image.convert("RGB")
+
+
+def text_matches(image, x: int, y: int, text: str, ink: tuple) -> bool:
+    """Is `text` drawn at x, y in the system font: every pixel of every letter?"""
+    import font
+    glyphs = font.glyphs()
+    for index, letter in enumerate(text):
+        for row, bits in enumerate(glyphs[ord(letter)]):
+            for column in range(font.WIDTH):
+                lit = bits & (0x80 >> column) != 0
+                if is_colour(image.getpixel((x + index * font.WIDTH + column, y + row)), ink) != lit:
+                    return False
+    return True
+
+
+def terminal_lines(image, terminal: dict, sizes: dict) -> list[bytes]:
+    """The picture of each text line of the terminal window."""
+    import font
+    left, top = terminal["x"] + sizes["BORDER"], terminal["y"] + sizes["TOP"]
+    width = sizes["COLUMNS"] * font.WIDTH
+    return [image.crop((left, top + line * font.HEIGHT, left + width, top + (line + 1) * font.HEIGHT)).tobytes()
+            for line in range(sizes["LINES"])]
+
+
+def lines_kept(before: list[bytes], after: list[bytes]) -> int:
+    """How many lines with text stand in `after` exactly as in `before`, moved up or not."""
+    blank = max(set(before), key=before.count)
+    best = 0
+    for moved in range(len(before)):
+        kept = 0
+        for line in range(len(before) - moved):
+            if after[line] != before[line + moved]:
+                break
+            kept += before[line + moved] != blank
+        best = max(best, kept)
+    return best
+
+
+def count_colour(image, colour: tuple, box: tuple | None = None) -> int:
+    region = image.crop(box) if box else image
+    return sum(1 for pixel in region.getdata() if is_colour(pixel, colour))
+
+
+def monitor(vm: VM, line: str) -> None:
+    vm.qmp("human-monitor-command", **{"command-line": line})
+
+
+def graphics(run: Run) -> None:
+    """The display server: what is on the screen, whose windows they are, and its restart."""
+    vm = run.vm
+    sizes = screen_constants()
+    colour = sizes["colour"]
+    border, top = sizes["BORDER"], sizes["TOP"]
+    time.sleep(SETTLE_S)
+
+    state = windows(vm)
+    terminal = state["windows"].get("Terminal")
+    time.sleep(0.5)
+    image = picture(vm, "screen_desktop.png")
+    good = (image.size == (640, 480) and terminal is not None
+            and is_colour(image.getpixel((636, 476)), colour["NAVY"])
+            and is_colour(image.getpixel((terminal["x"] + terminal["width"] - 8, terminal["y"] + 8)), colour["BLUE"])
+            and text_matches(image, terminal["x"] + border + 4, terminal["y"] + 3, "Terminal", colour["WHITE"]))
+    run.check("screen: 640 by 480 pixels in graphics mode, with the desktop and the terminal window whose "
+              "title is drawn in the system font, pixel for pixel", good, f"image {image.size}")
+    if terminal is None:
+        return
+
+    # A program with a window, and what it may not do.
+    vm.send("wintest +window &\r")
+    text = vm.read_until(r"WINTEST: (PASS|FAIL) \d+/\d+\s*\n", timeout=30)
+    found = re.search(r"WINTEST: PASS (\d+)/(\d+)", text)
+    failures = re.findall(r"^\s*FAIL (.+)$", text, re.M)
+    run.check("windows: a program can draw in its own window and nowhere else (the wintest program's checks)",
+              found is not None and found[1] == found[2] and not failures, found[0] if found else text[-300:])
+    run.measured["wintest"] = {"passed": int(found[1]), "total": int(found[2])} if found else None
+    vm.command("")
+    time.sleep(0.5)
+    state = windows(vm)
+    window = state["windows"].get("Window test")
+    time.sleep(0.5)
+    image = picture(vm, "screen_window.png")
+    if window:
+        inside = (window["x"] + border, window["y"] + top,
+                  window["x"] + window["width"] - border, window["y"] + window["height"] - border)
+        area = (inside[2] - inside[0]) * (inside[3] - inside[1])
+        within, anywhere = count_colour(image, colour["CORAL"], inside), count_colour(image, colour["CORAL"])
+    else:
+        area, within, anywhere = 0, -1, -1
+    run.check("windows: a fill of 65535 by 65535 pixels coloured the inside of the program's own window "
+              "and not one pixel outside it", window is not None and within == area == anywhere,
+              f"{within} of {area} pixels inside, {anywhere} on the whole screen")
+
+    # The mouse.
+    before = state["pointer"]
+    monitor(vm, "mouse_move 37 -23")
+    time.sleep(0.5)
+    after = windows(vm)["pointer"]
+    time.sleep(0.5)
+    image = picture(vm, "screen_pointer.png")
+    drawn = (after is not None and is_colour(image.getpixel(after), colour["BLACK"])
+             and is_colour(image.getpixel((after[0] + 1, after[1] + 3)), colour["WHITE"]))
+    run.check("mouse: moving the emulated PS/2 mouse by 37, -23 moves the pointer on the screen by as much",
+              before is not None and after == (before[0] + 37, before[1] - 23) and drawn, f"{before} -> {after}")
+    if window and after:
+        # Take the window by its title bar and carry it.
+        monitor(vm, f"mouse_move {window['x'] + 60 - after[0]} {window['y'] + 8 - after[1]}")
+        time.sleep(0.3)
+        monitor(vm, "mouse_button 1")
+        time.sleep(0.3)
+        # A window stands on a multiple of eight pixels from the left edge.
+        monitor(vm, "mouse_move -16 180")
+        time.sleep(0.3)
+        monitor(vm, "mouse_button 0")
+        time.sleep(0.5)
+        moved = windows(vm)["windows"].get("Window test")
+        run.check("mouse: a window dragged by its title bar moves with the pointer",
+                  moved is not None and (moved["x"], moved["y"]) == (window["x"] - 16, window["y"] + 180),
+                  f"{(window['x'], window['y'])} -> {(moved['x'], moved['y']) if moved else None}")
+
+    # Programs in the background, each with a window, while the shell answers.
+    vm.command("desktop")
+    time.sleep(1.5)
+    state = windows(vm)
+    clock_window = state["windows"].get("Clock")
+    jobs = vm.command("jobs")
+    changed = False
+    if clock_window:
+        box = (clock_window["x"], clock_window["y"], clock_window["x"] + clock_window["width"],
+               clock_window["y"] + clock_window["height"])
+        first = picture(vm, "screen_jobs.png").crop(box).tobytes()
+        time.sleep(2.2)
+        changed = picture(vm, "screen_jobs.png").crop(box).tobytes() != first
+    run.check("background: clock and life run with a window each while the shell answers, and the clock's "
+              "window changes within 2.2 s", state["programs"] == 3 and "Life" in state["windows"]
+              and all(name in jobs for name in ("clock", "life", "wintest")) and changed,
+              f"{state['programs']} windows of programs")
+    vm.command("ls")
+    time.sleep(0.5)
+    vm.screenshot(IMAGES / "qemu-desktop.png")
+
+    # The display server crashes: the text comes back, the programs open their windows again.
+    time.sleep(0.5)
+    lines_before = terminal_lines(picture(vm, "screen_before_crash.png"), terminal, sizes)
+    mark = len(vm.raw)
+    vm.send("crash display\r")
+    vm.read_until(r"RECOVERY: display crash -> answering again after \d+ us", timeout=20)
+    vm.wait_for_prompt()
+    refused = True
+    try:
+        if "the old window was refused" not in run.log_since(mark):
+            vm.read_until(r"WINTEST: the old window was refused after a display restart", timeout=10)
+    except VMError:
+        refused = False
+    time.sleep(2.0)
+    image = picture(vm, "screen_after_crash.png")
+    state = windows(vm)
+    kept = lines_kept(lines_before, terminal_lines(image, terminal, sizes))
+    with_text = sum(1 for line in lines_before if line != max(set(lines_before), key=lines_before.count))
+    run.check("display crash: the lines that stood in the terminal window before are on the screen again, "
+              "pixel for pixel", kept >= max(with_text - 6, 5), f"{kept} of {with_text} lines with text")
+    run.check("display crash: a window capability from before the restart is refused, and every program "
+              "opens a new window", refused and state["programs"] == 3 and state["restarts"] is not None
+              and state["restarts"] >= 1 and {"Clock", "Life", "Window test"} <= set(state["windows"]),
+              f"{state['programs']} windows of programs, display restarted {state['restarts']} times")
+
+    # A program that ends takes its windows with it.
+    for name in ("wintest", "life", "clock"):
+        vm.command(f"stop {name}")
+    gone_after = None
+    started = time.monotonic()
+    while time.monotonic() - started < 8:
+        time.sleep(0.5)
+        if windows(vm)["programs"] == 0:
+            gone_after = round(time.monotonic() - started, 1)
+            break
+    time.sleep(0.5)
+    image = picture(vm, "screen_closed.png")
+    coral = count_colour(image, colour["CORAL"])
+    run.check("windows: when a program is stopped its windows are closed, with nothing of them left on "
+              "the screen", gone_after is not None and coral == 0 and "kernel invariants: all hold" in vm.command("uptime"),
+              f"gone after {gone_after} s; {coral} pixels left")
+    run.measured["windows_closed_after_s"] = gone_after
+    for name in ("desktop", "window", "pointer", "jobs", "before_crash", "after_crash", "closed"):
+        (EVIDENCE / f"screen_{name}.png").unlink(missing_ok=True)
 
 
 def backoff(run: Run) -> None:
@@ -560,6 +797,7 @@ def main() -> int:
         recovery(run, options.runs)
         double_failure(run, options.runs)
         tour(run)
+        graphics(run)
         backoff(run)
         supervisor_crash(run)
         fuzz(run, options.fuzz)

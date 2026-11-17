@@ -1,0 +1,5 @@
+
+Inti 0.1.0 kernel
+kernel: 564 KiB kernel and archive, 126 MiB for user space
+kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
+KERNEL PANIC: 

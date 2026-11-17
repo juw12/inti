@@ -1,7 +1,6 @@
-Preparing a sysroot for Miri (target: x86_64-pc-windows-gnu)... done
-   Compiling abi v0.1.0 (<path>
-   Compiling model v0.1.0 (<path>
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.64s
+   Compiling abi v0.3.0 (<path>
+   Compiling model v0.3.0 (<path>
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.77s
      Running `<path> runner target\miri\x86_64-pc-windows-gnu\debug\model.exe tables`
 Boot
   note  173 frames are managed, the root task holds 14 of them, 159 are free
@@ -30,6 +29,201 @@ The task table
   ok    the root task may create every other task there is
   ok    all 32 tasks exist
   ok    a 33rd is refused to the root task and to its child with E_NOSLOT
-
-error: process didn't exit successfully: `<path> runner target\miri\x86_64-pc-windows-gnu\debug\model.exe tables` (exit code: 1)
-MIRI: cut short after 2743 s: 21 directed checks had passed, 0 had failed, 0 reports of undefined behaviour
+  ok    the state with a full task table is sound
+  note  with a forged quota the kernel counts 1 anomaly, and its checker reports rule 21
+  ok    with a forged quota the full table itself refuses, and the kernel counts an anomaly
+  ok    with the forgery undone the state is sound again
+  ok    killing the child kills its 15 children and returns 16 places to the root task
+  ok    the root task can spawn again
+  ok    the state afterwards is sound
+  ok    when the root task dies, all 16 others die with it and a new root task starts
+  ok    the new root task finds as much free memory as the first
+  ok    the state after the restart is sound
+The last frame and the last slot
+  ok    a spawn that runs out of memory after 0 to 6 frames leaves nothing behind
+  ok    with exactly 7 frames it succeeds
+  ok    killing the task returns its frames
+  note  49 pages and their page table took the 50 free frames
+  ok    mapping page after page ends with E_NOMEM when the last frame is taken
+  ok    the state without a free frame is sound
+  ok    an endpoint can still be created, it needs no memory
+  note  (free frames, frames charged) before the failing MAP (2, 62), after it (2, 62)
+  ok    a MAP that fails at its second page gives back all it took for the first
+  ok    the state after the failed MAP is sound
+  ok    a spawn is refused with E_NOMEM
+  note  57 copies of a capability filled the 64 slots
+  ok    copies of a capability fill every free slot, then copying and creating give E_NOSLOT
+  ok    the state without a free slot is sound
+  ok    one revocation removes every copy
+  ok    the death of the root task returns every frame and endpoint
+  ok    the state after the restart is sound
+The clock, the restart delay and timeouts
+  note  after about 123,456 microseconds a task is told 130003, the machine says 130003
+  ok    the time a task is told is the machine's time
+  ok    a root task that dies right after boot is not restarted at once
+  ok    the state while the root task waits to restart is sound
+  ok    it runs again one second after boot, not before
+  ok    a root task that dies after running for a second restarts at once
+  ok    the state after both restarts is sound
+  ok    a task that sleeps 30 ms is asleep after 20 ms and awake after 40 ms
+  ok    a sleeper is left asleep a microsecond before its deadline, and woken by the tick that falls exactly on it
+  ok    a call that nobody receives within its 50 ms ends with E_TIMEOUT
+  ok    the state after the timeout is sound
+  ok    a call that is received but not answered within its 50 ms ends with E_TIMEOUT
+  ok    the answer that comes too late is refused with E_INVAL
+  ok    the state after the late answer is sound
+Messages and device memory
+  ok    receiving into device memory is refused with E_FAULT
+  ok    a call whose answer would land in device memory is refused with E_FAULT
+  ok    the state after both refusals is sound
+  ok    revoking the screen unmaps it from a driver that waits to receive; the driver waits on
+  ok    the state after revoking under a driver that waits to receive is sound
+  ok    the driver that waited to receive then gets its message
+  ok    the message to the driver that waited to receive arrived intact
+  ok    revoking the screen unmaps it from a driver that waits for an answer; the driver waits on
+  ok    the state after revoking under a driver that waits for an answer is sound
+  ok    the driver that waited for an answer then gets its message
+  ok    the message to the driver that waited for an answer arrived intact
+The edges of every range
+  ok    two pages from the last page of user space on are refused with E_INVAL: to map, to unmap, and for a device
+  ok    the last page itself can be mapped, and written to its last byte
+  ok    and unmapped again
+  ok    the state afterwards is sound
+  ok    three pages from the middle of the screen can be derived from its capability, to write
+  ok    and its last three pages, to read only
+  ok    a part that ends beyond the screen, starts at its end or has no pages is refused with E_PERM, and so is a part to write from a part to read
+  ok    the last two pages of the screen can be mapped, and the second is its last page
+  ok    two pages from its last page on are refused with E_INVAL, and nothing is mapped
+  ok    through the part to read a page can be mapped to read (it cannot be written), and not to write (E_PERM)
+  ok    the state with these mappings is sound
+  ok    the eight ports of the serial line can be derived from the capability for every port
+  ok    through it the first port can be read, the last, and the last four at once
+  ok    the port below, the port above, and two or four ports that begin inside and end above are refused with E_PERM
+  ok    two ports from the last port there is are refused with E_PERM
+  ok    a range that begins below, ends above, or ends before it begins cannot be derived from it (E_PERM)
+  ok    an access that is 0, 3 or 8 ports wide is refused with E_INVAL
+  ok    the ports the kernel keeps to itself are refused with E_PERM even to the capability for every port, also to an access that only ends in them
+  ok    the ports beside them, up to the very next one, are not
+  ok    the state afterwards is sound
+Messages: their order, their size, and buffers that lie across two pages
+  ok    three clients start, each with a send-only copy of one endpoint under a badge of its own
+  ok    clients that call in the order 3, 1, 2 are heard in that order, each under its badge
+  ok    each of the three messages and each answer arrived intact
+  ok    a call and a receive with such buffers succeed
+  ok    all 256 bytes of the data arrive
+  ok    the label arrives without the bit that marks a message from the kernel, under the badge of the caller's copy
+  ok    a length that claims more than a message can hold arrives as 256
+  ok    the answer arrives in the same way, in the buffer of the call
+  ok    the state afterwards is sound
+A program of more than one page
+  ok    a program of 5000 bytes that asks for 9000 bytes of memory starts
+  ok    every byte of the file is in the memory of the new task
+  ok    the memory beyond the file is zero, to the end of its last page
+  ok    the task holds two frames more than a task with one page of program
+  ok    the state afterwards is sound
+What the kernel reports about a task, and about its end
+  ok    the root task is told the name under which a task was started
+  ok    and its state, parent, generation, memory quota, frames, timer ticks, system calls and capabilities, and how many tasks and endpoints it may create
+  ok    a task with an empty slot is told nothing (E_NOCAP), nor is one that shows another capability (E_NOCAP); a number beyond the task table is refused (E_INVAL), and so is a place that is not mapped (E_FAULT)
+  ok    after a page fault that endpoint has a message from the kernel, under the badge chosen at the start
+  ok    the message names the exception, the address, where the task was, and the error code
+  ok    after another exception the message names no address, whatever the last page fault left behind
+  note  the task that ended had made 1 system call(s) and run for 5 timer tick(s)
+  ok    the message also carries the system calls the task made and, after them, the timer ticks it ran for
+  ok    the state afterwards is sound
+A share of the processor: who may have which
+  ok    the root task has the whole processor; a task started with 20% has 20%, one started with no figure has its parent's
+  ok    the root task cannot give 101%, nor 256% or 276%: the figure is not cut down to eight bits (E_PERM, no task started)
+  ok    a task with 20% passes on 20% when it names no figure, and may give 20% or 10%
+  ok    it cannot give 21% or 100%, though it may still start a task (E_PERM, no task started)
+  ok    all that must hold after any step holds with shares handed down
+A share of the processor: what it does, in whole timer periods of the fake machine
+  note  of one window, in thousandths: the task held to 20% used 200, the other task 400, the root task with all it started 1000
+  ok    beside two tasks that never stop, a task held to 20% that never stops gets exactly 20% of a window
+  ok    the other two get the rest: the second task at least 39%
+  ok    a task is charged for all that it started: the root task for the whole window
+  ok    the kernel reports a task's share and what it used of the last whole window
+  ok    at the start of a window the task is within its share: when it wakes it runs at once
+  ok    70 periods later it has used its share: when it wakes, a task within its share runs first
+  note  with a task of its own, the group used 200 thousandths, of which that task 100
+  ok    a task and the task it started get 20% between them, not 20% each
+  ok    a task started by one that has used its share is over the share from its first moment: starting tasks is no way round it
+  ok    while nobody else wants the processor the group has all of it: a share never leaves the processor idle
+  ok    with every task asleep the processor idles, and the idle time is charged to nobody
+  ok    all that must hold after any step holds at the end
+Turns
+  note  six timer ticks find these tasks running: [0, 1, 2, 0, 1, 2]; of the ticks, the three tasks are charged [2, 2, 2]
+  ok    each of three tasks that never wait has a turn within three timer ticks
+  ok    the turns come round again in the same order
+  ok    each task is charged the two ticks that ended its turns
+  ok    the state afterwards is sound
+Badges, interrupt lines and the edges of user space
+  ok    a holder of the grant right stamps a badge on a capability without one
+  ok    a badge cannot be changed, even by a holder of the grant right
+  ok    a copy made with no badge named has none
+  ok    a capability without the grant right cannot be stamped
+  ok    a copy that names the badge it already has keeps it
+  ok    a copy of a badged capability that names no badge keeps the badge
+  ok    one interrupt line can be split off the lines a task holds
+  ok    a capability for no interrupt line at all is refused
+  ok    the line of the timer, which no task holds, cannot be derived
+  ok    a capability for one line cannot be widened to two
+  ok    the state afterwards is sound
+  ok    the first page of user space is a range a task may name
+  ok    the page below user space is not
+  ok    the last page of user space is a range a task may name
+  ok    a range that runs one page past the end is not
+  ok    a range of no pages, or one that starts inside a page, is not
+Programs with the right first bytes and a wrong header
+  ok    a program that is not an executable is refused, and no task is left behind
+  ok    a program for another processor is refused, and no task is left behind
+  ok    a program whose segment entries have the wrong size is refused, and no task is left behind
+  ok    a program with no segments is refused, and no task is left behind
+  ok    a program with seventeen segments is refused, and no task is left behind
+  ok    a program whose segment has more bytes in the file than in memory is refused, and neither a task nor a frame is left behind
+  ok    a program whose segment lies below the memory of tasks is refused, and neither a task nor a frame is left behind
+  ok    a program whose segment ends beyond the place for programs is refused, and neither a task nor a frame is left behind
+  ok    the same program with none of those bytes changed starts
+  ok    the state afterwards is sound
+What the kernel counts
+  ok    a system call that succeeds is counted once
+  ok    a system call that is refused is counted once
+  ok    a task that is started is counted once
+  ok    a page fault of a task is counted once
+  ok    a task that ran all but the last of the 100 periods of a window is reported at 990 thousandths of it: 990
+  ok    the state afterwards is sound
+A waiting sender that loses the right to hand a capability over
+  ok    a sender that keeps its granting capability hands the offered one over with its message
+  ok    the state afterwards is sound
+  ok    a sender whose granting capability is revoked while it waits stays in the queue,                  for it still holds a plain one
+  ok    when its turn comes it is refused (E_PERM); the receiver gets no message and no capability
+  ok    the state afterwards is sound
+Where a piece of device memory ends
+  ok    a task with the first two pages holds the last byte of the second, and nothing of the page after it
+  ok    the second piece maps the second page
+  ok    when that piece is dropped its page is unmapped, though the task still holds the page before it
+  ok    the state afterwards is sound
+Programs whose segment is not at the start of the first page
+  ok    a program whose segment is on the second page is loaded there, and the first page stays unmapped
+  ok    it is charged the same frames as any small program
+  ok    a segment that starts inside a page is loaded at its address, and the bytes before it are zero
+  ok    the state afterwards is sound
+Places a task may only read, named as the place for the kernel to write to
+  ok    the root task has an endpoint, a child, a page it may only read, and is told about the child
+  ok    a message is not received into the program's own pages, which the task may only read (E_FAULT)
+  ok    nor into a page that the task mapped for reading only (E_FAULT)
+  ok    a report is not written there either (E_FAULT), and not a byte of either page changes
+  ok    the state afterwards is sound
+Interrupts of devices
+  ok    the root task binds interrupt 1 to one endpoint and interrupt 3 to another; both lines are open
+  ok    interrupt 1 closes its line and is a message from the kernel on its endpoint, naming line 1
+  ok    it is delivered once: nothing more waits on that endpoint (E_TIMEOUT), and nothing on the other (E_TIMEOUT)
+  ok    once acknowledged the line is open again, and the next interrupt wakes the task that waits for it
+  ok    giving up an endpoint that no interrupt is bound to leaves both interrupts bound and their lines open
+  ok    giving up the endpoint of interrupt 3 unbinds that interrupt and closes its line, and leaves interrupt 1 alone
+  ok    interrupt 1 still arrives on its endpoint
+  ok    the state afterwards is sound
+A reply with a capability, to a call that was received with or without the grant right
+  ok    a server that listened without it is refused (E_PERM), though the client's capability has the right; no capability moves and the client still waits
+  ok    the same reply without a capability goes through
+MIRI: cut short after 11096 s: 190 directed checks had passed, 0 had failed, 0 reports of undefined behaviour

@@ -184,25 +184,25 @@ impl Kernel {
         self.cap(me, slot)?;
         // The set of copies, one bit per slot. Each pass adds the copies of what is in the
         // set already; the set only grows, so the loop ends.
-        let mut copies = [0u32; MAX_TASKS];
-        copies[me] = 1 << slot;
+        let mut copies = [0u64; MAX_TASKS];
+        copies[me] = 1u64 << slot;
         let mut grew = true;
         while grew {
             grew = false;
             for t in 0..MAX_TASKS {
                 for s in 0..CAP_SLOTS {
                     let from = self.tasks[t].from[s] as usize;
-                    let source = copies.get(from / CAP_SLOTS).is_some_and(|set| set & (1 << (from % CAP_SLOTS)) != 0);
-                    if source && copies[t] & (1 << s) == 0 {
+                    let source = copies.get(from / CAP_SLOTS).is_some_and(|set| set & (1u64 << (from % CAP_SLOTS)) != 0);
+                    if source && copies[t] & (1u64 << s) == 0 {
                         copies[t] |= 1 << s;
                         grew = true;
                     }
                 }
             }
         }
-        copies[me] &= !(1 << slot);
+        copies[me] &= !(1u64 << slot);
         for t in 0..MAX_TASKS {
-            for s in (0..CAP_SLOTS).filter(|s| copies[t] & (1 << s) != 0) {
+            for s in (0..CAP_SLOTS).filter(|s| copies[t] & (1u64 << s) != 0) {
                 let cap = self.tasks[t].caps[s];
                 self.drop_cap(t, s);
                 self.release(t, cap);

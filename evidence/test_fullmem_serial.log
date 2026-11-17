@@ -1,12 +1,13 @@
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 126 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 126 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 31896 pages
-Inti 0.2.1 shell ready at t=27098 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 31495 pages
+Inti 0.3.0 shell ready at t=26303 us
 Type help for the list of commands, or tour for a guided tour.
 inti> selftest
 Each line is one promise of the kernel, checked from user space.
@@ -68,7 +69,7 @@ selftest: this line was written through the Log capability
   ok   shared memory keeps the rights and the bounds of its capability
   ok   a copy of a memory capability covers the same pages or fewer
   ok   a page that was unmapped faults when it is touched again
-       took 40448 page frames in batches of 256; 32209 of 32363 were free
+       took 40192 page frames in batches of 256; 32072 of 32346 were free
   ok   every free page frame, up to the top of memory, can be taken and given back
   ok   a program cannot run code from its stack
   ok   a program cannot run code from its data
@@ -101,14 +102,14 @@ selftest: this line was written through the Log capability
   ok   endpoints are created only within a quota, and the quota comes back
   ok   tasks are started only within a quota, and the quota comes back
   ok   a child gets its parent's share of the processor or a smaller one, never a larger
-       beside three spinning tasks this program kept 58% of its speed when they
-       shared 20% of the processor, and 25% when they had no share of their own;
-       the kernel charged the group 35% and 74% of a second
-       alone, half a second: 73782 rounds, 50 ticks of which 50 found this program running, 61 task switches
-       beside the group held to 20%, two seconds: 171872 rounds, 200 ticks of which 110 found this program running, 317 task switches
-       alone, half a second: 80829 rounds, 50 ticks of which 50 found this program running, 54 task switches
-       beside the group without a share, two seconds: 75920 rounds, 200 ticks of which 50 found this program running, 352 task switches
-       alone, half a second: 73086 rounds, 50 ticks of which 50 found this program running, 59 task switches
+       beside three spinning tasks this program kept 60% of its speed when they
+       shared 20% of the processor, and 23% when they had no share of their own;
+       the kernel charged the group 35% and 75% of a second
+       alone, half a second: 54531 rounds, 50 ticks of which 50 found this program running, 72 task switches
+       beside the group held to 20%, two seconds: 149788 rounds, 203 ticks of which 129 found this program running, 332 task switches
+       alone, half a second: 62074 rounds, 50 ticks of which 50 found this program running, 66 task switches
+       beside the group without a share, two seconds: 59208 rounds, 200 ticks of which 50 found this program running, 391 task switches
+       alone, half a second: 66843 rounds, 50 ticks of which 50 found this program running, 59 task switches
   ok   three spinning tasks with a 20% share leave the rest of the processor to others
   ok   sleep lasts as long as asked, and not much longer
   ok   the clock never goes backwards
@@ -118,9 +119,9 @@ selftest: this line was written through the Log capability
   ok   no task, endpoint, page frame or quota was lost
 SELFTEST: PASS 96/96
 inti> uptime
-up 7.479 s, 745 timer interrupts
-5 tasks, 5 endpoints, 502279 system calls, 2440 task switches
-749 device interrupts, 16 faults contained
-92 tasks started, 0 kernel anomalies
+up 7.278 s, 724 timer interrupts
+6 tasks, 6 endpoints, 420625 system calls, 2865 task switches
+732 device interrupts, 16 faults contained
+93 tasks started, 0 kernel anomalies
 kernel invariants: all hold
 inti> 

@@ -1,10 +1,10 @@
 {
   "passed": true,
-  "date": "2026-11-16T18:07:29+07:00",
-  "duration_s": 420,
+  "date": "2026-11-17T11:01:47+07:00",
+  "duration_s": 183,
   "emulator": "QEMU 11.1.0 (TCG, no hardware virtualisation)",
   "host": "Windows 10",
-  "image_sha256": "a467a9d72087ff0717eeaba28b2b9df657271fa7e8a8d311804ce7a3323b50c4",
+  "image_sha256": "63c06839760ed826e17433d6cb694ecc968a0b9305f66cbf21f1bc62d2432470",
   "options": {
     "cuts": 60,
     "fuzz": 40,
@@ -45,12 +45,12 @@
     {
       "name": "power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
       "ok": true,
-      "detail": "22 cuts before the first write, 27 between the first write and the switch to the new version, 11 after it"
+      "detail": "35 cuts before the first write, 20 between the first write and the switch to the new version, 5 after it"
     },
     {
       "name": "the cuts landed in all three phases of a change (before, during, after)",
       "ok": true,
-      "detail": "{\"before\": 22, \"during\": 27, \"after\": 11, \"broken\": 0}"
+      "detail": "{\"before\": 35, \"during\": 20, \"after\": 5, \"broken\": 0}"
     },
     {
       "name": "after every cut the machine lists the same files as the image holds",
@@ -60,7 +60,7 @@
     {
       "name": "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
       "ok": true,
-      "detail": "42 comparisons (2 of them after the last cut); wrong: []"
+      "detail": "17 comparisons (3 of them after the last cut); wrong: []"
     },
     {
       "name": "a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too",
@@ -280,32 +280,32 @@
     {
       "name": "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
       "ok": true,
-      "detail": "the write took 15.42 s"
+      "detail": "the write took 14.93 s"
     },
     {
       "name": "a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later)",
       "ok": true,
-      "detail": "reported after 30.06 s"
+      "detail": "reported after 30.02 s"
     },
     {
       "name": "after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
       "ok": true,
-      "detail": "the read took 0.12 s; files on the disk: a.txt, b.txt, e.txt"
+      "detail": "the read took 0.03 s; files on the disk: a.txt, b.txt, e.txt"
     },
     {
       "name": "a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards)",
       "ok": true,
-      "detail": "reported after 30.01 s"
+      "detail": "reported after 30.02 s"
     },
     {
       "name": "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted",
       "ok": true,
-      "detail": "the read took 3.44 s; files on the disk: a.txt, b.txt, e.txt"
+      "detail": "the read took 1.9 s; files on the disk: a.txt, b.txt, e.txt"
     },
     {
       "name": "the recorded writes, replayed on the starting image, give the image the machine left, byte for byte",
       "ok": true,
-      "detail": "592 sector writes, 20 flushes"
+      "detail": "608 sector writes, 20 flushes"
     },
     {
       "name": "the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both",
@@ -328,7 +328,7 @@
       "detail": "version 11 after 11 meta blocks"
     },
     {
-      "name": "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+      "name": "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
       "ok": true,
       "detail": ""
     },
@@ -361,23 +361,23 @@
       },
       "blocks": 254,
       "free_blocks_at_start": 253,
-      "ready_us": 17436
+      "ready_us": 19670
     },
     "timing": {
       "what": "host time from the typed line to the next prompt, serial port included",
       "median_ms": {
-        "copy 80 KiB from the archive": 87.6,
-        "copy 80 KiB from the disk": 146.7,
-        "write a small file": 10.6,
-        "append a line": 14.1,
-        "remove a file": 6.1
+        "copy 80 KiB from the archive": 71.1,
+        "copy 80 KiB from the disk": 110.1,
+        "write a small file": 19.9,
+        "append a line": 20.0,
+        "remove a file": 10.0
       },
       "max_ms": {
-        "copy 80 KiB from the archive": 104.4,
-        "copy 80 KiB from the disk": 150.9,
-        "write a small file": 11.7,
-        "append a line": 14.5,
-        "remove a file": 6.3
+        "copy 80 KiB from the archive": 90.1,
+        "copy 80 KiB from the disk": 128.8,
+        "write a small file": 20.0,
+        "append a line": 21.0,
+        "remove a file": 10.0
       },
       "runs": 5,
       "copy_bytes": 81920
@@ -385,48 +385,41 @@
     "power_cuts": {
       "cuts": 60,
       "seed": 20261114,
-      "before": 22,
-      "during": 27,
-      "after": 11,
+      "before": 35,
+      "during": 20,
+      "after": 5,
       "broken": 0,
       "by_kind": {
         "copy 80 KiB from the archive": {
           "before": 10,
-          "during": 12,
-          "after": 2,
+          "during": 10,
+          "after": 0,
           "broken": 0
         },
         "remove a file": {
-          "before": 5,
-          "during": 4,
-          "after": 3,
+          "before": 0,
+          "during": 1,
+          "after": 1,
           "broken": 0
         },
         "append a line": {
-          "before": 4,
-          "during": 6,
+          "before": 14,
+          "during": 2,
           "after": 2,
           "broken": 0
         },
         "write a small file": {
-          "before": 3,
-          "during": 5,
-          "after": 3,
-          "broken": 0
-        },
-        "copy 80 KiB from the disk": {
-          "before": 0,
-          "during": 0,
-          "after": 1,
+          "before": 11,
+          "during": 7,
+          "after": 2,
           "broken": 0
         }
       },
-      "texts_compared": 42,
+      "texts_compared": 17,
       "files_at_the_end": {
-        "big2.bin": 81920,
-        "big.bin": 81920,
-        "log.txt": 59,
-        "b.txt": 12
+        "log.txt": 90,
+        "c.txt": 42,
+        "a.txt": 12
       }
     },
     "refusals": [
@@ -565,15 +558,15 @@
     },
     "slow": {
       "slow": {
-        "slow_write_s": 15.42
+        "slow_write_s": 14.93
       },
       "stopped": {
-        "error_after_s": 30.06,
-        "next_read_s": 0.12
+        "error_after_s": 30.02,
+        "next_read_s": 0.03
       },
       "busy": {
-        "error_after_s": 30.01,
-        "next_read_s": 3.44
+        "error_after_s": 30.02,
+        "next_read_s": 1.9
       }
     },
     "recorded": {
@@ -590,11 +583,11 @@
         "cp selftest big3.bin",
         "append welcome.txt I was here"
       ],
-      "sector_writes": 592,
+      "sector_writes": 608,
       "flushes": 20,
       "data_periods": 9,
       "meta_periods": 11,
-      "cut_states": 593,
+      "cut_states": 609,
       "lost_meta_states": 2794,
       "lost_data_states": 216,
       "machine_starts": 18,

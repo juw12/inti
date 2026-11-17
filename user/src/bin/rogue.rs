@@ -53,7 +53,7 @@ impl Tally {
 }
 
 /// Tries something with every capability slot in turn. It counts as denied only if the
-/// kernel refuses all 32; the reason shown is the one for slot 0, the slot that is in use.
+/// kernel refuses them all; the reason shown is the one for slot 0, the slot that is in use.
 fn every_slot(mut attempt: impl FnMut(u32) -> Option<i32>) -> Option<&'static str> {
     let mut reason = "";
     for slot in 0..CAP_SLOTS as u32 {
@@ -141,7 +141,7 @@ fn flags_attempt() -> Option<&'static str> {
 
 /// Mode 0: everything that goes through the kernel's system call interface.
 fn software(quota: u32) -> ! {
-    outln!("Attempts that need a capability are made with each of the 32 slots.");
+    outln!("Attempts that need a capability are made with each of the ", CAP_SLOTS as u32, " slots.");
     let mut tally = Tally { denied: 0, total: 0 };
     let mut msg = Msg::new(0);
     let garbage = [0xCCu8; 256];

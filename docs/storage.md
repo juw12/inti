@@ -3,7 +3,7 @@
 
 Inti keeps files on a disk. The driver for the disk and the file system on it are one ordinary program, `disk`, which runs in ring 3 with three capabilities and is restarted like any other server when it fails. This page says what it promises, how the volume is laid out, what was tested, and where it stops.
 
-Everything measured here is from the storage test of 2026-11-16 in QEMU 11.1.0 (TCG, no hardware virtualisation): **67 of 67 checks pass.** `python build.py storage` repeats it (about 7 minutes). No physical disk was involved at any point; [Inti on a real computer](hardware.md) says what that leaves open.
+Everything measured here is from the storage test of 2026-11-17 in QEMU 11.1.0 (TCG, no hardware virtualisation): **67 of 67 checks pass.** `python build.py storage` repeats it (about 3 minutes). No physical disk was involved at any point; [Inti on a real computer](hardware.md) says what that leaves open.
 
 ## What it promises
 
@@ -31,7 +31,7 @@ The promises hold under the assumptions in [what the tests model](#what-the-test
 
 `python build.py run` keeps the disk in `build/run.img` from one start to the next; `python build.py run --fresh` starts from the built image again. In the browser demo the files last until the page is reloaded.
 
-The built image carries the content of the folder `disk/` on its volume (files: 1; `welcome.txt`), which says how to try this. After the first start the disk server was ready 17.4 ms after it was started, and 253 of 254 data blocks were free.
+The built image carries the content of the folder `disk/` on its volume (files: 1; `welcome.txt`), which says how to try this. After the first start the disk server was ready 19.7 ms after it was started, and 253 of 254 data blocks were free.
 
 ## The volume
 
@@ -86,10 +86,10 @@ Every case boots a copy of the built image in QEMU, lets the machine change the 
 | after switching off and on again the files are listed with the same sizes | pass | 4 files |
 | after switching off and on again the text is the text that was written | pass |  |
 | after switching off and on again the program continues its count | pass |  |
-| power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version | pass | 22 cuts before the first write, 27 between the first write and the switch to the new version, 11 after it |
-| the cuts landed in all three phases of a change (before, during, after) | pass | {"before": 22, "during": 27, "after": 11, "broken": 0} |
+| power cut during a change, 60 times in a row on one disk: every time the volume mounts and every file is its old or its new version | pass | 35 cuts before the first write, 20 between the first write and the switch to the new version, 5 after it |
+| the cuts landed in all three phases of a change (before, during, after) | pass | {"before": 35, "during": 20, "after": 5, "broken": 0} |
 | after every cut the machine lists the same files as the image holds | pass |  |
-| after the cuts the machine shows a text file with the content the image holds, every time one was there to show | pass | 42 comparisons (2 of them after the last cut); wrong: [] |
+| after the cuts the machine shows a text file with the content the image holds, every time one was there to show | pass | 17 comparisons (3 of them after the last cut); wrong: [] |
 | a partition of another type (0x83) where the volume was: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |
 | a partition of another type (0x83) where the volume was: every attempt to write is answered with "no Inti volume on the disk", also after the disk server was restarted, and the image file is unchanged, byte for byte | pass | image unchanged: True; answers with the reason: 8 of 8 |
 | a disk with an empty partition table: the reader on the build machine refuses it too | pass | no partition of the Inti type (0x7F) |
@@ -133,41 +133,40 @@ Every case boots a copy of the built image in QEMU, lets the machine change the 
 | a file that does not fit is refused with "the disk is full", and the blocks it had taken are free again | pass | disk: 2 files, 2 of 254 blocks of 4 KiB free |
 | on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays | pass | 0 blocks free at the end |
 | files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes | pass | 2 restarts by the supervisor |
-| a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one | pass | the write took 15.42 s |
-| a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later) | pass | reported after 30.06 s |
-| after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 0.12 s; files on the disk: a.txt, b.txt, e.txt |
-| a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards) | pass | reported after 30.01 s |
-| after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 3.44 s; files on the disk: a.txt, b.txt, e.txt |
-| the recorded writes, replayed on the starting image, give the image the machine left, byte for byte | pass | 592 sector writes, 20 flushes |
+| a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one | pass | the write took 14.93 s |
+| a write the drive does not finish is reported as an error once the patience for a step is over (the drive stops and is free again later) | pass | reported after 30.02 s |
+| after that error, when the drive is free again, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 0.03 s; files on the disk: a.txt, b.txt, e.txt |
+| a write the drive does not finish is reported as an error once the patience for a step is over (the drive is still busy afterwards) | pass | reported after 30.02 s |
+| after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted | pass | the read took 1.9 s; files on the disk: a.txt, b.txt, e.txt |
+| the recorded writes, replayed on the starting image, give the image the machine left, byte for byte | pass | 608 sector writes, 20 flushes |
 | the machine wrote only inside its volume, and between two flushes either data blocks or one meta block, never both | pass | 9 flush periods of data, 11 of a meta block |
 | every data write went to a block that no file of the version on the disk used | pass |  |
 | every new meta block went, whole, to the slot that did not hold the version in use | pass |  |
 | each of the 11 changes switched the volume to its next version exactly once | pass | version 11 after 11 meta blocks |
-| a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again | pass |  |
+| a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again | pass |  |
 | writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change | pass |  |
 | started on 18 of these states, the machine lists the same files as the reader on the build machine | pass |  |
 | the built image was not changed by any case | pass |  |
 
 ### Power cuts at random moments
 
-The emulator's process was killed 60 times in a row during a change, on the same disk, and the machine was started again each time. 22 cuts fell before the first write of the change, 27 between the first write and the switch to the new meta block, and 11 after it. The volume was broken after 0 of them. 42 file contents were compared with what they had to be.
+The emulator's process was killed 60 times in a row during a change, on the same disk, and the machine was started again each time. 35 cuts fell before the first write of the change, 20 between the first write and the switch to the new meta block, and 5 after it. The volume was broken after 0 of them. 17 file contents were compared with what they had to be.
 
 | Change under way | Cuts | Before the first write | Between the first write and the switch | After the switch | Broken |
 |---|---|---|---|---|---|
-| copy 80 KiB from the archive | 24 | 10 | 12 | 2 | 0 |
-| remove a file | 12 | 5 | 4 | 3 | 0 |
-| append a line | 12 | 4 | 6 | 2 | 0 |
-| write a small file | 11 | 3 | 5 | 3 | 0 |
-| copy 80 KiB from the disk | 1 | 0 | 0 | 1 | 0 |
+| copy 80 KiB from the archive | 20 | 10 | 10 | 0 | 0 |
+| remove a file | 2 | 0 | 1 | 1 | 0 |
+| append a line | 18 | 14 | 2 | 2 | 0 |
+| write a small file | 20 | 11 | 7 | 2 | 0 |
 
 ### Every cut point of a recorded run
 
-Random cuts mostly miss the narrow moments. So in a second case QEMU records every sector the machine writes while it makes 11 changes (`write a.txt amber birch cedar`; `append a.txt delta ember`; `cp selftest big.bin`; `cp shell big.bin`; `cp big.bin big2.bin`; `rm a.txt`; `counter +disk`; `write a.txt jade`; `rm big.bin`; `cp selftest big3.bin`; `append welcome.txt I was here`): 592 sector writes and 20 flushes. The build machine then constructs every state a cut could leave:
+Random cuts mostly miss the narrow moments. So in a second case QEMU records every sector the machine writes while it makes 11 changes (`write a.txt amber birch cedar`; `append a.txt delta ember`; `cp selftest big.bin`; `cp shell big.bin`; `cp big.bin big2.bin`; `rm a.txt`; `counter +disk`; `write a.txt jade`; `rm big.bin`; `cp selftest big3.bin`; `append welcome.txt I was here`): 608 sector writes and 20 flushes. The build machine then constructs every state a cut could leave:
 
-- a cut after any one sector write: 593 states;
+- a cut after any one sector write: 609 states;
 - the writes since the last flush lost in any combination, for the 11 periods in which a meta block was written (2,794 states) and the 9 in which data was written (216 states).
 
-Each of the 3,603 states is checked with `tools/intifs.py`: the volume must be sound and hold exactly the files from before or from after the change under way. The machine was then started on 18 of them.
+Each of the 3,619 states is checked with `tools/intifs.py`: the volume must be sound and hold exactly the files from before or from after the change under way. The machine was then started on 18 of them.
 
 ### Disks it must not touch
 
@@ -197,9 +196,9 @@ Each of the 3,603 states is checked with `tools/intifs.py`: the volume must be s
 
 QEMU can hold back what a machine writes to its drive. Three sessions use that.
 
-- **Slow.** One write a second is let through. `write c.txt slow` took 15.42 s and went through, and the supervisor's log has no line about the disk server.
-- **Stopped, then free again.** One byte a second is let through, so the write does not finish. The error came after 30.06 s. Then the limit is lifted, and the next read took 0.12 s.
-- **Still busy.** Sixteen bytes a second are let through, and the limit stays in place while the next read is sent. The error came after 30.01 s and the read took 3.44 s.
+- **Slow.** One write a second is let through. `write c.txt slow` took 14.93 s and went through, and the supervisor's log has no line about the disk server.
+- **Stopped, then free again.** One byte a second is let through, so the write does not finish. The error came after 30.02 s. Then the limit is lifted, and the next read took 0.03 s.
+- **Still busy.** Sixteen bytes a second are let through, and the limit stays in place while the next read is sent. The error came after 30.02 s and the read took 1.9 s.
 
 In both of the last two the read gave the right file, the unfinished file was absent, in the machine's listing and in the image, a write after it landed, and the disk server was not restarted.
 
@@ -215,15 +214,15 @@ Measured as host time from the typed line to the next prompt, serial port includ
 
 | Change | Median | Slowest |
 |---|---|---|
-| copy 80 KiB from the archive | 88 ms | 104 ms |
-| copy 80 KiB from the disk | 147 ms | 151 ms |
-| write a small file | 11 ms | 12 ms |
-| append a line | 14 ms | 14 ms |
-| remove a file | 6 ms | 6 ms |
+| copy 80 KiB from the archive | 71 ms | 90 ms |
+| copy 80 KiB from the disk | 110 ms | 129 ms |
+| write a small file | 20 ms | 20 ms |
+| append a line | 20 ms | 21 ms |
+| remove a file | 10 ms | 10 ms |
 
 ## Faults planted in the disk server
 
-A test that passes says little unless it would fail on a broken server. `python build.py storage-mutants` plants 13 faults in the disk server, one at a time, and runs a shortened storage test (6 random cuts, 40 random meta blocks, 67 checks) against each. A fault counts as caught only if the test fails twice, and both times ends by itself with the names of the checks that failed. A run that is ended at the time limit, 39 minutes in this batch, gives no verdict. The unchanged server passed before and after the batch. Run of 2026-11-17, about 311 minutes: **12 of 13 caught.**
+A test that passes says little unless it would fail on a broken server. `python build.py storage-mutants` plants 13 faults in the disk server, one at a time, and runs a shortened storage test (6 random cuts, 40 random meta blocks, 67 checks) against each. A fault counts as caught only if the test fails twice, and both times ends by itself with the names of the checks that failed. A run that is ended at the time limit, 30 minutes in this batch, gives no verdict. The unchanged server passed before and after the batch. Run of 2026-11-17, about 154 minutes: **12 of 13 caught.**
 
 | Fault | What is planted in the disk server | Verdict | Checks that failed both times |
 |---|---|---|---|
@@ -232,7 +231,7 @@ A test that passes says little unless it would fail on a broken server. `python 
 | `no-meta-flush` | publish does not flush after the meta block | caught | 3 |
 | `reuse-live-block` | a block counts as free when only the state being prepared does not use it | caught | 4 |
 | `mount-unchecked` | mount accepts a sealed meta block without checking that it describes a sound volume | caught | 11 |
-| `older-slot` | mount takes the older of two sealed meta blocks | caught | 7 |
+| `older-slot` | mount takes the older of two sealed meta blocks | caught | 6 |
 | `no-checksum` | a meta block counts as sealed without its checksum being compared | caught | 4 |
 | `publish-unchecked` | publish writes the meta block without checking it first | not caught | - |
 | `no-rollback` | a refused change leaves its half-made chains in the state being prepared | caught | 1 |
