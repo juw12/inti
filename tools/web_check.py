@@ -26,7 +26,10 @@ DOCS = ROOT / "docs"
 EVIDENCE = ROOT / "evidence"
 PROMPT = "inti> "
 DEFAULT_COMMANDS = ["hello", "selftest", "rogue", "crash console", "hang fs", "df",
-                    "write note.txt kept", "crash disk", "cat note.txt", "tour", "uptime"]
+                    "write note.txt kept", "crash disk", "cat note.txt", "tour", "uptime",
+                    "desktop", "@wait 5", "crash display", "@wait 5", "windows"]
+# The colour of the empty desktop (user/src/bin/display.rs, PALETTE[1]) and of the frames.
+DESKTOP_COLOUR = (0x1E, 0x38, 0x5C)
 TOUR_LIMIT_S = 60  # the page says the guided tour takes under a minute
 
 # What a command's output must contain. A command not listed here only has to come back
@@ -45,6 +48,9 @@ EXPECT = {
     "crash disk": r"RECOVERY: disk crash -> answering again after \d+ us",
     "cat note.txt": r"(?m)^kept\s*$",
     "tour": r"TOUR: done",
+    "crash display": r"RECOVERY: display crash -> answering again after \d+ us",
+    # Both programs have opened a window again after the display was restarted.
+    "windows": r"WINDOWS: 2 of programs, \d+ frames drawn, display restarted [1-9]\d* times",
 }
 
 
@@ -121,6 +127,9 @@ def run(commands: list[str], timeout: float, save: bool) -> int:
             if not result["wx_enforced"]:
                 failures.append("the boot log does not say that W^X is enforced")
             for line in commands:
+                if line.startswith("@wait "):
+                    page.wait_for_timeout(float(line.split()[1]) * 1000)
+                    continue
                 mark = page.evaluate("window.inti.serial.length")
                 began = time.perf_counter()
                 page.evaluate("line => window.inti.send(line)", line)
@@ -148,10 +157,19 @@ def run(commands: list[str], timeout: float, save: bool) -> int:
             print("web: the serial log ended with:", flush=True)
             for row in result["serial"].replace("\r", "").split("\n")[-25:]:
                 print(f"web:   | {row}", flush=True)
-        result["screen_text"] = page.evaluate(
-            "Array.from(document.querySelectorAll('#screen .text > div'))"
-            ".map(row => row.textContent).join('\\n')"
+        # The screen is in graphics mode: the emulator draws it on the canvas.
+        result["canvas"] = page.evaluate(
+            """() => {
+                const canvas = document.querySelector('#screen canvas');
+                const pixel = (x, y) => Array.from(canvas.getContext('2d').getImageData(x, y, 1, 1).data.slice(0, 3));
+                return {width: canvas.width, height: canvas.height, shown: canvas.offsetWidth > 0,
+                        corner: pixel(canvas.width - 4, canvas.height - 4)};
+            }"""
         )
+        canvas = result["canvas"]
+        if (canvas["width"], canvas["height"]) != (640, 480) or not canvas["shown"] or any(
+                abs(got - wanted) > 6 for got, wanted in zip(canvas["corner"], DESKTOP_COLOUR)):
+            failures.append(f"the screen is not the 640 by 480 desktop: {canvas}")
         if save:
             (DOCS / "img").mkdir(exist_ok=True)
             page.screenshot(path=str(DOCS / "img" / "web-demo.png"))

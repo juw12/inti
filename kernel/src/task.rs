@@ -29,8 +29,8 @@ pub const ORIGINAL: u16 = 0xFFFF;
 
 // Reply tokens carry a task index in 5 bits and `kill` keeps a set of tasks in a `u32`.
 const _: () = assert!(MAX_TASKS == 32 && MAX_ENDPOINTS < NONE as usize && NO_TASK == NONE as u32);
-// `cap_revoke` keeps a set of capability slots in a `u32`; a link to a slot fits in a `u16`.
-const _: () = assert!(CAP_SLOTS == 32 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);
+// `cap_revoke` keeps a set of capability slots in a `u64`; a link to a slot fits in a `u16`.
+const _: () = assert!(CAP_SLOTS == 64 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum State {
@@ -782,7 +782,7 @@ impl Kernel {
             Cap::Info,
             Cap::IoPort { first: 0, last: 0xFFFF },
             Cap::Irq { mask: 0xFFFA }, // all lines except the timer and the cascade
-            Cap::Memory { page: 0xB8, pages: 8, write: true }, // VGA text memory
+            Cap::Memory { page: 0xA0, pages: 32, write: true }, // VGA memory: graphics and text
             Cap::Memory { page: base / PAGE, pages: page_up(len) / PAGE, write: false },
         ]
     }

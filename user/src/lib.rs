@@ -9,6 +9,7 @@
 pub use abi;
 
 pub mod client;
+pub mod font;
 pub mod io;
 pub mod proto;
 pub mod sys;
@@ -20,6 +21,9 @@ pub mod app {
     /// Send right on the disk server's endpoint. Empty unless the program was started with
     /// `+disk` after its name.
     pub const DISK: u32 = 1;
+    /// Send right on the display server's endpoint, with which a program opens windows.
+    /// Empty unless the program was started with `+window` after its name.
+    pub const DISPLAY: u32 = 2;
 }
 
 use core::arch::{asm, naked_asm};

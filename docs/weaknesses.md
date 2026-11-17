@@ -20,21 +20,21 @@ The measurements are from the gate run of 2026-11-17 in QEMU 11.1.0 (TCG, no har
 
 | Injected fault | Runs | Median until the service answers again | Range | Host stopwatch, median | Supervisor restart, median |
 |---|---|---|---|---|---|
-| console driver crashes (page fault) | 5 | 50.7 ms | 7.4 to 54.8 ms | 95 ms | 26.3 ms |
-| file server crashes (page fault) | 5 | 4.7 ms | 4.3 to 86.6 ms | 11 ms | 2.5 ms |
-| disk server crashes (page fault) | 5 | 24.5 ms | 21.1 to 26.0 ms | 28 ms | 3.9 ms |
-| console driver hangs (stops answering) | 5 | 708 ms | 691 to 769 ms | 738 ms | 1.9 ms |
-| file server hangs (stops answering) | 5 | 777 ms | 727 to 782 ms | 808 ms | 5.0 ms |
-| disk server hangs (stops answering) | 5 | 779 ms | 725 to 818 ms | 784 ms | 2.1 ms |
-| file server hangs right after a restart | 3 | 1155 ms | 1118 to 1198 ms | 1158 ms | 0.7 ms |
+| console driver crashes (page fault) | 5 | 4.2 ms | 3.4 to 5.7 ms | 8 ms | 1.5 ms |
+| file server crashes (page fault) | 5 | 2.8 ms | 2.1 to 62.9 ms | 5 ms | 1.3 ms |
+| disk server crashes (page fault) | 5 | 17.6 ms | 16.7 to 18.6 ms | 20 ms | 2.4 ms |
+| console driver hangs (stops answering) | 5 | 722 ms | 679 to 763 ms | 725 ms | 1.2 ms |
+| file server hangs (stops answering) | 5 | 751 ms | 740 to 761 ms | 753 ms | 0.7 ms |
+| disk server hangs (stops answering) | 5 | 767 ms | 690 to 775 ms | 771 ms | 3.2 ms |
+| file server hangs right after a restart | 3 | 1170 ms | 1122 to 1224 ms | 1171 ms | 0.7 ms |
 
-A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 50.9 ms and the console driver after 798 ms. The disk server is replaced in the same way, and because what it knows is on the disk, the files are still there afterwards ([Files that last](storage.md)). The log is in [How Inti works](design.md).
+A hang takes longer than a crash because it has to be noticed: the supervisor pings every 200 ms and waits up to 500 ms for the answer. When the console driver hangs and the file server crashes during that wait (`double`), both are replaced: the file server answered again after 49.6 ms and the console driver after 812 ms. The disk server is replaced in the same way, and because what it knows is on the disk, the files are still there afterwards ([Files that last](storage.md)). The log is in [How Inti works](design.md).
 
 ```log
 inti> crash fs
-init: fs crashed: page fault at address 0x10, eip 0x40001ba6
-init: fs restarted after 11990 us (restart 1)
-RECOVERY: fs crash -> answering again after 23341 us
+init: fs crashed: page fault at address 0x10, eip 0x400019aa
+init: fs restarted after 1567 us (restart 1)
+RECOVERY: fs crash -> answering again after 2885 us
 ```
 
 ```log
@@ -42,23 +42,23 @@ inti> hang console
 init: console did not answer for 500 ms; ending it
 init: console ended: killed
 [console restarted]
-init: console restarted after 426 us (restart 6)
-RECOVERY: console hang -> answering again after 733728 us
+init: console restarted after 370 us (restart 6)
+RECOVERY: console hang -> answering again after 763273 us
 ```
 
 The same two faults in the browser demo, where the emulator is slower:
 
 ```weblog
 inti> crash console
-init: console crashed: page fault at address 0x10, eip 0x400022e0
+init: console crashed: page fault at address 0x10, eip 0x40002356
 [console restarted]
-init: console restarted after 1699 us (restart 1)
-RECOVERY: console crash -> answering again after 4899 us
+init: console restarted after 5400 us (restart 1)
+RECOVERY: console crash -> answering again after 10300 us
 inti> hang fs
 init: fs did not answer for 500 ms; ending it
 init: fs ended: killed
-init: fs restarted after 1501 us (restart 1)
-RECOVERY: fs hang -> answering again after 567208 us
+init: fs restarted after 2301 us (restart 1)
+RECOVERY: fs hang -> answering again after 589908 us
 ```
 
 **What Inti does not solve.**
@@ -83,25 +83,25 @@ RECOVERY: fs hang -> answering again after 567208 us
 
 ```log
 inti> fuzz 1000000
-Fuzzing the kernel with 1000000 random system calls, seed 163415397.
-   10%  100294 calls, 208 tasks ended, 454 checks
+Fuzzing the kernel with 1000000 random system calls, seed 197059387.
+   10%  100180 calls, 214 tasks ended, 377 checks
 ...
-  100%  1000126 calls, 2280 tasks ended, 4649 checks
-FUZZ: 1000769 random system calls from 2283 tasks in 111995 ms
-FUZZ: 4653 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
-FUZZ: tasks ended: 597 exited, 1264 were stopped, 422 hit a CPU exception
+  100%  1000024 calls, 2033 tasks ended, 4069 checks
+FUZZ: 1001061 random system calls from 2036 tasks in 75308 ms
+FUZZ: 4073 invariant checks, 0 violations, 0 kernel anomalies, 0 leaks
+FUZZ: tasks ended: 572 exited, 1050 were stopped, 414 hit a CPU exception
 Calls the tasks reported before they ended (tried / accepted by the kernel):
-  yield           14257 /   14257    io_in           14439 /    2124
-  exit              468 /     468    io_out          14090 /    2086
-  call            14444 /    2131    irq_bind        14421 /     850
-  recv            14466 /     311    irq_ack         14198 /     540
-  reply           14540 /      39    spawn           14488 /     971
-  ep_create       14463 /    5988    task_kill       14347 /      45
-  cap_derive      14592 /    2552    sleep           14201 /   14201
-  cap_drop        13856 /    3540    time            14401 /   14401
-  map             14300 /    2434    log             14431 /       0
-  unmap           14149 /    3892    sysinfo         14468 /    2053
-  map_mem         14317 /    1526    cap_revoke      14571 /    6128
+  yield           13877 /   13877    io_in           13798 /    1861
+  exit              424 /     424    io_out          13928 /    1890
+  call            14008 /    2191    irq_bind        13748 /     800
+  recv            13774 /     284    irq_ack         13998 /     574
+  reply           13682 /      37    spawn           13778 /     852
+  ep_create       13801 /    5660    task_kill       13826 /      37
+  cap_derive      13758 /    2284    sleep           13778 /   13778
+  cap_drop        13309 /    3423    time            13842 /   13842
+  map             13779 /    2451    log             13727 /       0
+  unmap           13982 /    3829    sysinfo         13848 /    1991
+  map_mem         13783 /    1521    cap_revoke      13649 /    5635
 FUZZ: PASS
 ```
 
@@ -129,7 +129,7 @@ FUZZ: PASS
 ```log
 inti> rogue all
 Starting a hostile program that holds one capability: console output.
-Attempts that need a capability are made with each of the 32 slots.
+Attempts that need a capability are made with each of the 64 slots.
  1. read the keyboard port 0x60                denied: E_NOCAP
  2. reset the machine through port 0x64        denied: E_NOCAP
  3. take over the keyboard interrupt           denied: E_NOCAP
@@ -190,7 +190,7 @@ In the browser demo one of the hardware attempts is skipped, because that attemp
 ```weblog
 inti> rogue
 Starting a hostile program that holds one capability: console output.
-Attempts that need a capability are made with each of the 32 slots.
+Attempts that need a capability are made with each of the 64 slots.
 ...
 46. return to ring 0 with a forged iret frame  skipped
 ...

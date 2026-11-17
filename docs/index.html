@@ -33,7 +33,7 @@
     <div class="panel">
       <h2>Serial log</h2>
       <pre id="serial" class="serial" aria-live="polite" aria-label="Serial log of the emulated computer"></pre>
-      <p class="hint">The same text as the screen, plus what the kernel and the supervisor
+      <p class="hint">The same text as the terminal window, plus what the kernel and the supervisor
       (<code>init</code>) report. Their lines are highlighted.</p>
     </div>
   </section>
@@ -44,11 +44,17 @@
     You can also click the screen and type; <code>help</code> lists every command.</p>
     <div class="buttons">
       <button class="tour" data-command="tour" disabled>Take the guided tour
-        <span>Five steps, each announced before it runs: a hostile program, a crashed driver,
-        a hung driver, two failures at once, then the counters. It takes under a minute and
-        nothing is rebooted.</span></button>
-      <button data-command="crash console" disabled>Crash the screen driver
-        <span>The program that draws the screen dies. The supervisor starts a new one.</span></button>
+        <span>Six steps, each announced before it runs: a hostile program, a crashed keyboard
+        driver, a crashed display, a hung file server, two failures at once, then the
+        counters. It takes under a minute and nothing is rebooted.</span></button>
+      <button data-command="desktop" disabled>Open two windows
+        <span>A clock and a game of Life start in the background, each in a window of its own.
+        Drag a window by its title bar.</span></button>
+      <button data-command="crash display" disabled>Crash the display
+        <span>The program that draws the screen and its windows dies. The supervisor starts a
+        new one, the text comes back, and each program opens its window again.</span></button>
+      <button data-command="crash console" disabled>Crash the keyboard driver
+        <span>The program that reads the keyboard and the mouse dies and is replaced.</span></button>
       <button data-command="hang fs" disabled>Hang the file server
         <span>It stops answering. The supervisor notices, ends it and starts a new one.</span></button>
       <button data-command="write note.txt kept" disabled>Save a file
@@ -74,8 +80,9 @@
 
   <section class="notes" aria-label="What you are looking at">
     <h2>What you are looking at</h2>
-    <p>The screen driver, the keyboard and serial driver, the disk driver and the file server
-    are ordinary programs. Each one holds only the permissions it was handed, and the kernel
+    <p>The display with its windows, the keyboard, mouse and serial driver, the disk driver
+    and the file server are ordinary programs. A window is a permission like any other: a
+    program can draw in the window it opened and in no other. Each one holds only the permissions it was handed, and the kernel
     is the only code that runs with full control of the machine. When a driver crashes or
     stops answering, the supervisor replaces it, and programs that were waiting for it simply
     get their answer from the new one.</p>

@@ -12,7 +12,8 @@ Read from the source (`boot/src/main.rs`, `kernel/src/arch.rs`, `kernel/src/mem.
 | Processor | A 32-bit x86 processor with PAE paging; a 64-bit one runs Inti in 32-bit mode. The no-execute bit is used when the processor has it. | Without PAE the kernel stops with a message. Without the no-execute bit Inti runs and its first lines say that writable memory can be executed. |
 | Number of processors | One. Others are never started. | - |
 | Interrupts and clock | The two legacy interrupt controllers (8259) and the legacy timer (8254). | No clock tick: the system hangs early. Some recent machines have neither. |
-| Screen | The VGA text screen. | Nothing to see; the serial port still carries every line. |
+| Screen | A VGA-compatible card that takes the standard register values for {{display.width}} by {{display.height}} pixels in {{display.colours}} colours. | Nothing to see, or a garbled picture; the serial port still carries every line. A kernel panic is reported on the serial port only. |
+| Mouse | A PS/2 mouse on the keyboard controller. A USB mouse works only if the firmware imitates one. | No pointer; everything else works. |
 | Keyboard | The keyboard controller at port `0x60` and its interrupt. A USB keyboard works only if the firmware imitates that controller (often called "USB legacy support"). | The system starts and nothing can be typed, except over the serial port. |
 | Serial port | COM1 at `0x3F8`, optional. Everything on the screen is also written there, and input is read from it. | - |
 | Disk for files | The first drive on the primary ATA channel (eight ports from `0x1F0`, and `0x3F6`), by polling, without DMA. | The system starts, the disk server says `no ATA disk found`, and no file lasts. This is the case on SATA drives in AHCI mode, on NVMe drives and on USB sticks. |
@@ -62,7 +63,8 @@ Type these at the prompt, in this order, and note what each one prints.
 |---|---|
 | `help` | the list of commands |
 | `selftest` | {{selftest.checks}} lines that start with `ok`, then `SELFTEST: PASS` |
-| `tour` | a hostile program is denied, a driver crashes and is replaced, a server hangs and is replaced; under a minute in the emulator |
+| `tour` | a hostile program is denied, a driver and the display crash and are replaced, a server hangs and is replaced; under a minute in the emulator |
+| `desktop` | a clock and a game of Life appear, each in a window; if a mouse is found, the pointer moves and drags windows |
 | `df` | the files and free blocks of the volume, or the reason there is none |
 | `uptime` | the time since the start and the kernel's counters; compare the time with a watch |
 | `shutdown` | see below |

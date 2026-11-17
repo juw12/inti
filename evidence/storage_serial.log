@@ -1,17 +1,18 @@
 ===== persistence, first boot =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=23990 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=19308 us
 Type help for the list of commands, or tour for a guided tour.
 inti> df
 disk: 1 file, 253 of 254 blocks of 4 KiB free
-the disk server was ready 17436 us after it started
+the disk server was ready 19670 us after it started
 inti> write note.txt first line
 inti> append note.txt second line
 inti> cp readme.txt copy.txt
@@ -28,28 +29,33 @@ init: shutdown requested; switching the machine off
 
 ===== persistence, second boot =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=20607 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=17957 us
 Type help for the list of commands, or tour for a guided tour.
 inti> ls
   bench          12288 bytes
+  clock           8192 bytes
   console        12288 bytes
   counter         8192 bytes
   disk           16384 bytes
+  display        24576 bytes
   fs              8192 bytes
   fuzz           16384 bytes
   hello           8192 bytes
   init           16384 bytes
+  life            8192 bytes
   rogue          12288 bytes
   selftest       81920 bytes
-  shell          36864 bytes
+  shell          40960 bytes
   tchild         12288 bytes
+  wintest        12288 bytes
   readme.txt      1007 bytes
 disk: 4 files
   note.txt                      23 bytes
@@ -66,66 +72,77 @@ init: shutdown requested; switching the machine off
 
 ===== after the power cuts =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=16818 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=18528 us
 Type help for the list of commands, or tour for a guided tour.
 inti> ls
   bench          12288 bytes
+  clock           8192 bytes
   console        12288 bytes
   counter         8192 bytes
   disk           16384 bytes
+  display        24576 bytes
   fs              8192 bytes
   fuzz           16384 bytes
   hello           8192 bytes
   init           16384 bytes
+  life            8192 bytes
   rogue          12288 bytes
   selftest       81920 bytes
-  shell          36864 bytes
+  shell          40960 bytes
   tchild         12288 bytes
+  wintest        12288 bytes
   readme.txt      1007 bytes
-disk: 4 files
-  big2.bin                   81920 bytes
-  big.bin                    81920 bytes
-  log.txt                       59 bytes
-  b.txt                         12 bytes
-inti> cat b.txt
-heron heron
+disk: 3 files
+  log.txt                       90 bytes
+  c.txt                         42 bytes
+  a.txt                         12 bytes
+inti> cat a.txt
+islet delta
+inti> cat c.txt
+delta delta heron grove amber flint ember
 inti> cat log.txt
-jade
-islet grove ember birch amber delta ember birch heron
+amber birch islet
+amber birch ember heron cedar heron flint delta cedar flint heron grove
 inti> shutdown
 init: shutdown requested; switching the machine off
 
 ===== fallback to the older meta block =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=18747 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=18136 us
 Type help for the list of commands, or tour for a guided tour.
 inti> ls
   bench          12288 bytes
+  clock           8192 bytes
   console        12288 bytes
   counter         8192 bytes
   disk           16384 bytes
+  display        24576 bytes
   fs              8192 bytes
   fuzz           16384 bytes
   hello           8192 bytes
   init           16384 bytes
+  life            8192 bytes
   rogue          12288 bytes
   selftest       81920 bytes
-  shell          36864 bytes
+  shell          40960 bytes
   tchild         12288 bytes
+  wintest        12288 bytes
   readme.txt      1007 bytes
 disk: 6 files
   empty.txt                      0 bytes
@@ -140,14 +157,15 @@ init: shutdown requested; switching the machine off
 
 ===== a full directory =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=17532 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=17755 us
 Type help for the list of commands, or tour for a guided tour.
 inti> write extra.txt one more
 write: extra.txt: the directory is full
@@ -159,20 +177,21 @@ init: shutdown requested; switching the machine off
 
 ===== a full disk =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=16967 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=27647 us
 Type help for the list of commands, or tour for a guided tour.
 inti> cp selftest big.bin
 cp: big.bin: the disk is full
 inti> df
 disk: 2 files, 2 of 254 blocks of 4 KiB free
-the disk server was ready 27537 us after it started
+the disk server was ready 69055 us after it started
 inti> write small.txt hi
 inti> write keep.txt new text
 inti> write last.txt takes the last block
@@ -185,28 +204,29 @@ init: shutdown requested; switching the machine off
 
 ===== crash and hang of the disk server =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=27670 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=18488 us
 Type help for the list of commands, or tour for a guided tour.
 inti> write one.txt written before the crash
 inti> crash disk
-init: disk crashed: page fault at address 0x10, eip 0x400039e3
-init: disk restarted after 3220 us (restart 1)
-RECOVERY: disk crash -> answering again after 31701 us
+init: disk crashed: page fault at address 0x10, eip 0x400037d6
+init: disk restarted after 1668 us (restart 1)
+RECOVERY: disk crash -> answering again after 20950 us
 inti> cat one.txt
 written before the crash
 inti> write two.txt written after the crash
 inti> hang disk
 init: disk did not answer for 500 ms; ending it
 init: disk ended: killed
-init: disk restarted after 684 us (restart 2)
-RECOVERY: disk hang -> answering again after 716876 us
+init: disk restarted after 2785 us (restart 2)
+RECOVERY: disk hang -> answering again after 737956 us
 inti> cat two.txt
 written after the crash
 inti> append two.txt and after the hang
@@ -215,14 +235,15 @@ init: shutdown requested; switching the machine off
 
 ===== a drive that takes a second for every sector =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=27055 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=17762 us
 Type help for the list of commands, or tour for a guided tour.
 inti> write a.txt first
 inti> write c.txt slow
@@ -233,14 +254,15 @@ init: shutdown requested; switching the machine off
 
 ===== the drive stops and is free again later =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=27483 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=18258 us
 Type help for the list of commands, or tour for a guided tour.
 inti> write a.txt first
 inti> write b.txt second
@@ -252,17 +274,21 @@ inti> cat b.txt
 second
 inti> ls
   bench          12288 bytes
+  clock           8192 bytes
   console        12288 bytes
   counter         8192 bytes
   disk           16384 bytes
+  display        24576 bytes
   fs              8192 bytes
   fuzz           16384 bytes
   hello           8192 bytes
   init           16384 bytes
+  life            8192 bytes
   rogue          12288 bytes
   selftest       81920 bytes
-  shell          36864 bytes
+  shell          40960 bytes
   tchild         12288 bytes
+  wintest        12288 bytes
   readme.txt      1007 bytes
 disk: 3 files
   welcome.txt                  160 bytes
@@ -274,14 +300,15 @@ init: shutdown requested; switching the machine off
 
 ===== the drive is still busy afterwards =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=27617 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=16936 us
 Type help for the list of commands, or tour for a guided tour.
 inti> write a.txt first
 inti> write b.txt second
@@ -293,17 +320,21 @@ inti> cat b.txt
 second
 inti> ls
   bench          12288 bytes
+  clock           8192 bytes
   console        12288 bytes
   counter         8192 bytes
   disk           16384 bytes
+  display        24576 bytes
   fs              8192 bytes
   fuzz           16384 bytes
   hello           8192 bytes
   init           16384 bytes
+  life            8192 bytes
   rogue          12288 bytes
   selftest       81920 bytes
-  shell          36864 bytes
+  shell          40960 bytes
   tchild         12288 bytes
+  wintest        12288 bytes
   readme.txt      1007 bytes
 disk: 3 files
   welcome.txt                  160 bytes
@@ -315,14 +346,15 @@ init: shutdown requested; switching the machine off
 
 ===== the recorded run =====
 
-Inti 0.2.1 kernel
-kernel: 596 KiB kernel and archive, 62 MiB for user space
+Inti 0.3.0 kernel
+kernel: 664 KiB kernel and archive, 62 MiB for user space
 kernel: PAE paging, W^X enforced (the processor has the no-execute bit)
-init: started console with 6 capabilities, 64 pages
+init: started console with 5 capabilities, 64 pages
 init: started fs with 2 capabilities, 64 pages
 init: started disk with 3 capabilities, 64 pages
-init: started shell with 13 capabilities, 15480 pages
-Inti 0.2.1 shell ready at t=24324 us
+init: started display with 5 capabilities, 384 pages
+init: started shell with 15 capabilities, 15079 pages
+Inti 0.3.0 shell ready at t=19414 us
 Type help for the list of commands, or tour for a guided tour.
 inti> write a.txt amber birch cedar
 inti> append a.txt delta ember

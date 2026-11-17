@@ -4,17 +4,21 @@
 
 Inti (Indonesian for "core") is a boot sector, a capability microkernel of {{loc.kernel_total}} lines of Rust, and device drivers that run as ordinary programs. It was built to take three well-documented weaknesses of mainstream operating systems, do the opposite, and measure what happens.
 
-**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of {{tour.steps}} announced steps that takes under a minute ({{web.tour_seconds}} s in the last browser check): a hostile program, a crashed driver, a hung file server, two failures at once and the kernel's counters. Other buttons do each of these on its own and fuzz the kernel.
+**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of {{tour.steps}} announced steps that takes under a minute ({{web.tour_seconds}} s in the last browser check): a hostile program, a crashed keyboard driver, a crashed display, a hung file server, two failures at once and the kernel's counters. Other buttons do each of these on its own, open two windows and fuzz the kernel.
 
-Inti is not the best operating system in the world, and nothing here says so. It is a small research system: no network, one processor, a file system that holds a few megabytes on one kind of disk, a handful of small programs, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
+Inti is not the best operating system in the world, and nothing here says so. It is a small research system: no network, one processor, a file system that holds a few megabytes on one kind of disk, a handful of small programs, a desktop of {{display.width}} by {{display.height}} pixels in {{display.colours}} colours with a terminal and a few windows, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
+
+| The desktop: a terminal, two programs with a window each | The same disk image in a browser tab |
+|---|---|
+| ![The desktop with the terminal window, the clock and the game of Life](docs/img/qemu-desktop.png) | ![The browser demo](docs/img/web-demo.png) |
 
 | A hostile program is denied | A driver fails and is replaced |
 |---|---|
 | ![The hostile program's attempts, each one denied](docs/img/qemu-rogue.png) | ![A driver failing and being restarted](docs/img/qemu-recovery.png) |
 
-| The kernel is fuzzed | The same disk image in a browser tab |
-|---|---|
-| ![The report of the fuzz run](docs/img/qemu-fuzz.png) | ![The browser demo](docs/img/web-demo.png) |
+| The kernel is fuzzed |
+|---|
+| ![The report of the fuzz run](docs/img/qemu-fuzz.png) |
 
 These are captures of the emulated screen, taken by the test scripts during the run that produced the numbers below.
 
@@ -67,8 +71,11 @@ On your own machine, with QEMU installed, `python build.py run` builds the image
 | Command | What happens |
 |---|---|
 | `help` | lists every command |
-| `tour` | the guided tour: a hostile program, a driver crash, a server hang, two failures at once and the kernel's counters, each step announced before it runs |
-| `crash console` | the screen and keyboard driver dies of a page fault; the supervisor replaces it and the shell prints how long that took |
+| `tour` | the guided tour: a hostile program, a keyboard driver crash, a display crash, a server hang, two failures at once and the kernel's counters, each step announced before it runs |
+| `desktop` | starts `clock` and `life` in the background, each in a window; drag a window by its title bar with the mouse |
+| `NAME +window &`, `jobs`, `stop NAME`, `windows` | run a program in the background with the right to open windows; list the background programs; end one; list the windows |
+| `crash display`, `hang display` | the program that draws the screen fails; the supervisor replaces it, the terminal's text is drawn again and each program opens its window again |
+| `crash console` | the keyboard, mouse and serial driver dies of a page fault; the supervisor replaces it and the shell prints how long that took |
 | `hang fs` | the file server stops answering; the supervisor notices, ends it and starts a new one |
 | `double` | the console driver hangs and, while the supervisor is waiting for it, the file server crashes; both are replaced |
 | `rogue` | a hostile program tries to read kernel memory, touch hardware, run code from its own data, forge or revoke capabilities and exceed its quotas |
@@ -147,4 +154,4 @@ No number in these documents is typed by hand unless a source link stands next t
 
 ## Licence
 
-MIT, see `LICENSE`. The browser demo uses the [v86](https://github.com/copy/v86) emulator (BSD 2-Clause licence) and the BIOS images that ship with it; see `docs/v86/NOTICE.txt`.
+MIT, see `LICENSE`. The browser demo uses the [v86](https://github.com/copy/v86) emulator (BSD 2-Clause licence) and the BIOS images that ship with it; see `docs/v86/NOTICE.txt`. The font on the screen is [Spleen](https://github.com/fcambus/spleen) by Frederic Cambus (BSD 2-Clause licence, `assets/spleen/LICENSE`).

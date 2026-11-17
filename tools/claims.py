@@ -232,6 +232,7 @@ def add_test(put: Put, test: dict) -> None:
         put(f"double.{server}_max_ms", milliseconds(times["max"]), TEST)
     put("double.runs", double["fs_us"]["runs"], TEST)
     put("tour.steps", measured["tour"]["steps"], TEST)
+    put("wintest.total", measured["wintest"]["total"], TEST)
     put("tour.seconds", round(measured["tour"]["host_ms"] / 1000, 1), TEST)
     for key in ("selftest_passed", "selftest_skipped", "rogue_denied", "rogue_total", "rogue_not_denied"):
         put(f"nonx.{key}", measured["no_nx"][key], TEST)
@@ -335,6 +336,20 @@ def add_source(put: Put) -> None:
     put("fuzz.kids", constant(fuzz, "PLACES"), fuzz)
     put("supervisor.services", constant(init, "SERVICES"), init)
     put("supervisor.server_pages", constant(init, "SERVER_PAGES"), init)
+    display = "user/src/bin/display.rs"
+    put("display.pages", constant(init, "DISPLAY_PAGES"), init)
+    put("display.windows", constant(display, "MAX_WINDOWS") - constant(display, "FIRST_CLIENT"), display)
+    put("display.sweep_s", constant(display, "SWEEP_US") // 1_000_000, display)
+    put("display.width", constant(display, "WIDTH"), display)
+    put("display.height", constant(display, "HEIGHT"), display)
+    put("display.colours", 2 ** constant(display, "PLANES"), display)
+    put("display.columns", constant(display, "COLUMNS"), display)
+    put("display.lines", constant(display, "LINES"), display)
+    put("display.memory_kib", constant(display, "VGA_PAGES") * 4, display)
+    put("font.width", constant("user/src/font.rs", "WIDTH"), "user/src/font.rs")
+    put("font.height", constant("user/src/font.rs", "HEIGHT"), "user/src/font.rs")
+    put("console.kept_bytes", constant("user/src/bin/console.rs", "KEPT"), "user/src/bin/console.rs")
+    put("shell.jobs", constant("user/src/bin/shell.rs", "JOBS"), "user/src/bin/shell.rs")
 
     arch, frame = "kernel/src/arch.rs", "kernel/src/frame.rs"
     clock_hz = constant(frame, "CLOCK_HZ")

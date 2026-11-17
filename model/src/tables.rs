@@ -223,16 +223,17 @@ fn memory_and_slots(tally: &mut Tally) {
     let mut copies = 0;
     let full = loop {
         let result = w.derive(0, 6, R_SEND, 0, 0);
-        if !result.is_some_and(|slot| slot >= 0) || copies == 64 {
+        if !result.is_some_and(|slot| slot >= 0) || copies == 4 * CAP_SLOTS {
             break result;
         }
         copies += 1;
     };
-    let no_slot = full == Some(E_NOSLOT) && copies == 25 && w.ep_create(0) == Some(E_NOSLOT);
-    tally.check("25 copies of a capability fill the 32 slots, then copying and creating give E_NOSLOT", no_slot);
+    let no_slot = full == Some(E_NOSLOT) && copies == CAP_SLOTS - 7 && w.ep_create(0) == Some(E_NOSLOT);
+    println!("  note  {copies} copies of a capability filled the {CAP_SLOTS} slots");
+    tally.check("copies of a capability fill every free slot, then copying and creating give E_NOSLOT", no_slot);
     tally.sound(&mut w, "the state without a free slot is sound");
     let caps = w.caps();
-    tally.check("one revocation removes all 25 copies", w.revoke(0, 6) == Some(0) && w.caps() == caps - copies);
+    tally.check("one revocation removes every copy", w.revoke(0, 6) == Some(0) && w.caps() == caps - copies);
 
     w.fault(0, 0x10);
     let woke = w.wake_root();
@@ -411,8 +412,8 @@ fn port_out(w: &mut World, slot: u32, port: u32, width: u32) -> Option<i32> {
 fn edges(tally: &mut Tally) {
     tally.section("The edges of every range");
     let mut w = World::boot(SMALL, true);
-    let Cap::Memory { page: screen, pages: 8, write: true } = w.k.tasks[0].caps[4] else {
-        tally.check("the root task holds the eight pages of the screen, to write", false);
+    let Cap::Memory { page: screen, pages: 32, write: true } = w.k.tasks[0].caps[4] else {
+        tally.check("the root task holds the 32 pages of the screen, to write", false);
         return;
     };
     let pd = w.k.tasks[0].pd;
@@ -435,17 +436,17 @@ fn edges(tally: &mut Tally) {
 
     // Parts of a Memory capability.
     let middle = w.derive(0, 4, 2, 3, 1);
-    let tail = w.derive(0, 4, 5, 3, 0);
+    let tail = w.derive(0, 4, 29, 3, 0);
     tally.check(
         "three pages from the middle of the screen can be derived from its capability, to write",
         held(&w, middle) == Cap::Memory { page: screen + 2, pages: 3, write: true },
     );
     tally.check(
         "and its last three pages, to read only",
-        held(&w, tail) == Cap::Memory { page: screen + 5, pages: 3, write: false },
+        held(&w, tail) == Cap::Memory { page: screen + 29, pages: 3, write: false },
     );
     let Some(tail) = slot_of(tail) else { return };
-    let refused = [w.derive(0, 4, 6, 3, 0), w.derive(0, 4, 8, 1, 0), w.derive(0, 4, 0, 0, 0), w.derive(0, tail, 0, 1, 1)];
+    let refused = [w.derive(0, 4, 30, 3, 0), w.derive(0, 4, 32, 1, 0), w.derive(0, 4, 0, 0, 0), w.derive(0, tail, 0, 1, 1)];
     tally.check(
         "a part that ends beyond the screen, starts at its end or has no pages is refused with E_PERM, \
          and so is a part to write from a part to read",
@@ -453,13 +454,13 @@ fn edges(tally: &mut Tally) {
     );
 
     // Mapping through a Memory capability.
-    let whole = w.map_mem(0, 4, DEVICE_VA, 6, 2 | MAP_WRITE);
+    let whole = w.map_mem(0, 4, DEVICE_VA, 30, 2 | MAP_WRITE);
     let frame = w.k.mem.lookup(pd, DEVICE_VA + PAGE).map(frame_of);
     tally.check(
         "the last two pages of the screen can be mapped, and the second is its last page",
-        whole == Some(0) && frame == Some((screen + 7) * PAGE),
+        whole == Some(0) && frame == Some((screen + 31) * PAGE),
     );
-    let beyond = w.map_mem(0, 4, DEVICE_VA + 2 * PAGE, 7, 2);
+    let beyond = w.map_mem(0, 4, DEVICE_VA + 2 * PAGE, 31, 2);
     tally.check(
         "two pages from its last page on are refused with E_INVAL, and nothing is mapped",
         beyond == Some(E_INVAL) && w.k.mem.lookup(pd, DEVICE_VA + 2 * PAGE).is_none(),
@@ -1438,7 +1439,7 @@ fn reported_capabilities(tally: &mut Tally) {
     tally.check(
         "the screen's memory is reported as memory: where it is, how many pages, that it may be written, \
          and that it is no copy of another capability",
-        report(&mut w, 0, 4) == (Some(0), [CAP_MEMORY, 0xB8 * PAGE, 8, 1, NO_CAP]),
+        report(&mut w, 0, 4) == (Some(0), [CAP_MEMORY, 0xA0 * PAGE, 32, 1, NO_CAP]),
     );
     let made = w.ep_create(0);
     let Cap::Endpoint { ep, .. } = held(&w, made) else {

@@ -4,8 +4,9 @@ use crate::proto::{BUSY, CON_READLINE, CON_REPORT, CON_WRITE, FS_LIST, FS_READ, 
 use crate::proto::{DISK_APPEND, DISK_COMMIT, DISK_CREATE, DISK_DELETE, DISK_INFO, DISK_WRITE};
 use crate::proto::{D_BAD_NAME, D_DAMAGED, D_DENIED, D_DIR_FULL, D_FULL, D_GONE, D_IO, D_MOVED};
 use crate::proto::{D_NO_DRIVE, D_NO_FILE, D_NO_VOLUME, D_STALE, ERR};
+use crate::proto::{WIN_CLOSE, WIN_FILL, WIN_OPEN, WIN_TEXT};
 use crate::sys;
-use abi::{Msg, ARCHIVE_NAME, E_DEAD, E_NOCAP, E_PERM, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE};
+use abi::{Msg, ARCHIVE_NAME, NO_CAP, E_DEAD, E_NOCAP, E_PERM, FOREVER, MAX_TASKS, MSG_DATA, PAGE, ST_FREE};
 use abi::ST_ZOMBIE;
 
 /// The number of the first running task called `name`, read through an Info capability. The
@@ -291,4 +292,36 @@ pub fn disk_info(disk: u32) -> Result<[u32; 4], u32> {
     let mut msg = Msg::new(DISK_INFO);
     disk_request(disk, &mut msg).map_err(|reason| reason & !RESENT)?;
     Ok(msg.words)
+}
+
+/// Open a window whose inside is `width` by `height` pixels; returns the slot of the
+/// capability for it. Whoever holds that capability may draw in the window, and nobody
+/// else; the display closes the window when the last holder is gone.
+pub fn win_open(display: u32, width: u32, height: u32, title: &[u8]) -> Option<u32> {
+    let mut msg = with_data(WIN_OPEN, title);
+    msg.words = [width, height, 0, 0];
+    request(display, &mut msg).ok()?;
+    (msg.label == OK && msg.cap != NO_CAP).then_some(msg.cap)
+}
+
+/// Draw text at `x`, `y` inside a window, in colour `text` on colour `background`. Returns
+/// false when the window no longer exists, for example because the display was restarted;
+/// the program then opens a new one.
+pub fn win_text(window: u32, x: u32, y: u32, text: u8, background: u8, bytes: &[u8]) -> bool {
+    let mut msg = with_data(WIN_TEXT, bytes);
+    msg.words = [x, y, text as u32 | (background as u32) << 4, 0];
+    request(window, &mut msg).is_ok() && msg.label == OK
+}
+
+/// Fill a rectangle inside a window; returns false when the window no longer exists.
+pub fn win_fill(window: u32, x: u32, y: u32, width: u32, height: u32, colour: u8) -> bool {
+    let mut msg = Msg::new(WIN_FILL);
+    msg.words = [x, y, (width & 0xFFFF) | height << 16, colour as u32];
+    request(window, &mut msg).is_ok() && msg.label == OK
+}
+
+/// Close a window and give its capability up.
+pub fn win_close(window: u32) {
+    let _ = request(window, &mut Msg::new(WIN_CLOSE));
+    let _ = sys::cap_drop(window);
 }

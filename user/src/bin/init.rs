@@ -9,10 +9,11 @@
 #![no_main]
 
 use rt::abi::archive;
-use rt::abi::{Msg, SpawnArgs, E_TIMEOUT, L_FAULT, L_KERNEL, NO_CAP, PAGE, R_RECV, R_SEND};
-use rt::abi::{SPAWN_CAPS, USER_BASE};
+use rt::abi::{Msg, SpawnArgs, E_TIMEOUT, L_FAULT, L_KERNEL, NO_CAP, PAGE, R_GRANT, R_RECV};
+use rt::abi::{R_SEND, SPAWN_CAPS, USER_BASE};
 use rt::io::{cause_name, errname, set_output, Hex, Sink};
-use rt::proto::{B_APP, B_CLIENT, B_SHELL, DBG_CRASH, DENIED, INIT_SHUTDOWN, INIT_STATUS};
+use rt::proto::{B_APP, B_CLIENT, B_CONSOLE, B_SHELL, DBG_CRASH, DENIED, INIT_SHUTDOWN};
+use rt::proto::INIT_STATUS;
 use rt::proto::{OK, PING, SERVICE_RECORD};
 use rt::{outln, sys};
 
@@ -28,6 +29,8 @@ const ARCHIVE: u32 = 5;
 const ARCHIVE_BASE: u32 = USER_BASE + 0x2000_0000;
 /// Memory quota of each server, in pages.
 const SERVER_PAGES: u32 = 64;
+/// The display also holds two copies of the screen and the pictures of the windows.
+const DISPLAY_PAGES: u32 = 384;
 /// Pages `init` keeps for itself.
 const RESERVE_PAGES: u32 = 256;
 const STACK_PAGES: u32 = 8;
@@ -36,7 +39,7 @@ const STACK_PAGES: u32 = 8;
 const SHELL_TASKS: u32 = 26;
 const SHELL_ENDPOINTS: u32 = 48;
 /// The shell's share of the processor in percent, for itself and every program started from
-/// it. The rest is always there for `init` and the three servers when they have work.
+/// it. The rest is always there for `init` and the four servers when they have work.
 const SHELL_SHARE: u32 = 80;
 /// Service number `n` reports its end with fault badge `FAULT_BADGE + n`.
 const FAULT_BADGE: u32 = 0x100;
@@ -53,7 +56,7 @@ const GRACE_US: u64 = 500_000;
 const QUICK_END_US: u64 = 2_000_000;
 const RETRY_US: u64 = 100_000;
 
-const SERVICES: usize = 4;
+const SERVICES: usize = 5;
 /// The console is service number 0. `init` reports through it while it answers.
 const CONSOLE: usize = 0;
 
@@ -70,6 +73,8 @@ struct Service {
     caps: [u32; SPAWN_CAPS],
     /// The endpoint of a server, which `init` pings; `NO_CAP` for the shell.
     ping: u32,
+    /// May the server hand capabilities to its clients in its replies?
+    grants: bool,
     /// Task capability while the service runs, otherwise `NO_CAP`.
     task: u32,
     starts: u32,
@@ -95,6 +100,7 @@ impl Service {
             cpu: 0,
             caps,
             ping,
+            grants: false,
             task: NO_CAP,
             starts: 0,
             last_cause: 0,
@@ -110,6 +116,12 @@ impl Service {
     fn with_tables(mut self, tasks: u32, endpoints: u32) -> Service {
         self.tasks = tasks;
         self.endpoints = endpoints;
+        self
+    }
+
+    /// Let the server hand capabilities to its clients.
+    fn with_grant(mut self) -> Service {
+        self.grants = true;
         self
     }
 
@@ -177,7 +189,8 @@ impl Supervisor {
         // the moment of the start. Between starts `init` holds no copy of it.
         let mut receive = NO_CAP;
         if service.ping != NO_CAP {
-            match sys::cap_derive(service.ping, R_RECV, 0, 0) {
+            let rights = if service.grants { R_RECV | R_GRANT } else { R_RECV };
+            match sys::cap_derive(service.ping, rights, 0, 0) {
                 Ok(cap) => receive = cap,
                 Err(code) => {
                     outln!("init: no receive right for ", service.name, ": ", errname(code));
@@ -418,6 +431,64 @@ impl Supervisor {
     }
 }
 
+/// How often the keyboard controller is polled before `init` gives up on it.
+const CONTROLLER_TRIES: u32 = 2_000;
+
+/// Wait until bit `mask` of the keyboard controller's status is `set`; false if it never is.
+fn controller_wait(mask: u32, set: bool) -> bool {
+    (0..CONTROLLER_TRIES).any(|_| (sys::io_in(PORTS, 0x64, 1).unwrap_or(0) & mask != 0) == set)
+}
+
+fn controller_command(command: u32) -> bool {
+    controller_wait(2, false) && sys::io_out(PORTS, 0x64, 1, command).is_ok()
+}
+
+fn controller_data(value: u32) -> bool {
+    controller_wait(2, false) && sys::io_out(PORTS, 0x60, 1, value).is_ok()
+}
+
+fn controller_read() -> Option<u32> {
+    if controller_wait(1, true) {
+        sys::io_in(PORTS, 0x60, 1).ok()
+    } else {
+        None
+    }
+}
+
+/// Switch on a PS/2 mouse, if the machine has one: its port, its interrupt and its reports.
+/// A machine without one answers nothing, and the system goes on without.
+///
+/// This needs the command port of the keyboard controller, 0x64, and a write to that port
+/// can also reset the machine. So `init` does it once, here, with the capability for every
+/// port that it is about to give up, and no task holds port 0x64 afterwards. The console
+/// then reads the mouse through the data port alone.
+fn start_mouse() {
+    for _ in 0..16 {
+        if sys::io_in(PORTS, 0x64, 1).unwrap_or(0) & 1 == 0 {
+            break;
+        }
+        let _ = sys::io_in(PORTS, 0x60, 1);
+    }
+    if !controller_command(0xA8) || !controller_command(0x20) {
+        return;
+    }
+    let Some(settings) = controller_read() else { return };
+    // Bit 1 lets the mouse interrupt; bit 5 would stop its clock.
+    let settings = (settings | 0x02) & !0x20;
+    if !controller_command(0x60) || !controller_data(settings) {
+        return;
+    }
+    // 0xD4 passes the next byte on to the mouse: 0xF6 = default settings, 0xF4 = report.
+    for order in [0xF6, 0xF4] {
+        if !controller_command(0xD4) || !controller_data(order) {
+            return;
+        }
+        if controller_read() != Some(0xFA) {
+            return;
+        }
+    }
+}
+
 #[no_mangle]
 pub fn main() {
     set_output(Sink::Log(LOG));
@@ -437,38 +508,50 @@ pub fn main() {
     // a restarted shell can never take memory that a server needs to restart.
     let me = need(sys::task_info(INFO, 0), "read its own memory quota");
     let free = me.quota.saturating_sub(me.charged);
-    let shell_pages = free.saturating_sub(3 * SERVER_PAGES + RESERVE_PAGES);
+    let shell_pages = free.saturating_sub(3 * SERVER_PAGES + DISPLAY_PAGES + RESERVE_PAGES);
 
     let control = need(sys::ep_create(), "create the control endpoint");
     let console = need(sys::ep_create(), "create the console endpoint");
     let files = need(sys::ep_create(), "create the file endpoint");
     let disk = need(sys::ep_create(), "create the disk endpoint");
+    let display = need(sys::ep_create(), "create the display endpoint");
     let derive = |slot: u32, a: u32, b: u32, c: u32| {
         need(sys::cap_derive(slot, a, b, c), "derive a capability")
     };
 
     // Every server also gets the receive right for its own endpoint, in slot 0; see
     // `Supervisor::start`.
-    // The console driver: the serial port, the keyboard data port, the cursor registers,
-    // two interrupt lines and the one page of screen memory.
+    // The console driver: the serial port, the data port of the keyboard and the mouse,
+    // three interrupt lines and a send right to the display. No screen memory: the display
+    // draws what it prints. Not the keyboard controller's command port either, see
+    // `start_mouse`.
     let console_caps = [
         derive(PORTS, 0x3F8, 0x3FF, 0),
         derive(PORTS, 0x60, 0x60, 0),
-        derive(PORTS, 0x3D4, 0x3D5, 0),
-        derive(IRQS, (1 << 1) | (1 << 4), 0, 0),
-        derive(VGA, 0, 1, 1),
+        derive(IRQS, (1 << 1) | (1 << 4) | (1 << 12), 0, 0),
+        derive(display, R_SEND, B_CONSOLE, 0),
     ];
     // The file server: the read-only archive. Nothing else.
     let files_caps = [ARCHIVE];
     // The disk server: the eight ports of the first disk controller and its control port.
     // No interrupt line and no memory besides its own.
     let disk_caps = [derive(PORTS, 0x1F0, 0x1F7, 0), derive(PORTS, 0x3F6, 0x3F6, 0)];
+    // The display: the registers of the VGA card, the 64 KiB of its graphics memory, a right
+    // on its own endpoint from which it makes the capabilities for windows, and the
+    // read-only kernel tables, in which it sees who still holds one. No interrupt line.
+    let display_caps = [
+        derive(PORTS, 0x3C0, 0x3DA, 0),
+        derive(VGA, 0, 16, 1),
+        derive(display, R_SEND | R_GRANT, 0, 0),
+        INFO,
+    ];
     // The shell: badged send rights to the servers for itself and for the programs it
     // starts, the read-only kernel statistics, the control endpoint of `init`, and five
     // harmless capabilities that the self-test and the fuzzer use as test objects. The
-    // last one is the eighth page of video memory, which the text screen never shows:
-    // writable device memory for the self-test, which only ever maps it. The two send
-    // rights for the disk come last, so the older slot numbers stay what they were.
+    // last one is a page of video memory that the graphics screen does not use:
+    // writable device memory for the self-test, which only ever maps it. The send rights
+    // for the disk and the display come last, so the older slot numbers stay what they
+    // were. Those for the display carry the grant right: a window comes back as a capability.
     let shell_caps = [
         derive(console, R_SEND, B_SHELL, 0),
         derive(files, R_SEND, B_SHELL, 0),
@@ -480,15 +563,18 @@ pub fn main() {
         ARCHIVE,
         derive(IRQS, 1 << 5, 0, 0),
         LOG,
-        derive(VGA, 7, 1, 1),
+        derive(VGA, 0x18 + 7, 1, 1),
         derive(disk, R_SEND, B_SHELL, 0),
         derive(disk, R_SEND, B_APP, 0),
+        derive(display, R_SEND | R_GRANT, B_SHELL, 0),
+        derive(display, R_SEND | R_GRANT, B_APP, 0),
     ];
     // For itself `init` keeps the two power-off ports. Then it gives up the three broad
     // capabilities it was started with: every I/O port, every interrupt line and all of
     // the video memory. The narrow copies made above live on. From here on nobody in the
     // system, `init` included, can reach a device port that was not handed out by name.
     let power = [derive(PORTS, 0x604, 0x605, 0), derive(PORTS, 0xB004, 0xB005, 0)];
+    start_mouse();
     for broad in [PORTS, IRQS, VGA] {
         need(sys::cap_drop(broad), "give up a broad capability");
     }
@@ -505,6 +591,7 @@ pub fn main() {
             Service::new("console", SERVER_PAGES, &console_caps, console),
             Service::new("fs", SERVER_PAGES, &files_caps, files),
             Service::new("disk", SERVER_PAGES, &disk_caps, disk),
+            Service::new("display", DISPLAY_PAGES, &display_caps, display).with_grant(),
             Service::new("shell", shell_pages, &shell_caps, NO_CAP)
                 .with_tables(SHELL_TASKS, SHELL_ENDPOINTS)
                 .with_share(SHELL_SHARE),

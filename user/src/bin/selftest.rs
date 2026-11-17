@@ -8,7 +8,7 @@
 //!
 //! Capabilities, handed over by the shell: 0 console, 1 files, 2 Info, 3 I/O port 0x80,
 //! 4 the archive (read-only memory), 5 IRQ 5, 6 Log, 7 one writable page of device memory
-//! (the last page of the text screen's memory, which the screen never shows).
+//! (a page of video memory that the graphics screen does not use).
 #![no_std]
 #![no_main]
 
@@ -58,9 +58,12 @@ const SWEEP_LEAST: u32 = 64;
 const CHILD_SPARE: u32 = 0x7800_0000;
 /// Where a child maps the page that it then tries to run (`PLAY` in tchild.rs).
 const CHILD_PLAY: u32 = 0x6100_0000;
-/// The kernel is loaded at 1 MiB; the text screen is at 0xB8000.
+/// The kernel is loaded at 1 MiB; video memory is the 32 pages from 0xA0000, and the
+/// page that this program is handed is the last one of them.
 const KERNEL: u32 = 0x10_0000;
-const VIDEO: u32 = 0xB_8000;
+const VIDEO_MEMORY: u32 = 0xA_0000;
+const VIDEO_PAGES: u32 = 32;
+const VIDEO: u32 = 0xB_F000;
 
 /// Memory quota and stack of an ordinary child.
 const CHILD_PAGES: u32 = 48;
@@ -813,7 +816,7 @@ fn capabilities(test: &mut Test, kids: &mut Kids) -> Option<()> {
     c.eq("kind of an empty slot", cap(me, EMPTY).kind, CAP_NULL);
     c.fails("task 32", sys::task_info(INFO, MAX_TASKS as u32), E_INVAL);
     c.fails("task 0xFFFFFFFF", sys::task_info(INFO, 0xFFFF_FFFF), E_INVAL);
-    c.fails("capability 32", sys::cap_info(INFO, me, CAP_SLOTS as u32), E_INVAL);
+    c.fails("capability 64", sys::cap_info(INFO, me, CAP_SLOTS as u32), E_INVAL);
     c.fails("a capability of task 32", sys::cap_info(INFO, MAX_TASKS as u32, 0), E_INVAL);
     test.done("the Info capability describes tasks and their capabilities", c);
 
@@ -1963,14 +1966,14 @@ fn shares(test: &mut Test, kids: &mut Kids) -> Option<()> {
 
 /// What `init` handed out by name is all the device authority there is.
 fn authority(test: &mut Test, kids: &mut Kids) -> Option<()> {
-    // The keyboard data port, the test port, the cursor registers and the serial port; the
-    // two power-off ranges, which stay with `init`; and the eight ports of the first disk
+    // The keyboard data port, the test port, the registers of the VGA card and the serial
+    // port; the two power-off ranges, which stay with `init`; and the eight ports of the first disk
     // controller with its control port, which `init` keeps to restart the disk server and
     // which one server that `init` started holds besides.
     const PORT_RANGES: [(u32, u32); 8] = [
         (0x60, 0x60),
         (0x80, 0x80),
-        (0x3D4, 0x3D5),
+        (0x3C0, 0x3DA),
         (0x3F8, 0x3FF),
         (0x604, 0x605),
         (0xB004, 0xB005),
@@ -2010,7 +2013,7 @@ fn authority(test: &mut Test, kids: &mut Kids) -> Option<()> {
                 }
                 CAP_MEMORY => {
                     let end = found.a + found.b * PAGE;
-                    let screen = found.a >= VIDEO && end <= VIDEO + 8 * PAGE;
+                    let screen = found.a >= VIDEO_MEMORY && end <= VIDEO_MEMORY + VIDEO_PAGES * PAGE;
                     let files = found.a >= archive.a && end <= archive.a + archive.b * PAGE;
                     screen || files
                 }
@@ -2026,7 +2029,7 @@ fn authority(test: &mut Test, kids: &mut Kids) -> Option<()> {
     c.eq("device capabilities that are not on the list", strays, 0);
     c.eq("port ranges of the list that somebody holds", ranges, 0b1111_1111);
     c.eq("tasks besides `init` that hold ports of the disk controller", disk_servers, 1);
-    c.eq("interrupt lines that somebody holds", lines, 1 << 1 | 1 << 4 | 1 << 5);
+    c.eq("interrupt lines that somebody holds", lines, 1 << 1 | 1 << 4 | 1 << 5 | 1 << 12);
     test.done("every port, interrupt line and page of device memory that any task holds was handed out by name", c);
     Some(())
 }
