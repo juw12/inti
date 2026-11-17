@@ -1,30 +1,30 @@
 {
-  "date": "2026-11-17T03:02:05+07:00",
-  "duration_s": 18658,
+  "date": "2026-11-17T13:44:24+07:00",
+  "duration_s": 9223,
   "sources_sha256": {
     "user/src/bin/disk.rs": "91451f92e52a2d3885c1fad5a55f4d31b430ce937154dcc78e5a390abb1b01c2",
     "tools/intifs.py": "53cbf933ba41d161ea4926745a9d225c218f193c67c18173bad7b0d84636083c",
     "tools/storage_test.py": "8ab6df916acd3068f2ee5bf754691f0d274d2e74dd78e9266748231cd4130134"
   },
-  "image_sha256": "a467a9d72087ff0717eeaba28b2b9df657271fa7e8a8d311804ce7a3323b50c4",
+  "image_sha256": "63c06839760ed826e17433d6cb694ecc968a0b9305f66cbf21f1bc62d2432470",
   "options": {
     "cuts": 6,
     "fuzz": 40
   },
-  "limit_s": 2322,
+  "limit_s": 1800,
   "unchanged": {
     "before": {
       "passed": true,
       "failed": [],
       "checks": 67,
-      "seconds": 387,
+      "seconds": 203,
       "timed_out": false
     },
     "after": {
       "passed": true,
       "failed": [],
       "checks": 67,
-      "seconds": 517,
+      "seconds": 438,
       "timed_out": false
     }
   },
@@ -41,7 +41,7 @@
       "by": [
         "the next change then overwrites the torn meta block and the volume is sound",
         "every new meta block went, whole, to the slot that did not hold the version in use",
-        "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+        "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
         "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
         "recorded: the case reached its end"
       ],
@@ -51,12 +51,12 @@
           "failed": [
             "the next change then overwrites the torn meta block and the volume is sound",
             "every new meta block went, whole, to the slot that did not hold the version in use",
-            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
             "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
             "recorded: the case reached its end"
           ],
           "checks": 67,
-          "seconds": 326,
+          "seconds": 240,
           "timed_out": false
         },
         {
@@ -64,12 +64,12 @@
           "failed": [
             "the next change then overwrites the torn meta block and the volume is sound",
             "every new meta block went, whole, to the slot that did not hold the version in use",
-            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
             "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change",
             "recorded: the case reached its end"
           ],
           "checks": 67,
-          "seconds": 360,
+          "seconds": 182,
           "timed_out": false
         }
       ]
@@ -97,7 +97,7 @@
             "started on 4 of these states, the machine lists the same files as the reader on the build machine"
           ],
           "checks": 67,
-          "seconds": 333,
+          "seconds": 212,
           "timed_out": false
         },
         {
@@ -109,7 +109,7 @@
             "started on 4 of these states, the machine lists the same files as the reader on the build machine"
           ],
           "checks": 67,
-          "seconds": 300,
+          "seconds": 192,
           "timed_out": false
         }
       ]
@@ -135,7 +135,7 @@
             "writes since the last flush lost in any combination: all 954 ways to lose part of a meta block and 24 random ways to lose data writes leave the volume sound with the files from before or from after the change"
           ],
           "checks": 67,
-          "seconds": 636,
+          "seconds": 212,
           "timed_out": false
         },
         {
@@ -146,7 +146,7 @@
             "writes since the last flush lost in any combination: all 954 ways to lose part of a meta block and 24 random ways to lose data writes leave the volume sound with the files from before or from after the change"
           ],
           "checks": 67,
-          "seconds": 1173,
+          "seconds": 243,
           "timed_out": false
         }
       ]
@@ -161,7 +161,7 @@
       "by": [
         "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
         "every data write went to a block that no file of the version on the disk used",
-        "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+        "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
         "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change"
       ],
       "runs": [
@@ -170,11 +170,11 @@
           "failed": [
             "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
             "every data write went to a block that no file of the version on the disk used",
-            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
             "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change"
           ],
           "checks": 67,
-          "seconds": 1517,
+          "seconds": 221,
           "timed_out": false
         },
         {
@@ -182,11 +182,11 @@
           "failed": [
             "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays",
             "every data write went to a block that no file of the version on the disk used",
-            "a cut after any one sector write (593 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
+            "a cut after any one sector write (609 states): the volume is sound, holds exactly the files from before or from after the change under way, and never an older version again",
             "writes since the last flush lost in any combination: all 2794 ways to lose part of a meta block and 216 random ways to lose data writes leave the volume sound with the files from before or from after the change"
           ],
           "checks": 67,
-          "seconds": 944,
+          "seconds": 237,
           "timed_out": false
         }
       ]
@@ -228,7 +228,7 @@
             "40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not"
           ],
           "checks": 67,
-          "seconds": 936,
+          "seconds": 227,
           "timed_out": false
         },
         {
@@ -247,7 +247,7 @@
             "40 random changes to a meta block: the disk server and the reader on the build machine agree each time on whether the volume is sound, list the same files when it is, and nothing is written when it is not"
           ],
           "checks": 67,
-          "seconds": 977,
+          "seconds": 237,
           "timed_out": false
         }
       ]
@@ -262,7 +262,6 @@
       "by": [
         "after switching off and on again the files are listed with the same sizes",
         "after every cut the machine lists the same files as the image holds",
-        "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
         "of two whole meta blocks the one with the higher sequence number is used",
         "the sequence number may wrap around: 0 is newer than 4294967295",
         "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
@@ -275,14 +274,13 @@
             "after switching off and on again the files are listed with the same sizes",
             "power cut during a change, 6 times in a row on one disk: every time the volume mounts and every file is its old or its new version",
             "after every cut the machine lists the same files as the image holds",
-            "after the cuts the machine shows a text file with the content the image holds, every time one was there to show",
             "of two whole meta blocks the one with the higher sequence number is used",
             "the sequence number may wrap around: 0 is newer than 4294967295",
             "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
             "started on 18 of these states, the machine lists the same files as the reader on the build machine"
           ],
           "checks": 67,
-          "seconds": 935,
+          "seconds": 227,
           "timed_out": false
         },
         {
@@ -297,7 +295,7 @@
             "started on 18 of these states, the machine lists the same files as the reader on the build machine"
           ],
           "checks": 67,
-          "seconds": 893,
+          "seconds": 201,
           "timed_out": false
         }
       ]
@@ -325,7 +323,7 @@
             "started on 18 of these states, the machine lists the same files as the reader on the build machine"
           ],
           "checks": 67,
-          "seconds": 822,
+          "seconds": 225,
           "timed_out": false
         },
         {
@@ -337,7 +335,7 @@
             "started on 18 of these states, the machine lists the same files as the reader on the build machine"
           ],
           "checks": 67,
-          "seconds": 434,
+          "seconds": 239,
           "timed_out": false
         }
       ]
@@ -355,7 +353,7 @@
           "passed": true,
           "failed": [],
           "checks": 67,
-          "seconds": 1031,
+          "seconds": 240,
           "timed_out": false
         }
       ]
@@ -377,7 +375,7 @@
             "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays"
           ],
           "checks": 67,
-          "seconds": 835,
+          "seconds": 245,
           "timed_out": false
         },
         {
@@ -386,7 +384,7 @@
             "on a disk with no free block a file cannot be replaced (the new version needs room next to the old one); the old version stays"
           ],
           "checks": 67,
-          "seconds": 439,
+          "seconds": 217,
           "timed_out": false
         }
       ]
@@ -408,7 +406,7 @@
             "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
           ],
           "checks": 67,
-          "seconds": 427,
+          "seconds": 214,
           "timed_out": false
         },
         {
@@ -417,7 +415,7 @@
             "a meta block with one block in two files and no block left over: every attempt to write is answered with \"the Inti volume is damaged\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
           ],
           "checks": 67,
-          "seconds": 473,
+          "seconds": 218,
           "timed_out": false
         }
       ]
@@ -439,7 +437,7 @@
             "an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
           ],
           "checks": 67,
-          "seconds": 473,
+          "seconds": 225,
           "timed_out": false
         },
         {
@@ -448,7 +446,7 @@
             "an Inti partition that reaches past the end of the disk: every attempt to write is answered with \"no Inti volume on the disk\", also after the disk server was restarted, and the image file is unchanged, byte for byte"
           ],
           "checks": 67,
-          "seconds": 431,
+          "seconds": 245,
           "timed_out": false
         }
       ]
@@ -474,19 +472,18 @@
             "slow, busy: the session reached its end"
           ],
           "checks": 65,
-          "seconds": 643,
+          "seconds": 503,
           "timed_out": false
         },
         {
           "passed": false,
           "failed": [
-            "files written before a crash and before a hang of the disk server are there when the restarted server answers, and it takes new writes",
             "a write that takes many seconds because the drive is slow goes through, and the supervisor does not take the waiting disk server for a hung one",
             "slow, stopped: the session reached its end",
             "slow, busy: the session reached its end"
           ],
           "checks": 65,
-          "seconds": 640,
+          "seconds": 1187,
           "timed_out": false
         }
       ]
@@ -510,7 +507,7 @@
             "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted"
           ],
           "checks": 67,
-          "seconds": 467,
+          "seconds": 742,
           "timed_out": false
         },
         {
@@ -520,7 +517,7 @@
             "after that error, when the drive is still busy with it, the next read gives the right file, the unfinished file is not there, a new write lands, and the disk server was not restarted"
           ],
           "checks": 67,
-          "seconds": 473,
+          "seconds": 1325,
           "timed_out": false
         }
       ]

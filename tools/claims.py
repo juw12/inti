@@ -1187,7 +1187,7 @@ def add_launch_race(put: Put) -> None:
     def text_of(path: pathlib.Path) -> str:
         return path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
 
-    batch = evidence / "mutants-qemu-logs"
+    batch = evidence / "fuzz-launch-race" / "batch"
     readings = set()
     runs = 0
     for path in sorted(batch.glob("*.unchanged.serial.log")):
@@ -1198,7 +1198,9 @@ def add_launch_race(put: Put) -> None:
     if len(readings) != 1:
         raise ValueError(f"{batch}: the unchanged kernel's fuzz runs do not all show one pair of figures: {readings}")
     before, after = (int(figure) for figure in readings.pop())
-    source = "evidence/mutants-qemu-logs"
+    source = f"{LAUNCH_RACE}/batch"
+    earlier = json.loads((batch / "mutants-qemu.json").read_text(encoding="utf-8"))
+    put("race.batch_not_counted", earlier["summary"]["not_counted"], f"{source}/mutants-qemu.json")
     put("race.batch_runs", runs, source)
     put("race.frames_before", before, source)
     put("race.frames_after", after, source)

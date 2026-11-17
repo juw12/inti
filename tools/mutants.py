@@ -196,11 +196,18 @@ class Job:
         what would be judged is the program of an earlier mutant. That is an error of this script
         and not a verdict, so it stops the run.
         """
-        try:
-            done = subprocess.run(self.command, cwd=self.root, env=self.env, capture_output=True, text=True,
-                                  timeout=BUILD_LIMIT)
-        except subprocess.TimeoutExpired:
-            return False
+        done = None
+        for patience in (1, 3, 6):
+            try:
+                done = subprocess.run(self.command, cwd=self.root, env=self.env, capture_output=True, text=True,
+                                      timeout=patience * BUILD_LIMIT)
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        if done is None:
+            # A compiler that never finishes says the machine is busy, not that the change is
+            # wrong, so it must not be counted as "does not compile".
+            raise RuntimeError(f"the compiler did not finish after three tries with {changed} changed")
         if done.returncode != 0:
             return False
         if self.program.stat().st_mtime_ns <= changed.stat().st_mtime_ns:

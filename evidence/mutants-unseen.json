@@ -1,11 +1,11 @@
 {
- "date": "2026-11-13T01:37:29+00:00",
+ "date": "2026-11-17T18:04:07+00:00",
  "command": "python build.py mutants --unseen --sample 60",
  "held_out": false,
  "fresh": false,
  "unseen": true,
  "fifth": false,
- "source_sha256": "92415fb05c06d18c125e8c0b27e073402579598cdd3f86b8d055403eb7d92e8b",
+ "source_sha256": "037d1bcdbd92853e80214076bd7e99ac6a2ce03b3e938cc6425ddb3d871ffc25",
  "files": [
   "kernel/src/check.rs",
   "kernel/src/elf.rs",
@@ -534,8 +534,8 @@
    "file": "kernel/src/task.rs",
    "line": 33,
    "operator": "&& becomes ||",
-   "before": "const _: () = assert!(CAP_SLOTS == 32 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);",
-   "after": "const _: () = assert!(CAP_SLOTS == 32 || MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);",
+   "before": "const _: () = assert!(CAP_SLOTS == 64 && MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);",
+   "after": "const _: () = assert!(CAP_SLOTS == 64 || MAX_TASKS * CAP_SLOTS < ORIGINAL as usize);",
    "verdict": "not caught",
    "how": "",
    "by": ""

@@ -1,7 +1,7 @@
 {
   "rubric": "inti-os-v1",
   "mode": "full",
-  "date": "2026-11-17T11:08:38+07:00",
+  "date": "2026-11-18T02:47:36+07:00",
   "image_sha256": "63c06839760ed826e17433d6cb694ecc968a0b9305f66cbf21f1bc62d2432470",
   "sizes": {
     "boot_sector_bytes": 512,
@@ -57,7 +57,7 @@
       "id": "G2",
       "title": "Boots from its own boot sector to a shell prompt in QEMU within 20 s",
       "ok": true,
-      "detail": "shell prompt 207 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
+      "detail": "shell prompt 181 ms after QEMU started; the image begins with Inti's own boot sector (signature 55 AA); no multiboot header and no GRUB in boot sector or kernel"
     },
     {
       "id": "G3",
@@ -69,7 +69,7 @@
       "id": "G4",
       "title": "Each supervised service is crashed and hung, restarted automatically, and timed",
       "ok": true,
-      "detail": "console crash 4.2 ms, fs crash 2.8 ms, disk crash 17.6 ms, console hang 721.8 ms, fs hang 750.6 ms, disk hang 767.1 ms, fs crash during a console hang: fs 49.6 ms and console 811.6 ms (median of 5 runs each, guest clock); the shell answered after every run"
+      "detail": "console crash 7.8 ms, fs crash 4.5 ms, disk crash 27.0 ms, display crash 113.5 ms, console hang 731.4 ms, fs hang 762.4 ms, disk hang 718.0 ms, display hang 707.7 ms, fs crash during a console hang: fs 49.8 ms and console 624.5 ms (median of 5 runs each, guest clock); the shell answered after every run"
     },
     {
       "id": "G5",
@@ -81,7 +81,7 @@
       "id": "G6",
       "title": "At least 1,000,000 random system calls: no kernel panic, no invariant violated",
       "ok": true,
-      "detail": "1,001,061 random system calls from 2,036 tasks, 4,073 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
+      "detail": "1,001,072 random system calls from 2,079 tasks, 4,010 invariant checks, 0 violations, 0 kernel anomalies, no kernel panic in the serial log"
     },
     {
       "id": "G7",
@@ -93,15 +93,15 @@
       "id": "G8",
       "title": "The same disk image boots to the shell prompt in a web browser",
       "ok": true,
-      "detail": "shell prompt after 0.76 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 14 commands answered; byte-for-byte the image of the QEMU test"
+      "detail": "shell prompt after 0.64 s in v86 0.5.473 (WebAssembly) under chromium 148.0.7778.96 (headless); 14 commands answered; byte-for-byte the image of the QEMU test"
     },
     {
       "id": "G9",
       "title": "Every number in the documents comes from a script or carries a source",
-      "ok": false,
-      "detail": "tools/check_claims.py reports problems"
+      "ok": true,
+      "detail": "tools/check_claims.py passes: claims recomputed, documents re-rendered and compared"
     }
   ],
-  "passed": 8,
+  "passed": 9,
   "total": 9
 }

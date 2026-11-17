@@ -222,7 +222,7 @@ Measured as host time from the typed line to the next prompt, serial port includ
 
 ## Faults planted in the disk server
 
-A test that passes says little unless it would fail on a broken server. `python build.py storage-mutants` plants 13 faults in the disk server, one at a time, and runs a shortened storage test (6 random cuts, 40 random meta blocks, 67 checks) against each. A fault counts as caught only if the test fails twice, and both times ends by itself with the names of the checks that failed. A run that is ended at the time limit, 39 minutes in this batch, gives no verdict. The unchanged server passed before and after the batch. Run of 2026-11-17, about 311 minutes: **12 of 13 caught.**
+A test that passes says little unless it would fail on a broken server. `python build.py storage-mutants` plants 13 faults in the disk server, one at a time, and runs a shortened storage test (6 random cuts, 40 random meta blocks, 67 checks) against each. A fault counts as caught only if the test fails twice, and both times ends by itself with the names of the checks that failed. A run that is ended at the time limit, 30 minutes in this batch, gives no verdict. The unchanged server passed before and after the batch. Run of 2026-11-17, about 154 minutes: **12 of 13 caught.**
 
 | Fault | What is planted in the disk server | Verdict | Checks that failed both times |
 |---|---|---|---|
@@ -231,7 +231,7 @@ A test that passes says little unless it would fail on a broken server. `python 
 | `no-meta-flush` | publish does not flush after the meta block | caught | 3 |
 | `reuse-live-block` | a block counts as free when only the state being prepared does not use it | caught | 4 |
 | `mount-unchecked` | mount accepts a sealed meta block without checking that it describes a sound volume | caught | 11 |
-| `older-slot` | mount takes the older of two sealed meta blocks | caught | 7 |
+| `older-slot` | mount takes the older of two sealed meta blocks | caught | 6 |
 | `no-checksum` | a meta block counts as sealed without its checksum being compared | caught | 4 |
 | `publish-unchecked` | publish writes the meta block without checking it first | not caught | - |
 | `no-rollback` | a refused change leaves its half-made chains in the state being prepared | caught | 1 |
