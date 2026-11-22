@@ -1,0 +1,22 @@
+{
+  "name": "Inti",
+  "short_name": "Inti",
+  "description": "Inti is a small operating system written from scratch. It runs in this browser tab. Crash its drivers, run a hostile program, fuzz its kernel, and watch it carry on.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
