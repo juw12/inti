@@ -4,7 +4,7 @@
 
 Inti (Indonesian for "core") is a boot sector, a capability microkernel of {{loc.kernel_total}} lines of Rust, and device drivers that run as ordinary programs. It was built to take three well-documented weaknesses of mainstream operating systems, do the opposite, and measure what happens.
 
-**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of {{tour.steps}} announced steps that takes under a minute ({{web.tour_seconds}} s in the last browser check): a hostile program, a crashed keyboard driver, a crashed display, a hung file server, two failures at once and the kernel's counters. Other buttons do each of these on its own, open two windows and fuzz the kernel.
+**[Try it in your browser](https://juw12.github.io/inti/)**. There is nothing to install: the page boots the same disk image that the tests boot in QEMU, and its first button is a guided tour of {{tour.steps}} steps that you press through one at a time, each with a line that says what happened and how long the recovery took: a hostile program, a crashed keyboard driver, a crashed display, a hung file server, two failures at once and the kernel's counters. The shell's own `tour` command runs the same steps in one go ({{web.tour_seconds}} s in the last browser check). Other buttons do each of these on its own, open two windows and fuzz the kernel. A command box under the screen takes typed commands, also on a phone.
 
 Inti is not the best operating system in the world, and nothing here says so. It is a small research system: no network, one processor, a file system that holds a few megabytes on one kind of disk, a handful of small programs, a desktop of {{display.width}} by {{display.height}} pixels in {{display.colours}} colours with a terminal and a few windows, and it has only ever run in emulators. [The scorecard](docs/scorecard.md) shows where Linux, Windows, seL4, MINIX 3 and Redox are ahead, which is nearly everywhere outside the three points below.
 
@@ -64,7 +64,7 @@ Three things were added after the gates above were fixed. Each has its own page 
 
 ## Try it
 
-In the browser: open the [live demo](https://juw12.github.io/inti/) and press "Take the guided tour" or any other button, or click the screen and type.
+In the browser: open the [live demo](https://juw12.github.io/inti/) and press "Start the guided tour" or any other button, type in the command box, or click the screen and type.
 
 On your own machine, with QEMU installed, `python build.py run` builds the image and boots it in a window (`run.bat` does the same on Windows). Things to type at the `inti>` prompt:
 
