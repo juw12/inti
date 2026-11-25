@@ -30,10 +30,21 @@
   <section class="machine" aria-label="The running machine">
     <div class="panel">
       <h2>Screen</h2>
+      <div class="guide">
+        <p id="caption" class="caption" role="status">A guided tour in six steps. You press the
+        button for each step, so you can read what happened before the next one runs.</p>
+        <button id="next" class="next" type="button" disabled>Start the guided tour</button>
+      </div>
       <div id="screen" class="screen" tabindex="0" aria-label="Screen of the emulated computer">
         <div class="text"></div>
         <canvas></canvas>
       </div>
+      <form id="typed" class="typed">
+        <label for="line">Command</label>
+        <input id="line" name="line" type="text" placeholder="help" autocomplete="off"
+          autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="send" disabled>
+        <button type="submit" disabled>Run</button>
+      </form>
       <p id="status" class="status" role="status">Starting the emulator…</p>
     </div>
     <div class="panel">
@@ -46,13 +57,9 @@
 
   <section class="try" aria-label="Things to try">
     <h2>Break something</h2>
-    <p>Each button types a command into the shell. New here? Start with the guided tour.
-    You can also click the screen and type; <code>help</code> lists every command.</p>
+    <p>Each button types a command into the shell. New here? Start with the guided tour above
+    the screen. You can also type in the command box; <code>help</code> lists every command.</p>
     <div class="buttons">
-      <button class="tour" data-command="tour" disabled>Take the guided tour
-        <span>Six steps, each announced before it runs: a hostile program, a crashed keyboard
-        driver, a crashed display, a hung file server, two failures at once, then the
-        counters. It takes under a minute and nothing is rebooted.</span></button>
       <button data-command="desktop" disabled>Open two windows
         <span>A clock and a game of Life start in the background, each in a window of its own.
         Drag a window by its title bar.</span></button>
